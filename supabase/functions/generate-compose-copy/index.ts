@@ -9,11 +9,21 @@ import {
 } from '../_shared/compose-ai.ts'
 import { completeChat } from '../_shared/ai-complete.ts'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 function isPlatform(value: unknown): value is ComposePlatform {
   return value === 'facebook' || value === 'linkedin' || value === 'x'
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const platform = body.platform
@@ -24,21 +34,21 @@ serve(async (req) => {
     if (!isPlatform(platform)) {
       return new Response(JSON.stringify({ error: 'Invalid platform.' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     if (mode === 'draft' && !topic) {
       return new Response(JSON.stringify({ error: 'Topic is required to draft a post.' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     if (mode === 'polish' && !draft) {
       return new Response(JSON.stringify({ error: 'Post text is required to polish.' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -58,13 +68,13 @@ serve(async (req) => {
     const content = clampForPlatform(sanitizeComposeCopy(raw), platform)
 
     return new Response(JSON.stringify({ content }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unable to generate copy.'
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })

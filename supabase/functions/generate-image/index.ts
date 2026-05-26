@@ -11,6 +11,12 @@ import {
   getPlatformAiBackend,
 } from '../_shared/platform-ai.ts'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 function isPlatform(value: unknown): value is ComposePlatform {
   return value === 'facebook' || value === 'linkedin' || value === 'x'
 }
@@ -56,6 +62,10 @@ function extractImageUrl(aiData: Record<string, unknown>): string {
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const platform = isPlatform(body.platform) ? body.platform : 'facebook'
@@ -98,7 +108,7 @@ serve(async (req) => {
       if (!lovableKey) {
         return new Response(JSON.stringify({ error: 'AI is not configured. Set OPENROUTER_API_KEY or LOVABLE_API_KEY.' }), {
           status: 503,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
 
@@ -119,7 +129,7 @@ serve(async (req) => {
       const message = (aiData as { error?: { message?: string } }).error?.message || 'Image generation failed.'
       return new Response(JSON.stringify({ error: message }), {
         status: aiRes.status,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -127,7 +137,7 @@ serve(async (req) => {
     if (!sourceUrl) {
       return new Response(JSON.stringify({ error: 'No image URL returned from the model.' }), {
         status: 502,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -150,13 +160,13 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ url, library_id: libraryId }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unable to generate image.'
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })

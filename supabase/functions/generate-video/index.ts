@@ -3,6 +3,12 @@ import { getAdminClient } from '../_shared/oauth.ts'
 import { persistAiMedia, type AiMediaSource } from '../_shared/library-media.ts'
 import { getFalApiKey, getFalVideoModel, getWorkspaceAiSettings } from '../_shared/platform-ai.ts'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 const POLL_INTERVAL_MS = 2000
 const MAX_WAIT_MS = 180_000
 
@@ -61,6 +67,10 @@ async function pollFalResult(statusUrl: string, apiKey: string): Promise<string>
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const body = await req.json().catch(() => ({}))
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
@@ -76,7 +86,7 @@ serve(async (req) => {
     if (!prompt) {
       return new Response(JSON.stringify({ error: 'Prompt is required.' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -84,7 +94,7 @@ serve(async (req) => {
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'Video AI is not configured. Set FAL_API_KEY on the server.' }), {
         status: 503,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -134,13 +144,13 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ url, model, library_id: libraryId }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unable to generate video.'
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })

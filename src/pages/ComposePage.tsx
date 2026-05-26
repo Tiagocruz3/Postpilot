@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import {
   Calendar,
+  CheckCircle2,
   Eye,
+  Loader2,
   Link,
   RefreshCw,
   Search,
@@ -55,6 +57,14 @@ type ComposeLocationState = {
   platform?: ComposePlatform
 }
 
+type CompletedPost = {
+  action: 'now' | 'schedule'
+  platform: ComposePlatform
+  content: string
+  media: MediaItem[]
+  scheduledAt: string
+}
+
 export function ComposePage() {
   const location = useLocation()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
@@ -80,6 +90,9 @@ export function ComposePage() {
   const [showResearch, setShowResearch] = useState(false)
   const [showRemix, setShowRemix] = useState(false)
   const [remixSeed, setRemixSeed] = useState({ text: '', niche: '' })
+  const [showDraftRequired, setShowDraftRequired] = useState(false)
+  const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
+  const [showCompletedPost, setShowCompletedPost] = useState(false)
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
@@ -144,8 +157,20 @@ export function ComposePage() {
     setMessage('')
 
     try {
+      const cleanContent = sanitizeComposeCopy(content)
+      const mediaSnapshot = [...media]
+      const targetTime = action === 'now' ? new Date().toISOString() : scheduleAt || new Date().toISOString()
+
       if (isDemoMode) {
         setMessage(`Demo mode: ${action === 'now' ? 'posted' : 'scheduled'} to ${platformLabel(activeTab)}.`)
+        setCompletedPost({
+          action,
+          platform: activeTab,
+          content: cleanContent,
+          media: mediaSnapshot,
+          scheduledAt: targetTime,
+        })
+        setShowCompletedPost(true)
         resetForm()
         return
       }
@@ -154,7 +179,6 @@ export function ComposePage() {
         throw new Error('You need to be signed in to create a post.')
       }
 
-      const cleanContent = sanitizeComposeCopy(content)
       const mediaUrls = media.map((item) => item.url)
 
       const plannerTask: PlannerTaskInsert = {
@@ -162,7 +186,7 @@ export function ComposePage() {
         workspace_id: currentWorkspaceId,
         title: cleanContent.slice(0, 60) || `${platformLabel(activeTab)} post`,
         description: cleanContent,
-        scheduled_at: action === 'now' ? new Date().toISOString() : scheduleAt || new Date().toISOString(),
+        scheduled_at: targetTime,
         duration_minutes: 15,
         status: 'scheduled',
         kind: 'post',
@@ -191,6 +215,14 @@ export function ComposePage() {
       }
 
       setMessage(`${action === 'now' ? 'Posted' : 'Scheduled'} to ${platformLabel(activeTab)}.`)
+      setCompletedPost({
+        action,
+        platform: activeTab,
+        content: cleanContent,
+        media: mediaSnapshot,
+        scheduledAt: targetTime,
+      })
+      setShowCompletedPost(true)
       resetForm()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to save this post right now.')
@@ -232,7 +264,7 @@ export function ComposePage() {
     }
 
     setCopyLoading(true)
-    setMessage('')
+    setMessage('Writing your draft with AI...')
     try {
       if (isDemoMode) {
         setContent(
@@ -274,7 +306,7 @@ export function ComposePage() {
     }
 
     setCopyLoading(true)
-    setMessage('')
+    setMessage('Polishing your draft...')
     try {
       if (isDemoMode) {
         setContent(sanitizeComposeCopy(`${content.trim()} (polished for a natural, professional tone.)`))
@@ -304,7 +336,7 @@ export function ComposePage() {
     }
 
     setImageLoading(true)
-    setMessage('')
+    setMessage(regenerate ? 'Regenerating image...' : 'Generating image...')
     try {
       if (isDemoMode) {
         const url = `https://placehold.co/800x800?text=${encodeURIComponent(platformLabel(activeTab))}+Image`
@@ -341,7 +373,7 @@ export function ComposePage() {
     }
 
     setVideoLoading(true)
-    setMessage('Generating video (this can take a minute)...')
+    setMessage(regenerate ? 'Regenerating video (this can take a minute)...' : 'Generating video (this can take a minute)...')
     try {
       if (isDemoMode) {
         const url = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
@@ -404,10 +436,12 @@ export function ComposePage() {
 
   const activeMedia = media[media.length - 1] ?? null
   const draftReady = firstDraftCreated || Boolean(content.trim())
+  const isGenerating = copyLoading || imageLoading || videoLoading || loading
 
   const onSelectMediaSource = (source: MediaSourceType) => {
     setMediaSource(source)
     if (!draftReady) {
+      setShowDraftRequired(true)
       setMessage('Create your post draft first, then add or generate media.')
       return
     }
@@ -438,6 +472,12 @@ export function ComposePage() {
 
       {message ? (
         <div className="mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{message}</div>
+      ) : null}
+      {isGenerating ? (
+        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span>AI is working on your content...</span>
+        </div>
       ) : null}
 
       <Tabs>
@@ -475,7 +515,7 @@ export function ComposePage() {
                       size="sm"
                       variant={mediaSource === 'ai-image' ? 'default' : 'outline'}
                       onClick={() => onSelectMediaSource('ai-image')}
-                      disabled={imageLoading || !draftReady}
+                      disabled={imageLoading}
                     >
                       AI Image
                     </Button>
@@ -484,7 +524,7 @@ export function ComposePage() {
                       size="sm"
                       variant={mediaSource === 'ai-video' ? 'default' : 'outline'}
                       onClick={() => onSelectMediaSource('ai-video')}
-                      disabled={videoLoading || !draftReady}
+                      disabled={videoLoading}
                     >
                       AI Video
                     </Button>
@@ -493,7 +533,6 @@ export function ComposePage() {
                       size="sm"
                       variant={mediaSource === 'stock-image' ? 'default' : 'outline'}
                       onClick={() => onSelectMediaSource('stock-image')}
-                      disabled={!draftReady}
                     >
                       Stock Image
                     </Button>
@@ -502,7 +541,6 @@ export function ComposePage() {
                       size="sm"
                       variant={mediaSource === 'user-media' ? 'default' : 'outline'}
                       onClick={() => onSelectMediaSource('user-media')}
-                      disabled={!draftReady}
                     >
                       User Media
                     </Button>
@@ -526,12 +564,12 @@ export function ComposePage() {
                           className="min-w-[200px] flex-1"
                         />
                         <Button type="button" variant="outline" disabled={copyLoading} onClick={() => void draftWithAi()}>
-                          <Wand2 className="mr-2 h-4 w-4" />
-                          Write with AI
+                          {copyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                          {copyLoading ? 'Writing...' : 'Write with AI'}
                         </Button>
                         <Button type="button" variant="outline" disabled={copyLoading || !content.trim()} onClick={() => void polishWithAi()}>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Polish
+                          {copyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                          {copyLoading ? 'Polishing...' : 'Polish'}
                         </Button>
                       </div>
                     </div>
@@ -617,8 +655,8 @@ export function ComposePage() {
                         className="min-w-[220px] flex-1"
                       />
                       <Button type="button" size="sm" variant="outline" disabled={imageLoading} onClick={() => void generateImage(false)}>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Generate image
+                        {imageLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {imageLoading ? 'Generating...' : 'Generate image'}
                       </Button>
                       <Button
                         type="button"
@@ -642,8 +680,8 @@ export function ComposePage() {
                         className="min-w-[220px] flex-1"
                       />
                       <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)}>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Generate video
+                        {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {videoLoading ? 'Generating...' : 'Generate video'}
                       </Button>
                       <Button
                         type="button"
@@ -733,12 +771,12 @@ export function ComposePage() {
                     className="max-w-xs"
                   />
                   <Button variant="outline" onClick={() => publish('schedule')} disabled={loading || !content.trim()}>
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Schedule Post
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
+                    {loading ? 'Saving...' : 'Schedule Post'}
                   </Button>
                   <Button onClick={() => publish('now')} disabled={loading || !content.trim()}>
-                    <Send className="mr-2 h-4 w-4" />
-                    Publish Now
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    {loading ? 'Publishing...' : 'Publish Now'}
                   </Button>
                 </div>
               </CardContent>
@@ -864,6 +902,53 @@ export function ComposePage() {
           </div>
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowPreview(false)}>Close</Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
+      <Dialog open={showDraftRequired} onOpenChange={setShowDraftRequired}>
+        <DialogHeader>
+          <DialogTitle>Create draft first</DialogTitle>
+          <DialogDescription>
+            Start with post text using Write with AI or typing your own draft. Then image/video tools unlock.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowDraftRequired(false)}>Close</Button>
+        </DialogFooter>
+      </Dialog>
+      <Dialog open={showCompletedPost} onOpenChange={setShowCompletedPost}>
+        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(event) => event.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Post completed
+            </DialogTitle>
+            <DialogDescription>
+              {completedPost
+                ? `${completedPost.action === 'now' ? 'Published' : 'Scheduled'} on ${platformLabel(completedPost.platform)}`
+                : 'Your post is ready.'}
+            </DialogDescription>
+          </DialogHeader>
+          {completedPost ? (
+            <div className="mt-4 space-y-3">
+              <Textarea readOnly value={completedPost.content} className="min-h-[140px]" />
+              {completedPost.media.length ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {completedPost.media.map((item, index) =>
+                    item.type === 'video' ? (
+                      <video key={`${item.url}-${index}`} src={item.url} controls className="h-44 w-full rounded-xl border object-cover" />
+                    ) : (
+                      <img key={`${item.url}-${index}`} src={item.url} alt="" className="h-44 w-full rounded-xl border object-cover" />
+                    ),
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No media attached.</p>
+              )}
+            </div>
+          ) : null}
+          <DialogFooter className="mt-4">
+            <Button onClick={() => setShowCompletedPost(false)}>Done</Button>
           </DialogFooter>
         </div>
       </Dialog>
