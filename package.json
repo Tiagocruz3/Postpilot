@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "supabase:secrets": "bash scripts/sync-supabase-secrets.sh",
+    "supabase:deploy": "supabase functions deploy && npm run supabase:secrets"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",

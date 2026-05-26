@@ -1,22 +1,162 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { buildImagePrompt, type ComposePlatform } from '../_shared/compose-ai.ts'
+import { getAdminClient } from '../_shared/oauth.ts'
+import { persistAiMedia, type AiMediaSource } from '../_shared/library-media.ts'
+import {
+  getLovableAiUrl,
+  getLovableApiKey,
+  getOpenRouterApiKey,
+  getOpenRouterImageModel,
+  getWorkspaceAiSettings,
+  getPlatformAiBackend,
+} from '../_shared/platform-ai.ts'
+
+function isPlatform(value: unknown): value is ComposePlatform {
+  return value === 'facebook' || value === 'linkedin' || value === 'x'
+}
+
+function extractImageUrl(aiData: Record<string, unknown>): string {
+  const choice = (aiData.choices as Array<{ message?: { content?: unknown; images?: Array<{ image_url?: { url?: string } }> } }> | undefined)?.[0]
+  const images = choice?.message?.images
+  if (Array.isArray(images)) {
+    for (const image of images) {
+      const url = image.image_url?.url
+      if (url) {
+        return url
+      }
+    }
+  }
+
+  const content = choice?.message?.content
+
+  if (typeof content === 'string') {
+    if (content.startsWith('http') || content.startsWith('data:')) {
+      return content
+    }
+    const match = content.match(/https?:\/\/\S+/)
+    return match?.[0] ?? ''
+  }
+
+  if (Array.isArray(content)) {
+    for (const part of content) {
+      if (typeof part === 'object' && part !== null) {
+        const record = part as Record<string, unknown>
+        if (record.type === 'image_url' && typeof record.image_url === 'object' && record.image_url !== null) {
+          const url = (record.image_url as { url?: string }).url
+          if (url) {
+            return url
+          }
+        }
+      }
+    }
+  }
+
+  const data = aiData.data as Array<{ url?: string }> | undefined
+  return data?.[0]?.url ?? ''
+}
 
 serve(async (req) => {
-  const body = await req.json().catch(() => ({}))
-  const { prompt } = body
+  try {
+    const body = await req.json().catch(() => ({}))
+    const platform = isPlatform(body.platform) ? body.platform : 'facebook'
+    const userHint = typeof body.hint === 'string' ? body.hint : ''
+    const postText = typeof body.post_text === 'string' ? body.post_text : ''
+    const workspaceId = typeof body.workspace_id === 'string' ? body.workspace_id : ''
+    const userId = typeof body.user_id === 'string' ? body.user_id : ''
+    const source: AiMediaSource = body.source === 'ads' ? 'ads' : 'compose'
+    const metadata =
+      typeof body.metadata === 'object' && body.metadata !== null
+        ? (body.metadata as Record<string, unknown>)
+        : {}
+    const prompt =
+      typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim()
+        : buildImagePrompt(platform, postText || 'social media post', userHint)
+    const workspaceSettings = await getWorkspaceAiSettings(workspaceId)
 
-  const aiRes = await fetch(`${Deno.env.get('LOVABLE_AI_URL') || 'https://ai.lovable.dev/v1'}/images/generations`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash-image',
-      prompt,
-      n: 1,
-      size: '1024x1024',
-    }),
-  })
+    const backend = getPlatformAiBackend()
+    let aiRes: Response
 
-  const aiData = await aiRes.json()
-  const url = aiData.data?.[0]?.url || ''
+    if (backend === 'openrouter') {
+      const apiKey = getOpenRouterApiKey()!
+      aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': Deno.env.get('APP_URL') || 'https://postpilot.app',
+          'X-Title': 'PostPilot',
+        },
+        body: JSON.stringify({
+          model: getOpenRouterImageModel(workspaceSettings),
+          messages: [{ role: 'user', content: prompt }],
+          modalities: ['image', 'text'],
+        }),
+      })
+    } else {
+      const lovableKey = getLovableApiKey()
+      if (!lovableKey) {
+        return new Response(JSON.stringify({ error: 'AI is not configured. Set OPENROUTER_API_KEY or LOVABLE_API_KEY.' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
 
-  return new Response(JSON.stringify({ url }), { headers: { 'Content-Type': 'application/json' } })
+      aiRes = await fetch(`${getLovableAiUrl()}/images/generations`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${lovableKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-image',
+          prompt,
+          n: 1,
+          size: '1024x1024',
+        }),
+      })
+    }
+
+    const aiData = await aiRes.json()
+    if (!aiRes.ok) {
+      const message = (aiData as { error?: { message?: string } }).error?.message || 'Image generation failed.'
+      return new Response(JSON.stringify({ error: message }), {
+        status: aiRes.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const sourceUrl = extractImageUrl(aiData)
+    if (!sourceUrl) {
+      return new Response(JSON.stringify({ error: 'No image URL returned from the model.' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    let url = sourceUrl
+    let libraryId: string | null = null
+
+    if (workspaceId && userId) {
+      const supabase = getAdminClient()
+      const saved = await persistAiMedia(supabase, {
+        workspaceId,
+        userId,
+        mediaType: 'image',
+        sourceUrl,
+        prompt,
+        source,
+        metadata: { platform, ...metadata },
+      })
+      url = saved.url
+      libraryId = saved.id
+    }
+
+    return new Response(JSON.stringify({ url, library_id: libraryId }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unable to generate image.'
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 })

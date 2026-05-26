@@ -1,38 +1,92 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { appRedirect, decodeOAuthState, getAdminClient, getUserIdFromState, oauthCallbackUri } from '../_shared/oauth.ts'
+
+function redirectWithOAuthError(message: string) {
+  const location = `${appRedirect('/settings')}?oauth_error=${encodeURIComponent(message)}`
+  return new Response(null, { status: 302, headers: { Location: location } })
+}
+
+function tokenExpiresAt(expiresIn: unknown) {
+  const seconds = typeof expiresIn === 'number' && Number.isFinite(expiresIn) ? expiresIn : 60 * 60 * 24 * 60
+  return new Date(Date.now() + seconds * 1000).toISOString()
+}
 
 serve(async (req) => {
-  const url = new URL(req.url)
-  const code = url.searchParams.get('code')
-  const state = JSON.parse(atob(url.searchParams.get('state') || '{}'))
-  const workspaceId = state.workspace_id
-  const redirectUri = `${url.origin}/facebook-oauth-callback`
+  try {
+    const url = new URL(req.url)
+    const code = url.searchParams.get('code')
+    const state = decodeOAuthState(url.searchParams.get('state'))
+    const workspaceId = state.workspace_id as string | undefined
+    const userId = getUserIdFromState(state)
+    const redirectUri = oauthCallbackUri(req, 'facebook-oauth-callback')
 
-  const tokenRes = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  })
-  const tokenUrl = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${Deno.env.get('META_APP_ID')}&client_secret=${Deno.env.get('META_APP_SECRET')}&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`
-  const tokenData = await (await fetch(tokenUrl)).json()
+    if (!code || !workspaceId || !userId) {
+      return new Response('Invalid OAuth callback', { status: 400 })
+    }
 
-  const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${tokenData.access_token}`)
-  const pagesData = await pagesRes.json()
-  const page = pagesData.data?.[0]
+    const metaAppId = Deno.env.get('META_APP_ID')
+    const metaAppSecret = Deno.env.get('META_APP_SECRET')
+    if (!metaAppId || !metaAppSecret) {
+      return redirectWithOAuthError('Facebook OAuth is not configured (META_APP_ID / META_APP_SECRET missing on server).')
+    }
 
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', '') || '')
-  if (!user) return new Response('Unauthorized', { status: 401 })
+    const tokenUrl =
+      `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${metaAppId}&client_secret=${metaAppSecret}&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(redirectUri)}`
+    const tokenData = await (await fetch(tokenUrl)).json()
 
-  await supabase.from('user_integrations').upsert({
-    user_id: user.id,
-    workspace_id: workspaceId,
-    provider: 'facebook',
-    access_token_encrypted: tokenData.access_token,
-    token_iv: '',
-    refresh_token_encrypted: tokenData.access_token,
-    expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-    metadata: { page_id: page?.id, page_name: page?.name },
-  }, { onConflict: 'user_id,workspace_id,provider' })
+    if (tokenData.error) {
+      console.error('facebook-oauth-callback token error:', tokenData.error)
+      return redirectWithOAuthError(tokenData.error.message || 'Facebook token exchange failed.')
+    }
 
-  return new Response(null, { status: 302, headers: { Location: `${Deno.env.get('APP_URL') || url.origin}/settings` } })
+    if (!tokenData.access_token) {
+      return redirectWithOAuthError('Facebook did not return an access token.')
+    }
+
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v18.0/me/accounts?access_token=${encodeURIComponent(tokenData.access_token)}`,
+    )
+    const pagesData = await pagesRes.json()
+
+    if (pagesData.error) {
+      console.error('facebook-oauth-callback pages error:', pagesData.error)
+      return redirectWithOAuthError(pagesData.error.message || 'Failed to load Facebook Pages.')
+    }
+
+    const page = pagesData.data?.[0] as { id?: string; name?: string; access_token?: string } | undefined
+    if (!page?.access_token || !page.id) {
+      return redirectWithOAuthError(
+        'No Facebook Page found. Create a Page or grant this app access to one, then connect again.',
+      )
+    }
+
+    const supabase = getAdminClient()
+    const { error } = await supabase.from('user_integrations').upsert(
+      {
+        user_id: userId,
+        workspace_id: workspaceId,
+        provider: 'facebook',
+        access_token_encrypted: page.access_token,
+        token_iv: '',
+        refresh_token_encrypted: page.access_token,
+        expires_at: tokenExpiresAt(tokenData.expires_in),
+        metadata: { page_id: page.id, page_name: page.name },
+      },
+      { onConflict: 'user_id,workspace_id,provider' },
+    )
+
+    if (error) {
+      console.error('facebook-oauth-callback db error:', error)
+      return redirectWithOAuthError('Could not save Facebook connection.')
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: { Location: appRedirect('/settings?oauth=facebook&status=connected') },
+    })
+  } catch (err) {
+    console.error('facebook-oauth-callback:', err)
+    const message = err instanceof Error ? err.message : 'Unexpected error during Facebook connect.'
+    return redirectWithOAuthError(message)
+  }
 })

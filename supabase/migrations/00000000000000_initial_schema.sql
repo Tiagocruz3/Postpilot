@@ -1,6 +1,3 @@
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Profiles table
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -11,7 +8,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 -- Workspaces
 CREATE TABLE IF NOT EXISTS workspaces (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL,
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -20,7 +17,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
 
 -- Workspace members
 CREATE TABLE IF NOT EXISTS workspace_members (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
@@ -30,7 +27,7 @@ CREATE TABLE IF NOT EXISTS workspace_members (
 
 -- User roles (separate from profiles)
 CREATE TABLE IF NOT EXISTS user_roles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('admin', 'member')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -53,7 +50,7 @@ $$;
 
 -- User integrations (encrypted tokens)
 CREATE TABLE IF NOT EXISTS user_integrations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   provider TEXT NOT NULL,
@@ -68,7 +65,7 @@ CREATE TABLE IF NOT EXISTS user_integrations (
 
 -- Planner tasks
 CREATE TABLE IF NOT EXISTS planner_tasks (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -90,7 +87,7 @@ CREATE TABLE IF NOT EXISTS planner_tasks (
 
 -- Scheduled posts
 CREATE TABLE IF NOT EXISTS scheduled_posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   planner_task_id UUID NOT NULL REFERENCES planner_tasks(id) ON DELETE CASCADE,
   platform TEXT NOT NULL,
   content TEXT NOT NULL,
@@ -103,7 +100,7 @@ CREATE TABLE IF NOT EXISTS scheduled_posts (
 
 -- Meta ads onboarding
 CREATE TABLE IF NOT EXISTS meta_ads_onboarding (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   answers JSONB DEFAULT '{}',

@@ -15,10 +15,8 @@ export interface LmStudioModelOption {
 
 export interface AiSettings {
   contentProvider: ContentAiProvider
-  openRouterApiKey: string
   openRouterContentModel: string
   openRouterImageModel: string
-  falApiKey: string
   falVideoModel: string
   lmStudioBaseUrl: string
   lmStudioContentModel: string
@@ -28,10 +26,8 @@ export const AI_SETTINGS_STORAGE_KEY = 'postpilot.ai-settings'
 
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   contentProvider: 'openrouter',
-  openRouterApiKey: '',
   openRouterContentModel: '',
-  openRouterImageModel: '',
-  falApiKey: '',
+  openRouterImageModel: 'google/gemini-3.1-flash-image-preview',
   falVideoModel: 'fal-ai/kling-video/v2.1/master/text-to-video',
   lmStudioBaseUrl: 'http://127.0.0.1:1234/v1',
   lmStudioContentModel: '',
@@ -67,10 +63,14 @@ export function loadAiSettings() {
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<AiSettings>
+    const parsed = JSON.parse(raw) as Partial<AiSettings> & {
+      openRouterApiKey?: string
+      falApiKey?: string
+    }
+    const { openRouterApiKey: _openRouterApiKey, falApiKey: _falApiKey, ...rest } = parsed
     return {
       ...DEFAULT_AI_SETTINGS,
-      ...parsed,
+      ...rest,
     }
   } catch {
     return DEFAULT_AI_SETTINGS

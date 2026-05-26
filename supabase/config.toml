@@ -21,7 +21,7 @@ port = 54322
 shadow_port = 54320
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
 # server_version;` on the remote database to check.
-major_version = 15
+major_version = 17
 
 [db.pooler]
 enabled = false
@@ -72,7 +72,11 @@ enabled = true
 # in emails.
 site_url = "http://localhost:5173"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://localhost:5173/auth/callback"]
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://localhost:5173/**",
+  "https://localhost:5173/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
@@ -92,7 +96,7 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = true
+enable_confirmations = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"
 
@@ -138,7 +142,7 @@ redirect_uri = ""
 url = ""
 
 [auth.external.google]
-enabled = true
+enabled = false
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 redirect_uri = ""
@@ -163,3 +167,36 @@ s3_region = "env(EXPERIMENTAL_S3_REGION)"
 s3_access_key = "env(EXPERIMENTAL_S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(EXPERIMENTAL_S3_SECRET_KEY)"
+
+[functions.facebook-oauth-start]
+verify_jwt = false
+
+[functions.facebook-oauth-callback]
+verify_jwt = false
+
+[functions.linkedin-oauth-start]
+verify_jwt = false
+
+[functions.linkedin-oauth-callback]
+verify_jwt = false
+
+[functions.x-oauth-start]
+verify_jwt = false
+
+[functions.x-oauth-callback]
+verify_jwt = false
+
+[functions.meta-oauth-start]
+verify_jwt = false
+
+[functions.meta-oauth-callback]
+verify_jwt = false
+
+[functions.google-calendar-oauth-start]
+verify_jwt = false
+
+[functions.google-calendar-oauth-callback]
+verify_jwt = false
+
+[functions.scheduler-tick]
+verify_jwt = false

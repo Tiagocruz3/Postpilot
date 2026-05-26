@@ -21,7 +21,10 @@ serve(async (req) => {
     try {
       const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/${platform}-api`, {
         method: 'POST',
-        headers: { Authorization: req.headers.get('Authorization') || '', 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ task_id: task.id, content: post.content, media_urls: post.media_urls }),
       })
 

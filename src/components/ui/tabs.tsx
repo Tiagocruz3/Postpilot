@@ -16,7 +16,9 @@ const TabsTrigger = ({ value, activeValue, onClick, className, children }: { val
     onClick={() => onClick(value)}
     className={cn(
       "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-      activeValue === value ? "bg-background text-foreground shadow" : "hover:bg-background/50 hover:text-foreground",
+      activeValue === value
+        ? "bg-primary text-primary-foreground shadow"
+        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
       className
     )}
   >

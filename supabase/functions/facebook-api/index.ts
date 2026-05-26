@@ -1,19 +1,19 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { resolveRequestUserId } from '../_shared/api-auth.ts'
 
 serve(async (req) => {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', '') || '')
-  if (!user) return new Response('Unauthorized', { status: 401 })
-
   const body = await req.json().catch(() => ({}))
   const { task_id, content, media_urls } = body
+  const userId = await resolveRequestUserId(req, supabase, task_id)
+  if (!userId) return new Response('Unauthorized', { status: 401 })
 
   const { data: task } = await supabase.from('planner_tasks').select('*').eq('id', task_id).single()
   const { data: integration } = await supabase
     .from('user_integrations')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('workspace_id', task.workspace_id)
     .eq('provider', 'facebook')
     .single()

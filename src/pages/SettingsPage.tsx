@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useLocation, useOutletContext } from 'react-router-dom'
 import {
   UserRound,
   Bot,
@@ -12,6 +12,7 @@ import {
   Trash2,
   Video,
 } from 'lucide-react'
+import { WorkspaceTeamCard } from '@/components/WorkspaceTeamCard'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,9 +46,18 @@ import type { Database } from '@/types/database'
 
 interface OutletContext {
   currentWorkspaceId: string | null
+  currentWorkspace: { id: string; name: string; owner_id: string } | null
 }
 
-type SettingsTab = 'profile' | 'regional' | 'accounts' | 'content-ai' | 'image-ai' | 'video-ai' | 'local-ai'
+type SettingsTab =
+  | 'profile'
+  | 'regional'
+  | 'team'
+  | 'accounts'
+  | 'content-ai'
+  | 'image-ai'
+  | 'video-ai'
+  | 'local-ai'
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type WorkspaceAiSettingsRow = Database['public']['Tables']['workspace_ai_settings']['Row']
 type WorkspaceAiSettingsInsert = Database['public']['Tables']['workspace_ai_settings']['Insert']
@@ -105,9 +115,13 @@ function makeDemoIntegrations(): UserIntegration[] {
 }
 
 export function SettingsPage() {
-  const { currentWorkspaceId } = useOutletContext<OutletContext>()
+  const location = useLocation()
+  const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user, profile } = useAuth()
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
+    const tab = (location.state as { tab?: SettingsTab } | null)?.tab
+    return tab ?? 'profile'
+  })
   const [integrations, setIntegrations] = useState<UserIntegration[]>(isDemoMode ? makeDemoIntegrations() : [])
   const [aiSettings, setAiSettings] = useState<AiSettings>(() => loadAiSettings())
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(() => loadUserPreferences())
@@ -120,6 +134,37 @@ export function SettingsPage() {
   const [workspaceAiSettingsLoading, setWorkspaceAiSettingsLoading] = useState(false)
   const [workspaceAiSettingsSaving, setWorkspaceAiSettingsSaving] = useState(false)
   const [settingsMessage, setSettingsMessage] = useState('')
+
+  useEffect(() => {
+    const tab = (location.state as { tab?: SettingsTab } | null)?.tab
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [location.state])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const oauthError = params.get('oauth_error')
+    if (oauthError) {
+      setSettingsMessage(oauthError)
+      setActiveTab('accounts')
+      window.history.replaceState({}, '', location.pathname)
+      return
+    }
+
+    if (params.get('oauth') === 'facebook' && params.get('status') === 'connected') {
+      setSettingsMessage('Facebook connected successfully.')
+      setActiveTab('accounts')
+      window.history.replaceState({}, '', location.pathname)
+      if (!isDemoMode && currentWorkspaceId) {
+        void supabase
+          .from('user_integrations')
+          .select('*')
+          .eq('workspace_id', currentWorkspaceId)
+          .then(({ data }) => setIntegrations((data as UserIntegration[]) ?? []))
+      }
+    }
+  }, [location.search, location.pathname, currentWorkspaceId])
 
   useEffect(() => {
     saveAiSettings(aiSettings)
@@ -275,7 +320,7 @@ export function SettingsPage() {
       return
     }
 
-    redirectToEdgeFunction(`${provider}-oauth-start`, { workspace_id: currentWorkspaceId })
+    void redirectToEdgeFunction(`${provider}-oauth-start`, { workspace_id: currentWorkspaceId })
   }
 
   const saveProfileSettings = async () => {
@@ -351,16 +396,10 @@ export function SettingsPage() {
       return
     }
 
-    setSettingsMessage('Workspace AI settings saved. API keys remain local until encrypted edge-function storage is wired.')
+    setSettingsMessage('Workspace AI settings saved. API keys are provided by the platform owner.')
   }
 
   async function fetchOpenRouterModels(mode: 'text' | 'image') {
-    const apiKey = aiSettings.openRouterApiKey.trim()
-    const url =
-      mode === 'image'
-        ? 'https://openrouter.ai/api/v1/models?output_modalities=image'
-        : 'https://openrouter.ai/api/v1/models?output_modalities=text'
-
     if (mode === 'text') {
       setOpenRouterTextLoading(true)
     } else {
@@ -370,15 +409,18 @@ export function SettingsPage() {
     setSettingsMessage('')
 
     try {
-      const response = await fetch(url, {
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+      const { data, error } = await supabase.functions.invoke('openrouter-models', {
+        body: { mode },
       })
 
-      if (!response.ok) {
-        throw new Error(`OpenRouter returned ${response.status}`)
+      if (error) {
+        throw new Error(error.message)
       }
 
-      const payload = (await response.json()) as OpenRouterModelsResponse
+      const payload = data as OpenRouterModelsResponse
+      if (!payload?.data) {
+        throw new Error('OpenRouter is not configured. Ask your platform administrator.')
+      }
       const models = (payload.data ?? []).sort((left, right) => {
         const leftName = left.name ?? left.id
         const rightName = right.name ?? right.id
@@ -442,8 +484,8 @@ export function SettingsPage() {
       <div className="mb-6 flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Organize integrations, choose live AI models, and decide whether content generation should run through
-          OpenRouter or your local LM Studio instance.
+          Connect social accounts, choose AI models for your workspace, and manage profile preferences. API keys for
+          OpenRouter, Lovable, and fal are configured by the platform owner—not individual subscribers.
         </p>
       </div>
 
@@ -460,6 +502,9 @@ export function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="regional" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
             Regional
+          </TabsTrigger>
+          <TabsTrigger value="team" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+            Team
           </TabsTrigger>
           <TabsTrigger value="accounts" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
             Accounts
@@ -674,6 +719,15 @@ export function SettingsPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="team" activeValue={activeTab}>
+          <WorkspaceTeamCard
+            workspaceId={currentWorkspaceId}
+            workspaceName={currentWorkspace?.name}
+            currentUserId={user?.id}
+            isWorkspaceOwner={currentWorkspace?.owner_id === user?.id}
+          />
+        </TabsContent>
+
         <TabsContent value="accounts" activeValue={activeTab}>
           <Card>
             <CardHeader>
@@ -723,10 +777,14 @@ export function SettingsPage() {
                   Content generation provider
                 </CardTitle>
                 <CardDescription>
-                  Choose whether social copy runs through OpenRouter or your local LM Studio instance.
+                  Choose whether social copy runs through OpenRouter (platform-provided) or a local LM Studio instance.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
+                <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                  OpenRouter credentials are supplied by the platform owner via server environment variables.
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="content-provider">Provider</Label>
                   <Select
@@ -744,22 +802,6 @@ export function SettingsPage() {
                   </Select>
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="openrouter-key">OpenRouter API key</Label>
-                  <Input
-                    id="openrouter-key"
-                    type="password"
-                    placeholder="sk-or-v1-..."
-                    value={aiSettings.openRouterApiKey}
-                    onChange={(event) =>
-                      setAiSettings((current) => ({
-                        ...current,
-                        openRouterApiKey: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
                 <div className="flex flex-wrap gap-3">
                   <Button variant="outline" onClick={() => void fetchOpenRouterModels('text')} disabled={openRouterTextLoading}>
                     <RefreshCcw className="mr-2 h-4 w-4" />
@@ -769,23 +811,26 @@ export function SettingsPage() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="openrouter-content-model">OpenRouter content model</Label>
-                  <Select
+                  <Input
                     id="openrouter-content-model"
                     value={aiSettings.openRouterContentModel}
+                    list="openrouter-content-model-options"
+                    placeholder="Type to search or paste model id"
                     onChange={(event) =>
                       setAiSettings((current) => ({
                         ...current,
                         openRouterContentModel: event.target.value,
                       }))
                     }
-                  >
-                    <option value="">Select a content model</option>
+                  />
+                  <datalist id="openrouter-content-model-options">
                     {openRouterTextModels.map((model) => (
                       <option key={model.id} value={model.id}>
                         {model.name ?? model.id}
                       </option>
                     ))}
-                  </Select>
+                  </datalist>
+                  <p className="text-xs text-muted-foreground">Search by name or paste exact model id. This avoids large dropdown menus.</p>
                 </div>
               </CardContent>
             </Card>
@@ -809,7 +854,7 @@ export function SettingsPage() {
                 <div className="rounded-2xl border bg-muted/30 p-4">
                   <p className="font-medium text-foreground">Storage</p>
                   <p className="mt-2">
-                    Model and provider choices can now be saved to the current workspace. API keys still stay local until encrypted edge-function storage is added.
+                    Model and provider choices are saved per workspace. Shared API keys never leave the server.
                   </p>
                 </div>
               </CardContent>
@@ -825,26 +870,11 @@ export function SettingsPage() {
                 Default image model
               </CardTitle>
               <CardDescription>
-                Pull the real OpenRouter image model list and choose the default image generator for post and ad visuals.
+                Choose the default image model for post and ad visuals. The platform owner&apos;s OpenRouter key is used
+                server-side.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-2 md:max-w-xl">
-                <Label htmlFor="openrouter-image-key">OpenRouter API key</Label>
-                <Input
-                  id="openrouter-image-key"
-                  type="password"
-                  placeholder="Uses the same key as content AI"
-                  value={aiSettings.openRouterApiKey}
-                  onChange={(event) =>
-                    setAiSettings((current) => ({
-                      ...current,
-                      openRouterApiKey: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-
               <div className="flex flex-wrap gap-3">
                 <Button variant="outline" onClick={() => void fetchOpenRouterModels('image')} disabled={openRouterImageLoading}>
                   <RefreshCcw className="mr-2 h-4 w-4" />
@@ -854,23 +884,26 @@ export function SettingsPage() {
 
               <div className="grid gap-2 md:max-w-2xl">
                 <Label htmlFor="openrouter-image-model">Default OpenRouter image model</Label>
-                <Select
+                <Input
                   id="openrouter-image-model"
                   value={aiSettings.openRouterImageModel}
+                  list="openrouter-image-model-options"
+                  placeholder="Type to search or paste image model id"
                   onChange={(event) =>
                     setAiSettings((current) => ({
                       ...current,
                       openRouterImageModel: event.target.value,
                     }))
                   }
-                >
-                  <option value="">Select an image model</option>
+                />
+                <datalist id="openrouter-image-model-options">
                   {openRouterImageModels.map((model) => (
                     <option key={model.id} value={model.id}>
                       {model.name ?? model.id}
                     </option>
                   ))}
-                </Select>
+                </datalist>
+                <p className="text-xs text-muted-foreground">Search by name or paste exact model id.</p>
               </div>
             </CardContent>
           </Card>
@@ -885,24 +918,13 @@ export function SettingsPage() {
                   fal video generation
                 </CardTitle>
                 <CardDescription>
-                  Configure your fal API key and choose the default video endpoint for future social/video workflows.
+                  Choose the default video endpoint for future social/video workflows. The fal API key is provided by the
+                  platform owner.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid gap-2">
-                  <Label htmlFor="fal-key">fal API key</Label>
-                  <Input
-                    id="fal-key"
-                    type="password"
-                    placeholder="fal_key_..."
-                    value={aiSettings.falApiKey}
-                    onChange={(event) =>
-                      setAiSettings((current) => ({
-                        ...current,
-                        falApiKey: event.target.value,
-                      }))
-                    }
-                  />
+                <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                  fal credentials are configured in the platform deployment environment, not in subscriber settings.
                 </div>
 
                 <div className="grid gap-2">
@@ -997,23 +1019,25 @@ export function SettingsPage() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="lmstudio-model">Local content model</Label>
-                  <Select
+                  <Input
                     id="lmstudio-model"
                     value={aiSettings.lmStudioContentModel}
+                    list="lmstudio-model-options"
+                    placeholder="Type to search or paste local model id"
                     onChange={(event) =>
                       setAiSettings((current) => ({
                         ...current,
                         lmStudioContentModel: event.target.value,
                       }))
                     }
-                  >
-                    <option value="">Select a local model</option>
+                  />
+                  <datalist id="lmstudio-model-options">
                     {lmStudioModels.map((model) => (
                       <option key={model.id} value={model.id}>
                         {model.id}
                       </option>
                     ))}
-                  </Select>
+                  </datalist>
                 </div>
               </CardContent>
             </Card>
@@ -1045,9 +1069,11 @@ export function SettingsPage() {
               <KeyRound className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">Workspace AI persistence is ready</p>
+              <p className="text-sm font-medium text-foreground">Workspace AI preferences</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Save the selected content, image, video, and local-model defaults into Supabase for this workspace. Browser storage stays in place as a fast local fallback, and API keys remain local for now.
+                Save model and provider choices for this workspace. Shared API keys are managed by the platform owner in
+                <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">.env</code> and synced with{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run supabase:secrets</code>.
               </p>
               {workspaceAiSettingsLoading ? (
                 <p className="mt-2 text-xs text-muted-foreground">Loading workspace AI settings...</p>

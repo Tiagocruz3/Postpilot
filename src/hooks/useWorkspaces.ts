@@ -79,23 +79,41 @@ export function useWorkspaces(userId?: string) {
       return ws
     }
 
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-    const workspacePayload: WorkspaceInsert = { name, slug, owner_id: userId! }
-    const { data, error } = await (supabase
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new Error('You must be signed in to create a workspace')
+    }
+
+    const ownerId = user.id
+    const baseSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    const slug = `${baseSlug || 'workspace'}-${crypto.randomUUID().slice(0, 8)}`
+
+    const workspacePayload: WorkspaceInsert = { name, slug, owner_id: ownerId }
+    const { data, error } = await supabase
       .from('workspaces')
       .insert(workspacePayload as never)
       .select()
-      .single())
+      .single()
 
-    if (error) throw error
+    if (error) {
+      throw error
+    }
 
     const workspace = data as Workspace
     const membershipPayload: WorkspaceMemberInsert = {
       workspace_id: workspace.id,
-      user_id: userId!,
+      user_id: ownerId,
       role: 'owner',
     }
-    await supabase.from('workspace_members').insert(membershipPayload as never)
+    const { error: memberError } = await supabase.from('workspace_members').insert(membershipPayload as never)
+
+    if (memberError) {
+      throw memberError
+    }
 
     setWorkspaces((prev) => [...prev, workspace])
     return workspace

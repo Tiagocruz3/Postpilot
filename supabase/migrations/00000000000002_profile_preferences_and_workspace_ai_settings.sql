@@ -7,7 +7,7 @@ ALTER TABLE public.profiles
     CHECK (time_format IN ('12h', '24h'));
 
 CREATE TABLE IF NOT EXISTS public.workspace_ai_settings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
   updated_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   content_provider TEXT NOT NULL DEFAULT 'openrouter'

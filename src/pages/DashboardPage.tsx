@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { usePlannerTasks } from '@/hooks/usePlannerTasks'
 import { Workspace } from '@/types'
 import { parseISO, isAfter, isBefore, addDays } from 'date-fns'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,11 +14,10 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Settings,
-  UserRound,
+  Images,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatUserDateTime, getInitials, getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
+import { getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
 
 interface OutletContext {
   currentWorkspaceId: string | null
@@ -33,19 +29,8 @@ export function DashboardPage() {
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { profile } = useAuth()
   const { tasks, loading } = usePlannerTasks(currentWorkspaceId || undefined)
-  const [now, setNow] = useState(new Date())
   const userPreferences = loadUserPreferences()
   const displayName = getPreferredDisplayName(profile?.display_name, userPreferences)
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setNow(new Date())
-    }, 1000)
-
-    return () => {
-      window.clearInterval(intervalId)
-    }
-  }, [])
 
   const today = new Date()
   const upcomingTasks = tasks
@@ -73,6 +58,13 @@ export function DashboardPage() {
       color: 'bg-emerald-50 text-emerald-600',
     },
     {
+      label: 'AI Library',
+      description: 'Reuse generated images and videos',
+      icon: Images,
+      path: '/library',
+      color: 'bg-violet-50 text-violet-600',
+    },
+    {
       label: 'Ads',
       description: 'Manage campaigns and AI variants',
       icon: BarChart3,
@@ -83,59 +75,26 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section>
         <Card className="border-primary/15">
           <CardHeader>
             <CardTitle className="text-3xl font-semibold tracking-tight">Welcome back, {displayName}</CardTitle>
             <CardDescription>
-              {currentWorkspace?.name ?? 'Workspace'} social scheduling overview, centered on recorded and scheduled posts.
+              {currentWorkspace?.name ?? 'Workspace'} overview. Posts and AI assets are isolated to this workspace for
+              all members.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border bg-background p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Local time</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
-                {formatUserDateTime(now, userPreferences, { includeDate: false, includeTime: true })}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{userPreferences.timeZone}</p>
-            </div>
-            <div className="rounded-2xl border bg-background p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Local date</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
-                {formatUserDateTime(now, userPreferences, { includeDate: true, includeTime: false })}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{userPreferences.locale}</p>
-            </div>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border bg-background p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Published</p>
-              <p className="mt-2 text-lg font-semibold text-foreground">{publishedCount}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Recorded post URLs available</p>
+              <p className="mt-2 text-3xl font-bold text-foreground">{publishedCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Live posts recorded in the planner</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile snapshot</CardTitle>
-            <CardDescription>These details come from your settings preferences.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4 rounded-2xl border bg-muted/30 p-4">
-              <Avatar className="h-12 w-12">
-                {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
-                <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
-                  {getInitials(displayName)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium text-foreground">{displayName}</p>
-                <p className="text-xs text-muted-foreground">{currentWorkspace?.name ?? 'No workspace selected'}</p>
-              </div>
+            <div className="rounded-2xl border bg-background p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Scheduled</p>
+              <p className="mt-2 text-3xl font-bold text-foreground">{scheduledCount}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Waiting to go out</p>
             </div>
-            <Button variant="outline" className="w-full" onClick={() => navigate('/settings')}>
-              <Settings className="mr-2 h-4 w-4" />
-              Update profile and locale
-            </Button>
           </CardContent>
         </Card>
       </section>
@@ -185,17 +144,6 @@ export function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 py-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100">
-              <UserRound className="h-5 w-5 text-violet-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">{userPreferences.timeZone}</p>
-              <p className="text-xs text-muted-foreground">Dashboard timezone</p>
-            </div>
-          </CardContent>
-        </Card>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
@@ -226,7 +174,9 @@ export function DashboardPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{task.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatUserDateTime(task.scheduled_at, userPreferences)}
+                        {new Date(task.scheduled_at).toLocaleString(userPreferences.locale, {
+                          timeZone: userPreferences.timeZone,
+                        })}
                         {task.platform ? ` · ${task.platform.replace('_', ' ')}` : ''}
                       </p>
                     </div>

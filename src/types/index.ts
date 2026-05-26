@@ -34,6 +34,16 @@ export interface WorkspaceMember {
   created_at: string
 }
 
+export interface WorkspaceInvite {
+  id: string
+  workspace_id: string
+  email: string
+  role: Extract<WorkspaceRole, 'admin' | 'member'>
+  invited_by: string
+  created_at: string
+  accepted_at: string | null
+}
+
 export interface WorkspaceSummary extends Workspace {
   membership_role: WorkspaceRole
   member_count: number
@@ -150,6 +160,87 @@ export interface AdVariant {
   cta: string
   image_prompt: string
   image_url?: string
+}
+
+export type AiMediaType = 'image' | 'video'
+export type AiMediaSource = 'compose' | 'ads' | 'other'
+
+export type InspirationPlatform = 'facebook' | 'linkedin' | 'x' | 'instagram'
+
+export interface CompetitorWatch {
+  id: string
+  workspace_id: string
+  created_by: string
+  platform: InspirationPlatform
+  handle: string
+  display_name: string | null
+  niche: string | null
+  created_at: string
+}
+
+export interface InspirationPost {
+  id: string
+  workspace_id: string
+  watch_id: string | null
+  created_by: string
+  platform: InspirationPlatform
+  account_handle: string
+  post_text: string
+  hashtags: string[]
+  posted_at: string | null
+  engagement: Json
+  created_at: string
+}
+
+export interface WorkspaceAiMedia {
+  id: string
+  workspace_id: string
+  created_by: string
+  media_type: AiMediaType
+  storage_bucket: string
+  storage_path: string
+  public_url: string
+  prompt: string | null
+  source: AiMediaSource
+  metadata: Json
+  created_at: string
+}
+
+export interface AdsStudioProfile {
+  userId: string
+  businessProfile: Json
+  offerProfile: Json
+  audienceProfile: Json
+  brandVoice: Json
+  leadDestination: Json
+  creativePreferences: Json
+  aiPreferences: Json
+  metaConnection: Json
+  completionScore: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface MetaAdDraft {
+  id: string
+  userId: string
+  profileId: string | null
+  status: 'draft' | 'ready' | 'launched'
+  campaignName: string
+  goal: string
+  adType: string
+  selectedOptionId: string | null
+  brief: Json
+  embeddedAi: Json
+  adOptions: Json
+  selectedAd: Json
+  destination: Json
+  audience: Json
+  budget: Json
+  placements: Json
+  analytics: Json
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CalendarEvent {

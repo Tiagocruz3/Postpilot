@@ -50,11 +50,15 @@ npm run dev
 
 ## Environment Variables
 
-See `.env.example` for required variables including:
-- Supabase URL and anon key
-- OAuth app credentials (Meta, LinkedIn, X, Google)
-- AES encryption key for integration tokens
-- Lovable AI API key
+Copy `.env.example` to `.env`. Variables fall into two groups:
+
+**App** — `VITE_SUPABASE_*`, `APP_URL` (needed for every deployment)
+
+**Platform owner** — OAuth app credentials, `INTEGRATION_ENCRYPTION_KEY`, and AI keys (`OPENROUTER_*`, `LOVABLE_*`, `FAL_*`). Subscribers never enter these; they only pick models in Settings after you sync secrets:
+
+```bash
+npm run supabase:secrets
+```
 
 ## License
 

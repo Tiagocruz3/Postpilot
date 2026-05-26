@@ -9,6 +9,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  UserRound,
   ChevronDown,
   CalendarDays,
   Building2,
@@ -16,6 +17,7 @@ import {
   LayoutDashboard,
   Menu,
   ChevronLeft,
+  Images,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -33,7 +35,7 @@ import { getInitials, getPreferredDisplayName, loadUserPreferences } from '@/lib
 export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { workspaces, loading } = useWorkspaces(profile?.id)
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('sidebar_open') !== 'false')
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() =>
@@ -66,10 +68,19 @@ export function Layout() {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, hint: 'Overview + quick actions' },
     { path: '/planner', label: 'Planner', icon: CalendarDays, hint: 'Calendar + Google sync' },
-    { path: '/compose', label: 'Compose', icon: PenTool, hint: 'Facebook, LinkedIn, X' },
+    { path: '/compose', label: 'Compose', icon: PenTool, hint: 'Write, research, remix' },
+    { path: '/library', label: 'AI Library', icon: Images, hint: 'Generated images & video' },
     { path: '/ads', label: 'Ads', icon: BarChart3, hint: 'Meta AI ad studio' },
-    { path: '/settings', label: 'Settings', icon: Settings },
   ]
+
+  const handleSignOut = async () => {
+    if (isDemoMode) {
+      navigate('/login')
+      return
+    }
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
   const userPreferences = loadUserPreferences()
   const displayName = getPreferredDisplayName(profile?.display_name, userPreferences)
 
@@ -114,7 +125,7 @@ export function Layout() {
     <div className="flex h-screen w-full bg-background">
       <aside
         className={cn(
-          'flex flex-col overflow-hidden border-r bg-card transition-[width] duration-300 ease-out',
+          'flex min-h-0 flex-col border-r bg-card transition-[width] duration-300 ease-out',
           sidebarOpen ? 'w-72' : 'w-24'
         )}
       >
@@ -164,7 +175,7 @@ export function Layout() {
                     <ChevronDown className="h-4 w-4 shrink-0 opacity-50 transition-all duration-200" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent className="w-full">
                   {workspaces.map((ws) => (
                     <DropdownMenuItem key={ws.id} onClick={() => handleWorkspaceChange(ws.id)}>
                       {ws.name}
@@ -216,7 +227,7 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => {
             const active = location.pathname === item.path
             const Icon = item.icon
@@ -252,37 +263,71 @@ export function Layout() {
           })}
         </nav>
 
-        <div className="border-t p-4">
-          <div className={cn('flex items-center', sidebarOpen ? 'gap-3' : 'justify-center')}>
-            <Avatar className="h-8 w-8">
-              {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
-              <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
-                {getInitials(displayName)}
-              </AvatarFallback>
-            </Avatar>
-            <div
-              className={cn(
-                'flex-1 overflow-hidden transition-all duration-200',
-                sidebarOpen ? 'max-w-[120px] opacity-100' : 'max-w-0 opacity-0'
-              )}
-            >
-              <p className="truncate text-sm font-medium">{displayName}</p>
-            </div>
-            <button
-              onClick={async () => {
-                if (isDemoMode) {
-                  navigate('/login')
-                  return
-                }
-                await supabase.auth.signOut()
-                navigate('/login')
-              }}
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
+        <div className="relative border-t p-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full items-center rounded-2xl px-2 py-2 text-left transition-colors hover:bg-accent',
+                  sidebarOpen ? 'gap-3' : 'justify-center'
+                )}
+              >
+                <Avatar className="h-9 w-9 shrink-0">
+                  {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
+                  <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
+                    {getInitials(displayName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div
+                  className={cn(
+                    'min-w-0 flex-1 overflow-hidden transition-all duration-200',
+                    sidebarOpen ? 'max-w-[140px] opacity-100' : 'max-w-0 opacity-0'
+                  )}
+                >
+                  <p className="truncate text-sm font-medium">{displayName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'Account'}</p>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 shrink-0 text-muted-foreground transition-all duration-200',
+                    sidebarOpen ? 'opacity-100' : 'max-w-0 opacity-0'
+                  )}
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" className="min-w-[14rem]">
+              <div className="flex items-center gap-3 px-2 py-2">
+                <Avatar className="h-10 w-10">
+                  {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
+                  <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
+                    {getInitials(displayName)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{displayName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'demo@postpilot.app'}</p>
+                  {currentWorkspace ? (
+                    <p className="truncate text-xs text-muted-foreground">{currentWorkspace.name}</p>
+                  ) : null}
+                </div>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/settings', { state: { tab: 'profile' } })}>
+                <UserRound className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void handleSignOut()} className="text-destructive hover:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
 

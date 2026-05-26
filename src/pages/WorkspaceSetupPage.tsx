@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 export function WorkspaceSetupPage() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
-  const { createWorkspace, workspaces } = useWorkspaces(profile?.id)
+  const { profile, user } = useAuth()
+  const { createWorkspace, workspaces } = useWorkspaces(user?.id ?? profile?.id)
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

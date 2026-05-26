@@ -324,6 +324,47 @@ export interface Database {
           updated_at?: string
         }
       }
+      workspace_ai_media: {
+        Row: {
+          id: string
+          workspace_id: string
+          created_by: string
+          media_type: 'image' | 'video'
+          storage_bucket: string
+          storage_path: string
+          public_url: string
+          prompt: string | null
+          source: 'compose' | 'ads' | 'other'
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          created_by: string
+          media_type: 'image' | 'video'
+          storage_bucket?: string
+          storage_path: string
+          public_url: string
+          prompt?: string | null
+          source?: 'compose' | 'ads' | 'other'
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          created_by?: string
+          media_type?: 'image' | 'video'
+          storage_bucket?: string
+          storage_path?: string
+          public_url?: string
+          prompt?: string | null
+          source?: 'compose' | 'ads' | 'other'
+          metadata?: Json
+          created_at?: string
+        }
+      }
     }
     Functions: {
       has_role: {

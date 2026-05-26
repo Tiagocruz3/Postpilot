@@ -45,6 +45,7 @@ export function useAuth() {
         const nextPreferences = profileToUserPreferences(nextProfile, loadUserPreferences())
         saveUserPreferences(nextPreferences)
         setProfile(nextProfile)
+        await supabase.rpc('accept_my_workspace_invites')
       } else {
         setProfile(null)
       }

@@ -1,12 +1,33 @@
-import { useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Calendar, Image, Link, Send } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useOutletContext } from 'react-router-dom'
+import {
+  Calendar,
+  Eye,
+  Link,
+  RefreshCw,
+  Search,
+  Send,
+  Sparkles,
+  Wand2,
+} from 'lucide-react'
+import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
+import { RemixPostModal } from '@/components/compose/RemixPostModal'
+import { StockImagePicker, type StockImageMeta } from '@/components/compose/StockImagePicker'
+import type { Workspace } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { isDemoMode } from '@/lib/demo'
+import {
+  buildVideoPrompt,
+  COMPOSE_CHAR_LIMITS,
+  platformLabel,
+  sanitizeComposeCopy,
+  type ComposePlatform,
+} from '@/lib/compose-copy'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -14,39 +35,106 @@ import type { Database } from '@/types/database'
 
 interface OutletContext {
   currentWorkspaceId: string | null
+  currentWorkspace: Workspace | null
 }
 
-type SocialPlatform = 'facebook' | 'linkedin' | 'x'
+type MediaSourceType = 'ai-image' | 'ai-video' | 'stock-image' | 'user-media'
+type MediaItem = { url: string; type: 'image' | 'video'; source: MediaSourceType; meta?: StockImageMeta | Record<string, unknown> }
 type PlannerTaskInsert = Database['public']['Tables']['planner_tasks']['Insert']
 type ScheduledPostInsert = Database['public']['Tables']['scheduled_posts']['Insert']
 
-const MAX_CHARS: Record<SocialPlatform, number> = {
-  facebook: 63206,
-  linkedin: 3000,
-  x: 280,
+const PLATFORMS: ComposePlatform[] = ['facebook', 'linkedin', 'x']
+
+type ComposeLocationState = {
+  libraryUrl?: string
+  libraryType?: 'image' | 'video'
+  caption?: string
+  visualIdea?: string
+  remixPostText?: string
+  competitorNiche?: string
+  platform?: ComposePlatform
 }
 
 export function ComposePage() {
-  const { currentWorkspaceId } = useOutletContext<OutletContext>()
+  const location = useLocation()
+  const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<SocialPlatform>('facebook')
+  const [activeTab, setActiveTab] = useState<ComposePlatform>('facebook')
   const [content, setContent] = useState('')
-  const [media, setMedia] = useState<string[]>([])
+  const [draftTopic, setDraftTopic] = useState('')
+  const [imageHint, setImageHint] = useState('')
+  const [videoHint, setVideoHint] = useState('')
+  const [media, setMedia] = useState<MediaItem[]>([])
   const [linkUrl, setLinkUrl] = useState('')
   const [scheduleAt, setScheduleAt] = useState('')
   const [loading, setLoading] = useState(false)
+  const [copyLoading, setCopyLoading] = useState(false)
+  const [imageLoading, setImageLoading] = useState(false)
+  const [videoLoading, setVideoLoading] = useState(false)
+  const [mediaSource, setMediaSource] = useState<MediaSourceType>('ai-image')
+  const [showStockPicker, setShowStockPicker] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [firstDraftCreated, setFirstDraftCreated] = useState(false)
+  const [replaceInPreview, setReplaceInPreview] = useState(false)
   const [message, setMessage] = useState('')
+  const [showResearch, setShowResearch] = useState(false)
+  const [showRemix, setShowRemix] = useState(false)
+  const [remixSeed, setRemixSeed] = useState({ text: '', niche: '' })
+  const userMediaInputRef = useRef<HTMLInputElement | null>(null)
 
-  const maxChars = MAX_CHARS[activeTab]
+  const brandName = currentWorkspace?.name ?? 'Your brand'
+
+  const maxChars = COMPOSE_CHAR_LIMITS[activeTab]
   const charCount = content.length
 
-  const connect = (provider: SocialPlatform) => {
+  useEffect(() => {
+    const state = location.state as ComposeLocationState | null
+    if (!state) {
+      return
+    }
+
+    if (state.platform) {
+      setActiveTab(state.platform)
+    }
+    if (state.libraryUrl && state.libraryType) {
+      setMedia((prev) => [...prev, { url: state.libraryUrl!, type: state.libraryType!, source: 'user-media' }])
+      setMessage('Added media from AI Library.')
+    }
+    if (state.caption) {
+      setContent(sanitizeComposeCopy(state.caption))
+    }
+    if (state.visualIdea) {
+      setImageHint(state.visualIdea)
+    }
+    if (state.remixPostText) {
+      setRemixSeed({ text: state.remixPostText, niche: state.competitorNiche ?? '' })
+      setShowRemix(true)
+      setMessage('Paste ready for Inspiration Engine remix.')
+    }
+
+    if (state.libraryUrl || state.caption || state.remixPostText) {
+      window.history.replaceState({}, '', location.pathname)
+    }
+  }, [location.pathname, location.state])
+
+  const aiSaveContext = () => {
+    if (!currentWorkspaceId || !user?.id) {
+      return null
+    }
+    return {
+      workspace_id: currentWorkspaceId,
+      user_id: user.id,
+      source: 'compose' as const,
+    }
+  }
+
+  const connect = (provider: ComposePlatform) => {
     if (isDemoMode) {
       setMessage(`Demo mode: ${platformLabel(provider)} connected.`)
       return
     }
 
-    redirectToEdgeFunction(`${provider}-oauth-start`, { workspace_id: currentWorkspaceId })
+    void redirectToEdgeFunction(`${provider}-oauth-start`, { workspace_id: currentWorkspaceId })
   }
 
   const publish = async (action: 'now' | 'schedule') => {
@@ -66,17 +154,20 @@ export function ComposePage() {
         throw new Error('You need to be signed in to create a post.')
       }
 
+      const cleanContent = sanitizeComposeCopy(content)
+      const mediaUrls = media.map((item) => item.url)
+
       const plannerTask: PlannerTaskInsert = {
         user_id: user.id,
         workspace_id: currentWorkspaceId,
-        title: content.slice(0, 60) || `${platformLabel(activeTab)} post`,
-        description: content,
+        title: cleanContent.slice(0, 60) || `${platformLabel(activeTab)} post`,
+        description: cleanContent,
         scheduled_at: action === 'now' ? new Date().toISOString() : scheduleAt || new Date().toISOString(),
         duration_minutes: 15,
         status: 'scheduled',
         kind: 'post',
         platform: activeTab,
-        payload: { media_urls: media, link_url: linkUrl },
+        payload: { media_urls: mediaUrls, link_url: linkUrl },
       }
 
       const taskRes = await supabase.from('planner_tasks').insert(plannerTask as never).select().single()
@@ -86,8 +177,8 @@ export function ComposePage() {
       const scheduledPost: ScheduledPostInsert = {
         planner_task_id: createdTask.id,
         platform: activeTab,
-        content,
-        media_urls: media.length ? media : null,
+        content: cleanContent,
+        media_urls: mediaUrls.length ? mediaUrls : null,
       }
 
       const scheduledPostRes = await supabase.from('scheduled_posts').insert(scheduledPost as never)
@@ -95,7 +186,7 @@ export function ComposePage() {
 
       if (action === 'now') {
         await supabase.functions.invoke(`${activeTab}-api`, {
-          body: { task_id: createdTask.id, content, media_urls: media },
+          body: { task_id: createdTask.id, content: cleanContent, media_urls: mediaUrls },
         })
       }
 
@@ -108,76 +199,374 @@ export function ComposePage() {
     }
   }
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUserMediaUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    const mediaType = file.type.startsWith('video/') ? 'video' : 'image'
 
     if (isDemoMode) {
       const url = URL.createObjectURL(file)
-      setMedia((prev) => [...prev, url])
+      insertMedia({ url, type: mediaType, source: 'user-media' }, replaceInPreview)
+      setReplaceInPreview(false)
       return
     }
 
-    if (!currentWorkspaceId) {
+    if (!currentWorkspaceId || !user?.id) {
       return
     }
 
-    const path = `${currentWorkspaceId}/${Date.now()}_${file.name}`
+    const path = `${currentWorkspaceId}/${user.id}/${Date.now()}_${file.name}`
     const { data, error } = await supabase.storage.from('media').upload(path, file)
     if (!error && data) {
       const { data: urlData } = supabase.storage.from('media').getPublicUrl(data.path)
-      setMedia((prev) => [...prev, urlData.publicUrl])
+      insertMedia({ url: urlData.publicUrl, type: mediaType, source: 'user-media' }, replaceInPreview)
+      setReplaceInPreview(false)
     }
+    event.target.value = ''
+  }
+
+  const draftWithAi = async () => {
+    if (!draftTopic.trim()) {
+      setMessage('Add a topic or angle for the AI draft.')
+      return
+    }
+
+    setCopyLoading(true)
+    setMessage('')
+    try {
+      if (isDemoMode) {
+        setContent(
+          sanitizeComposeCopy(
+            `Here is a ${platformLabel(activeTab)} post about ${draftTopic}. Clear, friendly, and ready to publish without sounding like a template.`,
+          ),
+        )
+        if (!firstDraftCreated) {
+          setFirstDraftCreated(true)
+          setShowPreview(true)
+        }
+        return
+      }
+
+      const data = await invokeAi<{ content?: string }>('generate-compose-copy', {
+        platform: activeTab,
+        mode: 'draft',
+        topic: draftTopic,
+        workspace_id: currentWorkspaceId,
+      })
+      if (data.content) {
+        setContent(sanitizeComposeCopy(data.content))
+        if (!firstDraftCreated) {
+          setFirstDraftCreated(true)
+          setShowPreview(true)
+        }
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not draft post copy.')
+    } finally {
+      setCopyLoading(false)
+    }
+  }
+
+  const polishWithAi = async () => {
+    if (!content.trim()) {
+      setMessage('Write something first, then polish it with AI.')
+      return
+    }
+
+    setCopyLoading(true)
+    setMessage('')
+    try {
+      if (isDemoMode) {
+        setContent(sanitizeComposeCopy(`${content.trim()} (polished for a natural, professional tone.)`))
+        return
+      }
+
+      const data = await invokeAi<{ content?: string }>('generate-compose-copy', {
+        platform: activeTab,
+        mode: 'polish',
+        content: sanitizeComposeCopy(content),
+        workspace_id: currentWorkspaceId,
+      })
+      if (data.content) {
+        setContent(sanitizeComposeCopy(data.content))
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not polish post copy.')
+    } finally {
+      setCopyLoading(false)
+    }
+  }
+
+  const generateImage = async (regenerate: boolean) => {
+    if (!content.trim() && !imageHint.trim()) {
+      setMessage('Add post text or an image direction before generating.')
+      return
+    }
+
+    setImageLoading(true)
+    setMessage('')
+    try {
+      if (isDemoMode) {
+        const url = `https://placehold.co/800x800?text=${encodeURIComponent(platformLabel(activeTab))}+Image`
+        upsertMedia({ url, type: 'image', source: 'ai-image' }, regenerate)
+        return
+      }
+
+      const ctx = aiSaveContext()
+      if (!ctx) {
+        throw new Error('Choose a workspace and sign in to generate images.')
+      }
+
+      const data = await invokeAi<{ url?: string }>('generate-image', {
+        platform: activeTab,
+        post_text: sanitizeComposeCopy(content),
+        hint: imageHint,
+        prompt: regenerate ? `${imageHint || content} (alternate composition, different angle)` : undefined,
+        ...ctx,
+      })
+      if (data.url) {
+        upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not generate image.')
+    } finally {
+      setImageLoading(false)
+    }
+  }
+
+  const generateVideo = async (regenerate: boolean) => {
+    if (!content.trim() && !videoHint.trim()) {
+      setMessage('Add post text or a video direction before generating.')
+      return
+    }
+
+    setVideoLoading(true)
+    setMessage('Generating video (this can take a minute)...')
+    try {
+      if (isDemoMode) {
+        const url = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+        upsertMedia({ url, type: 'video', source: 'ai-video' }, regenerate)
+        setMessage('Demo video added.')
+        return
+      }
+
+      const ctx = aiSaveContext()
+      if (!ctx) {
+        throw new Error('Choose a workspace and sign in to generate video.')
+      }
+
+      const prompt = buildVideoPrompt(activeTab, sanitizeComposeCopy(content), videoHint, regenerate)
+
+      const data = await invokeAi<{ url?: string }>('generate-video', { prompt, duration_seconds: 15, ...ctx })
+      if (data.url) {
+        upsertMedia({ url: data.url, type: 'video', source: 'ai-video' }, regenerate)
+        setMessage('Video generated.')
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not generate video.')
+    } finally {
+      setVideoLoading(false)
+    }
+  }
+
+  function insertMedia(item: MediaItem, replaceCurrent = false) {
+    setMedia((prev) => {
+      if (!replaceCurrent || prev.length === 0) return [...prev, item]
+      return [...prev.slice(0, -1), item]
+    })
+  }
+
+  function upsertMedia(item: MediaItem, replace: boolean) {
+    setMedia((prev) => {
+      if (!replace) {
+        return [...prev, item]
+      }
+      const index = [...prev].reverse().findIndex((entry) => entry.type === item.type)
+      if (index === -1) {
+        return [...prev, item]
+      }
+      const actualIndex = prev.length - 1 - index
+      return prev.map((entry, i) => (i === actualIndex ? item : entry))
+    })
   }
 
   function resetForm() {
     setContent('')
+    setDraftTopic('')
+    setImageHint('')
+    setVideoHint('')
     setMedia([])
     setLinkUrl('')
     setScheduleAt('')
+    setShowPreview(false)
+    setFirstDraftCreated(false)
+  }
+
+  const activeMedia = media[media.length - 1] ?? null
+  const draftReady = firstDraftCreated || Boolean(content.trim())
+
+  const onSelectMediaSource = (source: MediaSourceType) => {
+    setMediaSource(source)
+    if (!draftReady) {
+      setMessage('Create your post draft first, then add or generate media.')
+      return
+    }
+    if (source === 'stock-image') {
+      setShowStockPicker(true)
+      return
+    }
+    if (source === 'user-media') {
+      setReplaceInPreview(false)
+      userMediaInputRef.current?.click()
+      return
+    }
+    if (source === 'ai-image') {
+      void generateImage(false)
+      return
+    }
+    void generateVideo(false)
   }
 
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Compose</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Draft Facebook, LinkedIn, and X posts with shared scheduling controls.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Write, research, remix, and publish with Post Intelligence. All content stays scoped to your workspace.
+        </p>
       </div>
 
       {message ? (
-        <div className="mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">
-          {message}
-        </div>
+        <div className="mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{message}</div>
       ) : null}
 
       <Tabs>
         <TabsList className="mb-4">
-          <TabsTrigger value="facebook" activeValue={activeTab} onClick={(value) => setActiveTab(value as SocialPlatform)}>
-            Facebook
-          </TabsTrigger>
-          <TabsTrigger value="linkedin" activeValue={activeTab} onClick={(value) => setActiveTab(value as SocialPlatform)}>
-            LinkedIn
-          </TabsTrigger>
-          <TabsTrigger value="x" activeValue={activeTab} onClick={(value) => setActiveTab(value as SocialPlatform)}>
-            X
-          </TabsTrigger>
+          {PLATFORMS.map((platform) => (
+            <TabsTrigger
+              key={platform}
+              value={platform}
+              activeValue={activeTab}
+              onClick={(value) => setActiveTab(value as ComposePlatform)}
+            >
+              {platformLabel(platform)}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {(['facebook', 'linkedin', 'x'] as const).map((platform) => (
+        {PLATFORMS.map((platform) => (
           <TabsContent key={platform} value={platform} activeValue={activeTab}>
             <Card>
-              <CardHeader className="flex-row items-center justify-between">
-                <CardTitle className="text-base">{platformLabel(platform)} composer</CardTitle>
+              <CardHeader className="flex-row items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base">{platformLabel(platform)} composer</CardTitle>
+                  <CardDescription className="mt-1">Write, research, and publish with media in one simple flow.</CardDescription>
+                </div>
                 <Button size="sm" variant="outline" onClick={() => connect(platform)}>
                   Connect {platformLabel(platform)}
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
+                <div className="rounded-2xl border bg-muted/20 p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Media Source</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={mediaSource === 'ai-image' ? 'default' : 'outline'}
+                      onClick={() => onSelectMediaSource('ai-image')}
+                      disabled={imageLoading || !draftReady}
+                    >
+                      AI Image
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={mediaSource === 'ai-video' ? 'default' : 'outline'}
+                      onClick={() => onSelectMediaSource('ai-video')}
+                      disabled={videoLoading || !draftReady}
+                    >
+                      AI Video
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={mediaSource === 'stock-image' ? 'default' : 'outline'}
+                      onClick={() => onSelectMediaSource('stock-image')}
+                      disabled={!draftReady}
+                    >
+                      Stock Image
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={mediaSource === 'user-media' ? 'default' : 'outline'}
+                      onClick={() => onSelectMediaSource('user-media')}
+                      disabled={!draftReady}
+                    >
+                      User Media
+                    </Button>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {draftReady
+                      ? 'AI Video generates clips with a minimum target duration of 15 seconds.'
+                      : 'Write or generate your post draft first to unlock image and video tools.'}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border bg-muted/20 p-4 space-y-3">
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-xl border bg-background p-3">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Write</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Input
+                          placeholder="Topic for Write with AI..."
+                          value={draftTopic}
+                          onChange={(event) => setDraftTopic(event.target.value)}
+                          className="min-w-[200px] flex-1"
+                        />
+                        <Button type="button" variant="outline" disabled={copyLoading} onClick={() => void draftWithAi()}>
+                          <Wand2 className="mr-2 h-4 w-4" />
+                          Write with AI
+                        </Button>
+                        <Button type="button" variant="outline" disabled={copyLoading || !content.trim()} onClick={() => void polishWithAi()}>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Polish
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border bg-background p-3">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Research</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" onClick={() => setShowResearch(true)}>
+                          <Search className="mr-2 h-4 w-4" />
+                          Research Topic
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setRemixSeed({ text: content, niche: '' })
+                            setShowRemix(true)
+                          }}
+                        >
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Remix Competitor Post
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Captions are written to stay human, professional, and avoid em dashes.
+                  </p>
+                </div>
+
                 <div className="relative">
                   <Textarea
                     placeholder="What's on your mind?"
                     value={content}
                     onChange={(event) => setContent(event.target.value)}
+                    onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
                     className="min-h-[180px] resize-none"
                   />
                   <div className="absolute bottom-3 right-3">
@@ -198,10 +587,14 @@ export function ComposePage() {
                 ) : null}
 
                 {media.length ? (
-                  <div className="flex gap-2">
-                    {media.map((url, index) => (
-                      <div key={url} className="relative h-24 w-24 overflow-hidden rounded-xl border">
-                        <img src={url} alt="" className="h-full w-full object-cover" />
+                  <div className="flex flex-wrap gap-2">
+                    {media.map((item, index) => (
+                      <div key={`${item.url}-${index}`} className="relative h-28 w-28 overflow-hidden rounded-xl border">
+                        {item.type === 'video' ? (
+                          <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                        ) : (
+                          <img src={item.url} alt="" className="h-full w-full object-cover" />
+                        )}
                         <button
                           type="button"
                           onClick={() => setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
@@ -214,17 +607,122 @@ export function ComposePage() {
                   </div>
                 ) : null}
 
+                <div className="space-y-2 rounded-2xl border p-3">
+                  {draftReady && mediaSource === 'ai-image' ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        placeholder="Image direction (optional)"
+                        value={imageHint}
+                        onChange={(event) => setImageHint(event.target.value)}
+                        className="min-w-[220px] flex-1"
+                      />
+                      <Button type="button" size="sm" variant="outline" disabled={imageLoading} onClick={() => void generateImage(false)}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate image
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={imageLoading || !media.some((item) => item.type === 'image')}
+                        onClick={() => void generateImage(true)}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Regenerate
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {draftReady && mediaSource === 'ai-video' ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        placeholder="Video direction (optional)"
+                        value={videoHint}
+                        onChange={(event) => setVideoHint(event.target.value)}
+                        className="min-w-[220px] flex-1"
+                      />
+                      <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)}>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate video
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={videoLoading || !media.some((item) => item.type === 'video')}
+                        onClick={() => void generateVideo(true)}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Regenerate
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {draftReady && mediaSource === 'stock-image' ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Browse Pixabay stock images and select one for this post.</p>
+                      <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)}>Open stock picker</Button>
+                    </div>
+                  ) : null}
+
+                  {draftReady && mediaSource === 'user-media' ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Upload your own image or video.</p>
+                      <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()}>Upload media</Button>
+                    </div>
+                  ) : null}
+
+                  {draftReady ? (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={videoLoading || !media.some((item) => item.type === 'video')}
+                        onClick={() => void generateVideo(true)}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Regenerate video
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setReplaceInPreview(true)
+                          setShowStockPicker(true)
+                        }}
+                      >
+                        Replace image with stock
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setReplaceInPreview(true)
+                          userMediaInputRef.current?.click()
+                        }}
+                      >
+                        Replace image with user
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="cursor-pointer rounded-md border p-2 text-muted-foreground hover:bg-accent">
-                    <Image className="h-4 w-4" />
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  </label>
                   <Input
                     placeholder="Add a link..."
                     value={linkUrl}
                     onChange={(event) => setLinkUrl(event.target.value)}
                     className="max-w-xs"
                   />
+                  {firstDraftCreated ? (
+                    <Button type="button" variant="outline" onClick={() => setShowPreview(true)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Preview Post
+                    </Button>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -236,11 +734,11 @@ export function ComposePage() {
                   />
                   <Button variant="outline" onClick={() => publish('schedule')} disabled={loading || !content.trim()}>
                     <Calendar className="mr-2 h-4 w-4" />
-                    Schedule
+                    Schedule Post
                   </Button>
                   <Button onClick={() => publish('now')} disabled={loading || !content.trim()}>
                     <Send className="mr-2 h-4 w-4" />
-                    Post now
+                    Publish Now
                   </Button>
                 </div>
               </CardContent>
@@ -248,12 +746,146 @@ export function ComposePage() {
           </TabsContent>
         ))}
       </Tabs>
+
+      <ResearchTopicModal
+        open={showResearch}
+        onOpenChange={setShowResearch}
+        platform={activeTab}
+        brandName={brandName}
+        workspaceId={currentWorkspaceId}
+        initialTopic={draftTopic || content.slice(0, 80)}
+        onUseCaption={(caption, visualIdea) => {
+          setContent(sanitizeComposeCopy(caption))
+          setImageHint(visualIdea)
+          setMessage('Research caption applied.')
+        }}
+        onGenerateVisual={(visualIdea) => {
+          setImageHint(visualIdea)
+          void generateImage(false)
+        }}
+        onSchedulePost={(caption, suggestedTime) => {
+          setContent(sanitizeComposeCopy(caption))
+          setMessage(`Caption applied. Pick a date below. Suggested: ${suggestedTime}`)
+        }}
+      />
+
+      <RemixPostModal
+        open={showRemix}
+        onOpenChange={setShowRemix}
+        platform={activeTab}
+        brandName={brandName}
+        workspaceId={currentWorkspaceId}
+        initialPostText={remixSeed.text}
+        initialCompetitorNiche={remixSeed.niche}
+        onSendToComposer={(caption, visualIdea, scheduleHint) => {
+          setContent(sanitizeComposeCopy(caption))
+          setImageHint(visualIdea)
+          setMessage(`Brand-safe version ready. Schedule hint: ${scheduleHint}`)
+        }}
+        onGenerateVisual={(visualIdea) => {
+          setImageHint(visualIdea)
+          void generateImage(false)
+        }}
+        onScheduleInspiredPost={(caption, visualIdea, scheduleHint) => {
+          setContent(sanitizeComposeCopy(caption))
+          setImageHint(visualIdea)
+          setMessage(`Schedule inspired post. Suggested timing: ${scheduleHint}. Set date/time below, then Schedule Post.`)
+        }}
+      />
+
+      <StockImagePicker
+        open={showStockPicker}
+        onOpenChange={setShowStockPicker}
+        onSelect={(imageUrl, meta) => {
+          insertMedia({ url: imageUrl, type: 'image', source: 'stock-image', meta }, replaceInPreview)
+          setReplaceInPreview(false)
+          setMessage('Stock image selected.')
+        }}
+      />
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(event) => event.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Post Preview</DialogTitle>
+            <DialogDescription>Review your draft and media before continuing.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-3">
+            <Textarea readOnly value={sanitizeComposeCopy(content)} className="min-h-[140px]" />
+            {activeMedia ? (
+              activeMedia.type === 'video' ? (
+                <video src={activeMedia.url} controls className="h-64 w-full rounded-xl border object-cover" />
+              ) : (
+                <img src={activeMedia.url} alt="" className="h-64 w-full rounded-xl border object-cover" />
+              )
+            ) : (
+              <div className="flex h-40 items-center justify-center rounded-xl border text-sm text-muted-foreground">
+                No media selected yet.
+              </div>
+            )}
+
+            {firstDraftCreated ? (
+              <div className="space-y-2 rounded-xl border p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Media actions</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => void generateImage(true)} disabled={imageLoading}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Regenerate AI Image
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => void generateVideo(true)} disabled={videoLoading}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Regenerate AI Video
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setReplaceInPreview(true)
+                      userMediaInputRef.current?.click()
+                    }}
+                  >
+                    Replace with User Media
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setReplaceInPreview(true)
+                      setShowStockPicker(true)
+                    }}
+                  >
+                    Replace with Stock Image
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">You can switch between image and video regeneration after the first draft is created.</p>
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>Close</Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
+      <input
+        ref={userMediaInputRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={handleUserMediaUpload}
+      />
     </div>
   )
 }
 
-function platformLabel(platform: SocialPlatform) {
-  if (platform === 'facebook') return 'Facebook'
-  if (platform === 'linkedin') return 'LinkedIn'
-  return 'X'
+async function invokeAi<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(functionName, { body })
+  if (error) {
+    throw new Error(error.message)
+  }
+  const payload = data as T & { error?: string }
+  if (payload && typeof payload === 'object' && 'error' in payload && payload.error) {
+    throw new Error(payload.error)
+  }
+  return data as T
 }

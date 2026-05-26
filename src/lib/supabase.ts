@@ -37,11 +37,19 @@ export function getEdgeFunctionUrl(functionName: string, params?: Record<string,
   return url.toString()
 }
 
-export function redirectToEdgeFunction(
+export async function redirectToEdgeFunction(
   functionName: string,
   params?: Record<string, string | null | undefined>
 ) {
-  const url = getEdgeFunctionUrl(functionName, params)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('You must be signed in to connect an account')
+  }
+
+  const url = getEdgeFunctionUrl(functionName, {
+    ...params,
+    access_token: session.access_token,
+  })
   if (!url) {
     throw new Error('Missing Supabase environment variables')
   }

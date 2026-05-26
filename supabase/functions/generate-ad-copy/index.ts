@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { completeChat, parseJsonFromModel } from '../_shared/ai-complete.ts'
 
 serve(async (req) => {
   const body = await req.json().catch(() => ({}))
@@ -19,20 +20,15 @@ Goal: ${answers.goal || 'awareness'}.
 Audience: ${answers.audience || 'general'}.
 Return ONLY a JSON array with objects: {headline, primary_text, description, cta, image_prompt}.`
 
-  const aiRes = await fetch(`${Deno.env.get('LOVABLE_AI_URL') || 'https://ai.lovable.dev/v1'}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-pro',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-    }),
+  const raw = await completeChat({
+    messages: [{ role: 'user', content: prompt }],
+    jsonMode: true,
+    workspaceId: typeof workspace_id === 'string' ? workspace_id : undefined,
+    temperature: 0.7,
   })
-
-  const aiData = await aiRes.json()
-  let variants: any[] = []
+  let variants: unknown[] = []
   try {
-    const parsed = JSON.parse(aiData.choices?.[0]?.message?.content || '[]')
+    const parsed = parseJsonFromModel<Record<string, unknown> | unknown[]>(raw)
     variants = Array.isArray(parsed) ? parsed : parsed.variants || []
   } catch {
     variants = []
