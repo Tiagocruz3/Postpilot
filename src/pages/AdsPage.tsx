@@ -394,7 +394,7 @@ export function AdsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
+    <div className="mx-auto max-w-5xl space-y-6 p-6 alive-enter">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Ads Studio</h1>
@@ -408,11 +408,17 @@ export function AdsPage() {
 
       <div className="flex flex-wrap gap-2">
         <Badge variant="outline">Ads Studio Profile {completion}% complete</Badge>
+        <Badge variant="secondary" className="alive-soft-pulse">
+          Step {onboardingDone ? studioStep : onboardingStep} active
+        </Badge>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="alive-shimmer h-full rounded-full bg-primary/35" style={{ width: `${Math.max(8, completion)}%` }} />
       </div>
       {message ? <div className="rounded-xl border bg-primary/5 px-4 py-3 text-sm">{message}</div> : null}
 
       {!onboardingDone ? (
-        <Card>
+        <Card className="alive-enter">
           <CardHeader>
             <CardTitle>{ONBOARDING_STEPS[onboardingStep - 1]}</CardTitle>
             <CardDescription>Meta Connected to Ads Studio Onboarding to Ads Studio Ready</CardDescription>
@@ -424,7 +430,7 @@ export function AdsPage() {
                 <span>{completion}%</span>
               </div>
               <div className="h-2 rounded-full bg-muted">
-                <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${Math.max(10, (onboardingStep / 8) * 100)}%` }} />
+                <div className="alive-shimmer h-2 rounded-full bg-primary transition-all" style={{ width: `${Math.max(10, (onboardingStep / 8) * 100)}%` }} />
               </div>
             </div>
 
@@ -629,7 +635,12 @@ export function AdsPage() {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {['Campaign Brief', 'Choose Ad Type', 'Generate 3 Options', 'Edit', 'Destination', 'Audience', 'Budget & Schedule', 'Preview', 'Review & Launch'].map((label, idx) => (
-                  <button key={label} type="button" onClick={() => setStudioStep(idx + 1)} className={`rounded-full border px-3 py-1 text-xs ${studioStep === idx + 1 ? 'bg-primary text-primary-foreground' : ''}`}>
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setStudioStep(idx + 1)}
+                    className={`rounded-full border px-3 py-1 text-xs transition-all ${studioStep === idx + 1 ? 'alive-ring bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
+                  >
                     {idx + 1}. {label}
                   </button>
                 ))}

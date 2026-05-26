@@ -7,6 +7,12 @@ import type { Database } from '@/types/database'
 type PlannerTaskInsert = Database['public']['Tables']['planner_tasks']['Insert']
 type PlannerTaskUpdate = Database['public']['Tables']['planner_tasks']['Update']
 
+function sortByScheduledAt(items: PlannerTask[]) {
+  return [...items].sort(
+    (left, right) => new Date(left.scheduled_at).getTime() - new Date(right.scheduled_at).getTime()
+  )
+}
+
 export function usePlannerTasks(workspaceId?: string) {
   const [tasks, setTasks] = useState<PlannerTask[]>(isDemoMode ? demoTasks : [])
   const [loading, setLoading] = useState(!isDemoMode)
@@ -29,7 +35,7 @@ export function usePlannerTasks(workspaceId?: string) {
 
       setLoading(true)
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('planner_tasks')
         .select('*')
         .eq('workspace_id', workspaceId)
@@ -39,24 +45,32 @@ export function usePlannerTasks(workspaceId?: string) {
         return
       }
 
-      setTasks((data as PlannerTask[]) || [])
+      if (error) {
+        setTasks([])
+        setLoading(false)
+        return
+      }
+
+      setTasks(sortByScheduledAt((data as PlannerTask[]) || []))
       setLoading(false)
     }
 
     void fetchTasks()
 
     const channel = supabase
-      .channel('planner_tasks_changes')
+      .channel(`planner_tasks_changes_${workspaceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'planner_tasks', filter: `workspace_id=eq.${workspaceId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setTasks((prev) => [...prev, payload.new as PlannerTask])
+            setTasks((prev) => sortByScheduledAt([...prev, payload.new as PlannerTask]))
           } else if (payload.eventType === 'UPDATE') {
-            setTasks((prev) => prev.map((t) => (t.id === payload.new.id ? (payload.new as PlannerTask) : t)))
+            setTasks((prev) =>
+              sortByScheduledAt(prev.map((task) => (task.id === payload.new.id ? (payload.new as PlannerTask) : task)))
+            )
           } else if (payload.eventType === 'DELETE') {
-            setTasks((prev) => prev.filter((t) => t.id !== payload.old.id))
+            setTasks((prev) => prev.filter((task) => task.id !== payload.old.id))
           }
         }
       )
@@ -96,7 +110,9 @@ export function usePlannerTasks(workspaceId?: string) {
 
     const { data, error } = await supabase.from('planner_tasks').insert(task as never).select().single()
     if (error) throw error
-    return data as PlannerTask
+    const createdTask = data as PlannerTask
+    setTasks((prev) => sortByScheduledAt([...prev.filter((item) => item.id !== createdTask.id), createdTask]))
+    return createdTask
   }
 
   const updateTask = async (id: string, updates: PlannerTaskUpdate) => {
@@ -107,6 +123,9 @@ export function usePlannerTasks(workspaceId?: string) {
 
     const { data, error } = await supabase.from('planner_tasks').update(updates as never).eq('id', id).select().single()
     if (error) throw error
+    setTasks((prev) =>
+      sortByScheduledAt(prev.map((task) => (task.id === id ? (data as PlannerTask) : task)))
+    )
     return data as PlannerTask
   }
 
@@ -118,6 +137,7 @@ export function usePlannerTasks(workspaceId?: string) {
 
     const { error } = await supabase.from('planner_tasks').delete().eq('id', id)
     if (error) throw error
+    setTasks((prev) => prev.filter((task) => task.id !== id))
   }
 
   return { tasks, loading, createTask, updateTask, deleteTask }

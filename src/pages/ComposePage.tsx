@@ -4,12 +4,14 @@ import {
   Calendar,
   CheckCircle2,
   Eye,
+  Image as ImageIcon,
   Loader2,
   Link,
   RefreshCw,
   Search,
   Send,
   Sparkles,
+  Video,
   Wand2,
 } from 'lucide-react'
 import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
@@ -26,6 +28,7 @@ import {
   type ComposePlatform,
 } from '@/lib/compose-copy'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -63,6 +66,11 @@ type CompletedPost = {
   content: string
   media: MediaItem[]
   scheduledAt: string
+}
+
+type AiMediaResponse = {
+  url?: string
+  library_id?: string | null
 }
 
 export function ComposePage() {
@@ -138,6 +146,29 @@ export function ComposePage() {
       workspace_id: currentWorkspaceId,
       user_id: user.id,
       source: 'compose' as const,
+    }
+  }
+
+  const saveAiLibraryFallback = async (input: {
+    mediaType: 'image' | 'video'
+    url: string
+    prompt: string
+  }) => {
+    if (!currentWorkspaceId || !user?.id) return
+    const fallbackPath = `external/${user.id}/${Date.now()}-${crypto.randomUUID()}`
+    const { error } = await supabase.from('workspace_ai_media').insert({
+      workspace_id: currentWorkspaceId,
+      created_by: user.id,
+      media_type: input.mediaType,
+      storage_bucket: 'external_ai',
+      storage_path: fallbackPath,
+      public_url: input.url,
+      prompt: input.prompt,
+      source: 'compose',
+      metadata: { platform: activeTab, fallback_saved: true },
+    } as never)
+    if (error) {
+      throw error
     }
   }
 
@@ -273,7 +304,6 @@ export function ComposePage() {
         setContent(nextContent)
         if (!firstDraftCreated) {
           setFirstDraftCreated(true)
-          setShowPreview(true)
         }
         requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
         return
@@ -290,7 +320,6 @@ export function ComposePage() {
         setContent(nextContent)
         if (!firstDraftCreated) {
           setFirstDraftCreated(true)
-          setShowPreview(true)
         }
         requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
       }
@@ -352,15 +381,34 @@ export function ComposePage() {
         throw new Error('Choose a workspace and sign in to generate images.')
       }
 
-      const data = await invokeAi<{ url?: string }>('generate-image', {
+      const initialTopic = draftTopic.trim()
+      const promptContext = [initialTopic ? `Primary user intent/topic: ${initialTopic}` : '', imageHint, baseContent]
+        .filter(Boolean)
+        .join('\n\n')
+      const directPrompt = regenerate
+        ? `${promptContext}\n\nCreate a fresh alternate composition with a different angle while keeping the same core intent.`
+        : promptContext
+
+      const data = await invokeAi<AiMediaResponse>('generate-image', {
         platform: activeTab,
         post_text: baseContent,
         hint: imageHint,
-        prompt: regenerate ? `${imageHint || baseContent} (alternate composition, different angle)` : undefined,
+        topic: initialTopic,
+        prompt: directPrompt || undefined,
         ...ctx,
       })
       if (data.url) {
         upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
+        if (!data.library_id) {
+          await saveAiLibraryFallback({
+            mediaType: 'image',
+            url: data.url,
+            prompt: directPrompt || baseContent,
+          })
+        }
+        if (firstDraftCreated) {
+          setShowPreview(true)
+        }
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not generate image.')
@@ -393,9 +441,16 @@ export function ComposePage() {
 
       const prompt = buildVideoPrompt(activeTab, baseContent, videoHint, regenerate)
 
-      const data = await invokeAi<{ url?: string }>('generate-video', { prompt, duration_seconds: 15, ...ctx })
+      const data = await invokeAi<AiMediaResponse>('generate-video', { prompt, duration_seconds: 15, ...ctx })
       if (data.url) {
         upsertMedia({ url: data.url, type: 'video', source: 'ai-video' }, regenerate)
+        if (!data.library_id) {
+          await saveAiLibraryFallback({
+            mediaType: 'video',
+            url: data.url,
+            prompt,
+          })
+        }
         setMessage('Video generated.')
       }
     } catch (error) {
@@ -410,6 +465,9 @@ export function ComposePage() {
       if (!replaceCurrent || prev.length === 0) return [...prev, item]
       return [...prev.slice(0, -1), item]
     })
+    if (firstDraftCreated && item.type === 'image') {
+      setShowPreview(true)
+    }
   }
 
   function upsertMedia(item: MediaItem, replace: boolean) {
@@ -424,6 +482,9 @@ export function ComposePage() {
       const actualIndex = prev.length - 1 - index
       return prev.map((entry, i) => (i === actualIndex ? item : entry))
     })
+    if (firstDraftCreated && item.type === 'image') {
+      setShowPreview(true)
+    }
   }
 
   function resetForm() {
@@ -439,8 +500,24 @@ export function ComposePage() {
   }
 
   const activeMedia = media[media.length - 1] ?? null
+  const hasVisual = media.length > 0
   const draftReady = firstDraftCreated || Boolean(content.trim())
   const isGenerating = copyLoading || imageLoading || videoLoading || loading
+  const generationLabel = copyLoading
+    ? 'Writing your draft'
+    : imageLoading
+      ? 'Designing your image'
+      : videoLoading
+        ? 'Rendering your video'
+        : loading
+          ? 'Publishing your post'
+          : ''
+  const activeFlowStep: 'draft' | 'visual' | 'publish' =
+    copyLoading || (!draftReady && !loading)
+      ? 'draft'
+      : imageLoading || videoLoading || (draftReady && !hasVisual)
+        ? 'visual'
+        : 'publish'
 
   const autoRunSelectedMediaForDraft = (nextContent: string) => {
     const clean = sanitizeComposeCopy(nextContent)
@@ -496,12 +573,16 @@ export function ComposePage() {
       </div>
 
       {message ? (
-        <div className="mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{message}</div>
+        <div className="alive-enter mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{message}</div>
       ) : null}
       {isGenerating ? (
-        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span>AI is working on your content...</span>
+        <div className="alive-enter mb-4 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 text-sm">
+          <div className="alive-shimmer h-0.5 w-full" />
+          <div className="flex items-center gap-2 px-4 py-3">
+            <span className="alive-status-dot" />
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span>{generationLabel}...</span>
+          </div>
         </div>
       ) : null}
 
@@ -521,7 +602,7 @@ export function ComposePage() {
 
         {PLATFORMS.map((platform) => (
           <TabsContent key={platform} value={platform} activeValue={activeTab}>
-            <Card>
+            <Card className="alive-enter">
               <CardHeader className="flex-row items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-base">{platformLabel(platform)} composer</CardTitle>
@@ -534,11 +615,21 @@ export function ComposePage() {
               <CardContent className="space-y-5">
                 <div className="rounded-2xl border bg-muted/20 p-3">
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Media Source</p>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Badge variant={draftReady ? 'default' : 'secondary'} className={draftReady ? 'alive-soft-pulse' : ''}>
+                      {draftReady ? 'Draft ready' : 'Draft needed'}
+                    </Badge>
+                    <Badge variant="outline">
+                      {activeMedia ? `${activeMedia.type === 'video' ? 'Video' : 'Image'} attached` : 'No media yet'}
+                    </Badge>
+                    <Badge variant="outline">{platformLabel(activeTab)} mode</Badge>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       size="sm"
                       variant={mediaSource === 'ai-image' ? 'default' : 'outline'}
+                      className={mediaSource === 'ai-image' ? 'alive-ring' : ''}
                       onClick={() => onSelectMediaSource('ai-image')}
                       disabled={imageLoading}
                     >
@@ -548,6 +639,7 @@ export function ComposePage() {
                       type="button"
                       size="sm"
                       variant={mediaSource === 'ai-video' ? 'default' : 'outline'}
+                      className={mediaSource === 'ai-video' ? 'alive-ring' : ''}
                       onClick={() => onSelectMediaSource('ai-video')}
                       disabled={videoLoading}
                     >
@@ -557,6 +649,7 @@ export function ComposePage() {
                       type="button"
                       size="sm"
                       variant={mediaSource === 'stock-image' ? 'default' : 'outline'}
+                      className={mediaSource === 'stock-image' ? 'alive-ring' : ''}
                       onClick={() => onSelectMediaSource('stock-image')}
                     >
                       Stock Image
@@ -565,6 +658,7 @@ export function ComposePage() {
                       type="button"
                       size="sm"
                       variant={mediaSource === 'user-media' ? 'default' : 'outline'}
+                      className={mediaSource === 'user-media' ? 'alive-ring' : ''}
                       onClick={() => onSelectMediaSource('user-media')}
                     >
                       User Media
@@ -578,6 +672,56 @@ export function ComposePage() {
                 </div>
 
                 <div className="rounded-2xl border bg-muted/20 p-4 space-y-3">
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <div
+                      className={cn(
+                        'rounded-xl border px-3 py-2 transition-all',
+                        activeFlowStep === 'draft' ? 'alive-ring bg-primary/5' : 'bg-background',
+                      )}
+                    >
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>Create post content</span>
+                        {draftReady ? <CheckCircle2 className="h-4 w-4 text-primary" /> : copyLoading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{copyLoading ? 'Writing now...' : draftReady ? 'Draft ready' : 'Waiting for topic'}</p>
+                    </div>
+                    <div
+                      className={cn(
+                        'rounded-xl border px-3 py-2 transition-all',
+                        activeFlowStep === 'visual' ? 'alive-ring bg-primary/5' : 'bg-background',
+                      )}
+                    >
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>Generate image or video</span>
+                        {hasVisual ? (
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                        ) : imageLoading || videoLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        ) : mediaSource === 'ai-video' ? (
+                          <Video className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {imageLoading || videoLoading ? 'Generating media...' : hasVisual ? 'Visual ready' : `Using ${mediaSource.replace('-', ' ')}`}
+                      </p>
+                    </div>
+                    <div
+                      className={cn(
+                        'rounded-xl border px-3 py-2 transition-all',
+                        activeFlowStep === 'publish' ? 'alive-ring bg-primary/5' : 'bg-background',
+                      )}
+                    >
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>Preview and publish</span>
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Send className="h-4 w-4 text-muted-foreground" />}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {loading ? 'Publishing now...' : hasVisual ? 'Ready to preview' : 'Add visual to continue'}
+                      </p>
+                    </div>
+                  </div>
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="rounded-xl border bg-background p-3">
                       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Write</p>
@@ -637,6 +781,12 @@ export function ComposePage() {
                       {charCount}/{maxChars}
                     </Badge>
                   </div>
+                </div>
+                <div className="h-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${charCount > maxChars ? 'bg-destructive' : 'bg-primary'}`}
+                    style={{ width: `${Math.min(100, Math.max(4, (charCount / maxChars) * 100))}%` }}
+                  />
                 </div>
 
                 {linkUrl ? (
@@ -780,7 +930,7 @@ export function ComposePage() {
                     onChange={(event) => setLinkUrl(event.target.value)}
                     className="max-w-xs"
                   />
-                  {firstDraftCreated ? (
+                  {firstDraftCreated && hasVisual ? (
                     <Button type="button" variant="outline" onClick={() => setShowPreview(true)}>
                       <Eye className="mr-2 h-4 w-4" />
                       Preview Post

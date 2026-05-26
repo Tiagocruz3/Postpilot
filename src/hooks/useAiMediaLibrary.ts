@@ -85,9 +85,12 @@ export function useAiMediaLibrary(workspaceId: string | null | undefined) {
         return
       }
 
-      const { error: storageError } = await supabase.storage.from(target.storage_bucket).remove([target.storage_path])
-      if (storageError) {
-        throw new Error(storageError.message)
+      const isExternalFallback = target.storage_bucket === 'external_ai'
+      if (!isExternalFallback) {
+        const { error: storageError } = await supabase.storage.from(target.storage_bucket).remove([target.storage_path])
+        if (storageError) {
+          throw new Error(storageError.message)
+        }
       }
 
       const { error: deleteError } = await supabase.from('workspace_ai_media').delete().eq('id', id)

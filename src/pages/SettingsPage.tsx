@@ -364,17 +364,25 @@ export function SettingsPage() {
       time_format: userPreferences.timeFormat,
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(profileUpdate as never)
-      .eq('id', user.id)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileUpdate as never)
+        .eq('id', user.id)
 
-    if (error) {
-      setSettingsMessage(error.message)
-      return
+      if (error) {
+        setSettingsMessage(error.message)
+        return
+      }
+
+      setSettingsMessage('Profile and regional settings saved.')
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to save settings right now. Please check your connection and try again.'
+      )
     }
-
-    setSettingsMessage('Profile and regional settings saved.')
   }
 
   const saveWorkspaceAiSettings = async () => {

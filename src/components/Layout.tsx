@@ -236,9 +236,9 @@ export function Layout() {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'alive-lift flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                   sidebarOpen ? 'gap-3' : 'justify-center gap-0',
-                  active ? 'bg-primary text-primary-foreground' : 'text-navy-700 hover:bg-accent'
+                  active ? 'alive-ring bg-primary text-primary-foreground' : 'text-navy-700 hover:bg-accent'
                 )}
                 title={!sidebarOpen ? item.label : undefined}
               >
@@ -332,7 +332,10 @@ export function Layout() {
       </aside>
 
       <main className="relative flex-1 overflow-auto">
-        <Outlet context={{ currentWorkspaceId: currentWorkspace?.id ?? null, currentWorkspace }} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/5 to-transparent" />
+        <div key={location.pathname} className="alive-enter">
+          <Outlet context={{ currentWorkspaceId: currentWorkspace?.id ?? null, currentWorkspace }} />
+        </div>
       </main>
     </div>
   )

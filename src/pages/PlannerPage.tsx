@@ -28,6 +28,10 @@ interface OutletContext {
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
+const ROW_HEIGHT_PX = 80
+const GRID_START_HOUR = HOURS[0]
+const GRID_END_HOUR = HOURS[HOURS.length - 1] + 1
+const GRID_HEIGHT_PX = HOURS.length * ROW_HEIGHT_PX
 const PLATFORM_COLORS: Record<string, string> = {
   facebook: '#1877F2',
   linkedin: '#0A66C2',
@@ -43,6 +47,7 @@ export function PlannerPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
+  const [plannerMessage, setPlannerMessage] = useState('')
 
   const today = new Date()
   const weekStart = startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 })
@@ -100,20 +105,30 @@ export function PlannerPage() {
       workspace_id: currentWorkspaceId,
     }
 
-    if (editingTask.id) {
-      await updateTask(editingTask.id, payload)
-    } else {
-      await createTask(payload)
+    try {
+      if (editingTask.id) {
+        await updateTask(editingTask.id, payload)
+      } else {
+        await createTask(payload)
+      }
+      setShowDialog(false)
+      setEditingTask(null)
+      setPlannerMessage('')
+    } catch (error) {
+      setPlannerMessage(error instanceof Error ? error.message : 'Could not save planner entry.')
     }
-    setShowDialog(false)
-    setEditingTask(null)
   }
 
   const removeTask = async () => {
     if (!editingTask?.id) return
-    await deleteTask(editingTask.id)
-    setShowDialog(false)
-    setEditingTask(null)
+    try {
+      await deleteTask(editingTask.id)
+      setShowDialog(false)
+      setEditingTask(null)
+      setPlannerMessage('')
+    } catch (error) {
+      setPlannerMessage(error instanceof Error ? error.message : 'Could not delete planner entry.')
+    }
   }
 
   return (
@@ -150,6 +165,11 @@ export function PlannerPage() {
           <CardDescription>Visual time-grid for scheduled posts, ads, and Google Calendar events.</CardDescription>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
+          {plannerMessage ? (
+            <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {plannerMessage}
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading planner…</div>
           ) : (
@@ -158,8 +178,8 @@ export function PlannerPage() {
                 <div className="w-20 shrink-0 border-r bg-muted/30">
                   <div className="h-14 border-b" />
                   {HOURS.map((hour) => (
-                    <div key={hour} className="relative h-20 border-b pr-3 text-right text-xs text-muted-foreground">
-                      <span className="absolute -top-2 right-3">{format(setHours(new Date(), hour), 'ha')}</span>
+                    <div key={hour} className="flex h-20 items-start justify-end border-b pr-3 pt-1 text-right text-xs text-muted-foreground">
+                      <span>{format(setHours(new Date(), hour), 'ha')}</span>
                     </div>
                   ))}
                 </div>
@@ -188,19 +208,32 @@ export function PlannerPage() {
                         {events
                           .filter((event) => isSameDay(event.start, day))
                           .map((event) => {
-                            const eventHourOffset = event.start.getHours() - HOURS[0]
-                            const top = eventHourOffset * 80 + (event.start.getMinutes() / 60) * 80
-                            const height = Math.max(
-                              ((event.end.getTime() - event.start.getTime()) / (1000 * 60 * 60)) * 80,
-                              32
+                            const eventMinutes = event.start.getHours() * 60 + event.start.getMinutes()
+                            const gridStartMinutes = GRID_START_HOUR * 60
+                            const gridEndMinutes = GRID_END_HOUR * 60
+                            const durationMinutes = Math.max(
+                              Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60)),
+                              30
                             )
+                            const boundedStart = Math.max(eventMinutes, gridStartMinutes)
+                            const boundedEnd = Math.min(eventMinutes + durationMinutes, gridEndMinutes)
+                            const visibleMinutes = boundedEnd - boundedStart
+
+                            if (visibleMinutes <= 0) {
+                              return null
+                            }
+
+                            const top = ((boundedStart - gridStartMinutes) / 60) * ROW_HEIGHT_PX
+                            const height = Math.max((visibleMinutes / 60) * ROW_HEIGHT_PX, 34)
+                            const safeTop = Math.max(0, Math.min(top, GRID_HEIGHT_PX - 34))
+                            const safeHeight = Math.max(34, Math.min(height, GRID_HEIGHT_PX - safeTop))
 
                             return (
                               <button
                                 key={event.id}
                                 type="button"
-                                className="absolute left-2 right-2 rounded-2xl px-3 py-2 text-left text-xs text-white shadow-sm transition hover:brightness-95"
-                                style={{ top, height, backgroundColor: event.color }}
+                                className="absolute left-1.5 right-1.5 overflow-hidden rounded-xl px-2.5 py-1.5 text-left text-xs text-white shadow-sm transition hover:brightness-95"
+                                style={{ top: safeTop, height: safeHeight, backgroundColor: event.color }}
                                 onClick={() => {
                                   const task = tasks.find((item) => item.id === event.id)
                                   if (task) {
@@ -210,7 +243,7 @@ export function PlannerPage() {
                                 }}
                               >
                                 <div className="truncate font-semibold">{event.title}</div>
-                                <div className="mt-1 flex items-center gap-1.5 opacity-90">
+                                <div className="mt-0.5 flex items-center gap-1.5 truncate opacity-90">
                                   {event.platform ? <span className="capitalize">{event.platform.replace('_', ' ')}</span> : null}
                                   <span>{format(event.start, 'h:mm a')}</span>
                                 </div>
