@@ -4,7 +4,6 @@ import {
   UserRound,
   Bot,
   Image as ImageIcon,
-  KeyRound,
   Link,
   MonitorSmartphone,
   Globe2,
@@ -131,10 +130,12 @@ export function SettingsPage() {
   const [openRouterTextQuery, setOpenRouterTextQuery] = useState('')
   const [openRouterImageQuery, setOpenRouterImageQuery] = useState('')
   const [lmStudioQuery, setLmStudioQuery] = useState('')
+  const [openRouterTextMenuOpen, setOpenRouterTextMenuOpen] = useState(false)
+  const [openRouterImageMenuOpen, setOpenRouterImageMenuOpen] = useState(false)
+  const [lmStudioMenuOpen, setLmStudioMenuOpen] = useState(false)
   const [openRouterTextLoading, setOpenRouterTextLoading] = useState(false)
   const [openRouterImageLoading, setOpenRouterImageLoading] = useState(false)
   const [lmStudioLoading, setLmStudioLoading] = useState(false)
-  const [workspaceAiSettingsLoading, setWorkspaceAiSettingsLoading] = useState(false)
   const [workspaceAiSettingsSaving, setWorkspaceAiSettingsSaving] = useState(false)
   const [settingsMessage, setSettingsMessage] = useState('')
 
@@ -232,8 +233,6 @@ export function SettingsPage() {
         return
       }
 
-      setWorkspaceAiSettingsLoading(true)
-
       const { data, error } = await supabase
         .from('workspace_ai_settings')
         .select('*')
@@ -246,7 +245,6 @@ export function SettingsPage() {
 
       if (error) {
         setSettingsMessage(error.message)
-        setWorkspaceAiSettingsLoading(false)
         return
       }
 
@@ -263,7 +261,6 @@ export function SettingsPage() {
         }))
       }
 
-      setWorkspaceAiSettingsLoading(false)
     }
 
     void loadWorkspaceAiSettings()
@@ -849,31 +846,45 @@ export function SettingsPage() {
                     onChange={(event) => setOpenRouterTextQuery(event.target.value)}
                     placeholder="Search models..."
                   />
-                  <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/20 p-1">
-                    {filteredOpenRouterTextModels.length ? (
-                      filteredOpenRouterTextModels.map((model) => (
-                        <button
-                          key={model.id}
-                          type="button"
-                          onClick={() =>
-                            setAiSettings((current) => ({
-                              ...current,
-                              openRouterContentModel: model.id,
-                            }))
-                          }
-                          className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
-                            aiSettings.openRouterContentModel === model.id ? 'bg-primary/10 text-primary' : ''
-                          }`}
-                          title={model.id}
-                        >
-                          {model.name ?? model.id}
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching models.</p>
-                    )}
-                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setOpenRouterTextMenuOpen((value) => !value)}>
+                    {openRouterTextMenuOpen ? 'Close model list' : 'Open model list'}
+                  </Button>
+                  {openRouterTextMenuOpen ? (
+                    <div
+                      className="max-h-56 overflow-y-auto overscroll-contain rounded-lg border bg-muted/20 p-1"
+                      onWheel={(event) => event.stopPropagation()}
+                    >
+                      {filteredOpenRouterTextModels.length ? (
+                        filteredOpenRouterTextModels.map((model) => (
+                          <button
+                            key={model.id}
+                            type="button"
+                            onClick={() => {
+                              setAiSettings((current) => ({
+                                ...current,
+                                openRouterContentModel: model.id,
+                              }))
+                              setOpenRouterTextMenuOpen(false)
+                            }}
+                            className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                              aiSettings.openRouterContentModel === model.id ? 'bg-primary/10 text-primary' : ''
+                            }`}
+                            title={model.id}
+                          >
+                            {model.name ?? model.id}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching models.</p>
+                      )}
+                    </div>
+                  ) : null}
                   <p className="text-xs text-muted-foreground">All models stay inside this scrollable list.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => void saveWorkspaceAiSettings()} disabled={workspaceAiSettingsSaving || !currentWorkspaceId}>
+                    {workspaceAiSettingsSaving ? 'Saving AI settings...' : 'Save AI settings'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -943,31 +954,45 @@ export function SettingsPage() {
                   onChange={(event) => setOpenRouterImageQuery(event.target.value)}
                   placeholder="Search image models..."
                 />
-                <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/20 p-1">
-                  {filteredOpenRouterImageModels.length ? (
-                    filteredOpenRouterImageModels.map((model) => (
-                      <button
-                        key={model.id}
-                        type="button"
-                        onClick={() =>
-                          setAiSettings((current) => ({
-                            ...current,
-                            openRouterImageModel: model.id,
-                          }))
-                        }
-                        className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
-                          aiSettings.openRouterImageModel === model.id ? 'bg-primary/10 text-primary' : ''
-                        }`}
-                        title={model.id}
-                      >
-                        {model.name ?? model.id}
-                      </button>
-                    ))
-                  ) : (
-                    <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching image models.</p>
-                  )}
-                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setOpenRouterImageMenuOpen((value) => !value)}>
+                  {openRouterImageMenuOpen ? 'Close image model list' : 'Open image model list'}
+                </Button>
+                {openRouterImageMenuOpen ? (
+                  <div
+                    className="max-h-56 overflow-y-auto overscroll-contain rounded-lg border bg-muted/20 p-1"
+                    onWheel={(event) => event.stopPropagation()}
+                  >
+                    {filteredOpenRouterImageModels.length ? (
+                      filteredOpenRouterImageModels.map((model) => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => {
+                            setAiSettings((current) => ({
+                              ...current,
+                              openRouterImageModel: model.id,
+                            }))
+                            setOpenRouterImageMenuOpen(false)
+                          }}
+                          className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                            aiSettings.openRouterImageModel === model.id ? 'bg-primary/10 text-primary' : ''
+                          }`}
+                          title={model.id}
+                        >
+                          {model.name ?? model.id}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching image models.</p>
+                    )}
+                  </div>
+                ) : null}
                 <p className="text-xs text-muted-foreground">All image models stay inside this scrollable list.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={() => void saveWorkspaceAiSettings()} disabled={workspaceAiSettingsSaving || !currentWorkspaceId}>
+                  {workspaceAiSettingsSaving ? 'Saving AI settings...' : 'Save AI settings'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1024,6 +1049,11 @@ export function SettingsPage() {
                     }
                     placeholder="fal-ai/your-endpoint"
                   />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => void saveWorkspaceAiSettings()} disabled={workspaceAiSettingsSaving || !currentWorkspaceId}>
+                    {workspaceAiSettingsSaving ? 'Saving AI settings...' : 'Save AI settings'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1099,29 +1129,43 @@ export function SettingsPage() {
                     onChange={(event) => setLmStudioQuery(event.target.value)}
                     placeholder="Search local models..."
                   />
-                  <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/20 p-1">
-                    {filteredLmStudioModels.length ? (
-                      filteredLmStudioModels.map((model) => (
-                        <button
-                          key={model.id}
-                          type="button"
-                          onClick={() =>
-                            setAiSettings((current) => ({
-                              ...current,
-                              lmStudioContentModel: model.id,
-                            }))
-                          }
-                          className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
-                            aiSettings.lmStudioContentModel === model.id ? 'bg-primary/10 text-primary' : ''
-                          }`}
-                        >
-                          {model.id}
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching local models.</p>
-                    )}
-                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setLmStudioMenuOpen((value) => !value)}>
+                    {lmStudioMenuOpen ? 'Close local model list' : 'Open local model list'}
+                  </Button>
+                  {lmStudioMenuOpen ? (
+                    <div
+                      className="max-h-56 overflow-y-auto overscroll-contain rounded-lg border bg-muted/20 p-1"
+                      onWheel={(event) => event.stopPropagation()}
+                    >
+                      {filteredLmStudioModels.length ? (
+                        filteredLmStudioModels.map((model) => (
+                          <button
+                            key={model.id}
+                            type="button"
+                            onClick={() => {
+                              setAiSettings((current) => ({
+                                ...current,
+                                lmStudioContentModel: model.id,
+                              }))
+                              setLmStudioMenuOpen(false)
+                            }}
+                            className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                              aiSettings.lmStudioContentModel === model.id ? 'bg-primary/10 text-primary' : ''
+                            }`}
+                          >
+                            {model.id}
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching local models.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => void saveWorkspaceAiSettings()} disabled={workspaceAiSettingsSaving || !currentWorkspaceId}>
+                    {workspaceAiSettingsSaving ? 'Saving AI settings...' : 'Save AI settings'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1145,30 +1189,6 @@ export function SettingsPage() {
           </div>
         </TabsContent>
       </Tabs>
-
-      <div className="mt-6 rounded-2xl border bg-card p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <KeyRound className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">Workspace AI preferences</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Save model and provider choices for this workspace. Shared API keys are managed by the platform owner in
-                <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">.env</code> and synced with{' '}
-                <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run supabase:secrets</code>.
-              </p>
-              {workspaceAiSettingsLoading ? (
-                <p className="mt-2 text-xs text-muted-foreground">Loading workspace AI settings...</p>
-              ) : null}
-            </div>
-          </div>
-          <Button onClick={() => void saveWorkspaceAiSettings()} disabled={workspaceAiSettingsSaving || !currentWorkspaceId}>
-            {workspaceAiSettingsSaving ? 'Saving AI settings...' : 'Save AI settings to workspace'}
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }
