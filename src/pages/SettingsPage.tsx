@@ -508,11 +508,16 @@ export function SettingsPage() {
         </p>
       </div>
 
-      {settingsMessage ? (
-        <div className="mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">
-          {settingsMessage}
-        </div>
-      ) : null}
+      <div
+        className={`mb-4 min-h-[3.25rem] rounded-2xl border px-4 py-3 text-sm transition-colors ${
+          settingsMessage
+            ? 'border-border bg-primary/5 text-foreground'
+            : 'border-transparent bg-transparent text-transparent'
+        }`}
+        aria-live="polite"
+      >
+        {settingsMessage || 'status'}
+      </div>
 
       <Tabs>
         <TabsList className="mb-6 h-auto flex-wrap justify-start gap-1 rounded-2xl p-1">

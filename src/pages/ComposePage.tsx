@@ -267,15 +267,15 @@ export function ComposePage() {
     setMessage('Writing your draft with AI...')
     try {
       if (isDemoMode) {
-        setContent(
-          sanitizeComposeCopy(
-            `Here is a ${platformLabel(activeTab)} post about ${draftTopic}. Clear, friendly, and ready to publish without sounding like a template.`,
-          ),
+        const nextContent = sanitizeComposeCopy(
+          `Here is a ${platformLabel(activeTab)} post about ${draftTopic}. Clear, friendly, and ready to publish without sounding like a template.`,
         )
+        setContent(nextContent)
         if (!firstDraftCreated) {
           setFirstDraftCreated(true)
           setShowPreview(true)
         }
+        requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
         return
       }
 
@@ -286,11 +286,13 @@ export function ComposePage() {
         workspace_id: currentWorkspaceId,
       })
       if (data.content) {
-        setContent(sanitizeComposeCopy(data.content))
+        const nextContent = sanitizeComposeCopy(data.content)
+        setContent(nextContent)
         if (!firstDraftCreated) {
           setFirstDraftCreated(true)
           setShowPreview(true)
         }
+        requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not draft post copy.')
@@ -329,8 +331,9 @@ export function ComposePage() {
     }
   }
 
-  const generateImage = async (regenerate: boolean) => {
-    if (!content.trim() && !imageHint.trim()) {
+  const generateImage = async (regenerate: boolean, contentOverride?: string) => {
+    const baseContent = sanitizeComposeCopy(contentOverride ?? content)
+    if (!baseContent.trim() && !imageHint.trim()) {
       setMessage('Add post text or an image direction before generating.')
       return
     }
@@ -351,9 +354,9 @@ export function ComposePage() {
 
       const data = await invokeAi<{ url?: string }>('generate-image', {
         platform: activeTab,
-        post_text: sanitizeComposeCopy(content),
+        post_text: baseContent,
         hint: imageHint,
-        prompt: regenerate ? `${imageHint || content} (alternate composition, different angle)` : undefined,
+        prompt: regenerate ? `${imageHint || baseContent} (alternate composition, different angle)` : undefined,
         ...ctx,
       })
       if (data.url) {
@@ -366,8 +369,9 @@ export function ComposePage() {
     }
   }
 
-  const generateVideo = async (regenerate: boolean) => {
-    if (!content.trim() && !videoHint.trim()) {
+  const generateVideo = async (regenerate: boolean, contentOverride?: string) => {
+    const baseContent = sanitizeComposeCopy(contentOverride ?? content)
+    if (!baseContent.trim() && !videoHint.trim()) {
       setMessage('Add post text or a video direction before generating.')
       return
     }
@@ -387,7 +391,7 @@ export function ComposePage() {
         throw new Error('Choose a workspace and sign in to generate video.')
       }
 
-      const prompt = buildVideoPrompt(activeTab, sanitizeComposeCopy(content), videoHint, regenerate)
+      const prompt = buildVideoPrompt(activeTab, baseContent, videoHint, regenerate)
 
       const data = await invokeAi<{ url?: string }>('generate-video', { prompt, duration_seconds: 15, ...ctx })
       if (data.url) {
@@ -437,6 +441,27 @@ export function ComposePage() {
   const activeMedia = media[media.length - 1] ?? null
   const draftReady = firstDraftCreated || Boolean(content.trim())
   const isGenerating = copyLoading || imageLoading || videoLoading || loading
+
+  const autoRunSelectedMediaForDraft = (nextContent: string) => {
+    const clean = sanitizeComposeCopy(nextContent)
+    if (!clean.trim()) return
+
+    if (mediaSource === 'ai-image') {
+      void generateImage(false, clean)
+      return
+    }
+    if (mediaSource === 'ai-video') {
+      void generateVideo(false, clean)
+      return
+    }
+    if (mediaSource === 'stock-image') {
+      setShowStockPicker(true)
+      return
+    }
+    if (mediaSource === 'user-media') {
+      userMediaInputRef.current?.click()
+    }
+  }
 
   const onSelectMediaSource = (source: MediaSourceType) => {
     setMediaSource(source)
@@ -793,17 +818,21 @@ export function ComposePage() {
         workspaceId={currentWorkspaceId}
         initialTopic={draftTopic || content.slice(0, 80)}
         onUseCaption={(caption, visualIdea) => {
-          setContent(sanitizeComposeCopy(caption))
+          const nextContent = sanitizeComposeCopy(caption)
+          setContent(nextContent)
           setImageHint(visualIdea)
           setMessage('Research caption applied.')
+          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
         }}
         onGenerateVisual={(visualIdea) => {
           setImageHint(visualIdea)
           void generateImage(false)
         }}
         onSchedulePost={(caption, suggestedTime) => {
-          setContent(sanitizeComposeCopy(caption))
+          const nextContent = sanitizeComposeCopy(caption)
+          setContent(nextContent)
           setMessage(`Caption applied. Pick a date below. Suggested: ${suggestedTime}`)
+          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
         }}
       />
 
@@ -816,18 +845,22 @@ export function ComposePage() {
         initialPostText={remixSeed.text}
         initialCompetitorNiche={remixSeed.niche}
         onSendToComposer={(caption, visualIdea, scheduleHint) => {
-          setContent(sanitizeComposeCopy(caption))
+          const nextContent = sanitizeComposeCopy(caption)
+          setContent(nextContent)
           setImageHint(visualIdea)
           setMessage(`Brand-safe version ready. Schedule hint: ${scheduleHint}`)
+          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
         }}
         onGenerateVisual={(visualIdea) => {
           setImageHint(visualIdea)
           void generateImage(false)
         }}
         onScheduleInspiredPost={(caption, visualIdea, scheduleHint) => {
-          setContent(sanitizeComposeCopy(caption))
+          const nextContent = sanitizeComposeCopy(caption)
+          setContent(nextContent)
           setImageHint(visualIdea)
           setMessage(`Schedule inspired post. Suggested timing: ${scheduleHint}. Set date/time below, then Schedule Post.`)
+          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
         }}
       />
 
