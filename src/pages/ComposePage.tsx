@@ -397,18 +397,27 @@ export function ComposePage() {
         prompt: directPrompt || undefined,
         ...ctx,
       })
-      if (data.url) {
-        upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
-        if (!data.library_id) {
+      if (!data.url) {
+        throw new Error('Image generation finished but no image URL was returned. Please try again.')
+      }
+
+      upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
+      setMessage('Image generated.')
+
+      if (!data.library_id) {
+        try {
           await saveAiLibraryFallback({
             mediaType: 'image',
             url: data.url,
             prompt: directPrompt || baseContent,
           })
+        } catch {
+          setMessage('Image generated. Could not sync to AI Library, but your image is attached to this post.')
         }
-        if (firstDraftCreated) {
-          setShowPreview(true)
-        }
+      }
+
+      if (firstDraftCreated) {
+        setShowPreview(true)
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not generate image.')
@@ -816,8 +825,9 @@ export function ComposePage() {
                   </div>
                 ) : null}
 
-                <div className="space-y-2 rounded-2xl border p-3">
-                  {draftReady && mediaSource === 'ai-image' ? (
+                {firstDraftCreated ? (
+                  <div className="space-y-2 rounded-2xl border p-3">
+                    {draftReady && mediaSource === 'ai-image' ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Input
                         placeholder="Image direction (optional)"
@@ -840,84 +850,85 @@ export function ComposePage() {
                         Regenerate
                       </Button>
                     </div>
-                  ) : null}
+                    ) : null}
 
-                  {draftReady && mediaSource === 'ai-video' ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Input
-                        placeholder="Video direction (optional)"
-                        value={videoHint}
-                        onChange={(event) => setVideoHint(event.target.value)}
-                        className="min-w-[220px] flex-1"
-                      />
-                      <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)}>
-                        {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        {videoLoading ? 'Generating...' : 'Generate video'}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={videoLoading || !media.some((item) => item.type === 'video')}
-                        onClick={() => void generateVideo(true)}
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Regenerate
-                      </Button>
-                    </div>
-                  ) : null}
+                    {draftReady && mediaSource === 'ai-video' ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          placeholder="Video direction (optional)"
+                          value={videoHint}
+                          onChange={(event) => setVideoHint(event.target.value)}
+                          className="min-w-[220px] flex-1"
+                        />
+                        <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)}>
+                          {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                          {videoLoading ? 'Generating...' : 'Generate video'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={videoLoading || !media.some((item) => item.type === 'video')}
+                          onClick={() => void generateVideo(true)}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Regenerate
+                        </Button>
+                      </div>
+                    ) : null}
 
-                  {draftReady && mediaSource === 'stock-image' ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-muted-foreground">Browse Pixabay stock images and select one for this post.</p>
-                      <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)}>Open stock picker</Button>
-                    </div>
-                  ) : null}
+                    {draftReady && mediaSource === 'stock-image' ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm text-muted-foreground">Browse Pixabay stock images and select one for this post.</p>
+                        <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)}>Open stock picker</Button>
+                      </div>
+                    ) : null}
 
-                  {draftReady && mediaSource === 'user-media' ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-muted-foreground">Upload your own image or video.</p>
-                      <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()}>Upload media</Button>
-                    </div>
-                  ) : null}
+                    {draftReady && mediaSource === 'user-media' ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm text-muted-foreground">Upload your own image or video.</p>
+                        <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()}>Upload media</Button>
+                      </div>
+                    ) : null}
 
-                  {draftReady ? (
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={videoLoading || !media.some((item) => item.type === 'video')}
-                        onClick={() => void generateVideo(true)}
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Regenerate video
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setReplaceInPreview(true)
-                          setShowStockPicker(true)
-                        }}
-                      >
-                        Replace image with stock
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setReplaceInPreview(true)
-                          userMediaInputRef.current?.click()
-                        }}
-                      >
-                        Replace image with user
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
+                    {draftReady ? (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={videoLoading || !media.some((item) => item.type === 'video')}
+                          onClick={() => void generateVideo(true)}
+                        >
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Regenerate video
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setReplaceInPreview(true)
+                            setShowStockPicker(true)
+                          }}
+                        >
+                          Replace image with stock
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setReplaceInPreview(true)
+                            userMediaInputRef.current?.click()
+                          }}
+                        >
+                          Replace image with user
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
