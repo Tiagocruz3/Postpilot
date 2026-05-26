@@ -1,0 +1,51 @@
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+
+serve(async (req) => {
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', '') || '')
+  if (!user) return new Response('Unauthorized', { status: 401 })
+
+  const body = await req.json().catch(() => ({}))
+  const { task_id, content, media_urls } = body
+
+  const { data: task } = await supabase.from('planner_tasks').select('*').eq('id', task_id).single()
+  const { data: integration } = await supabase
+    .from('user_integrations')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('workspace_id', task.workspace_id)
+    .eq('provider', 'facebook')
+    .single()
+
+  if (!integration) return new Response('No Facebook integration', { status: 400 })
+
+  const pageId = integration.metadata?.page_id
+  const token = integration.access_token_encrypted
+
+  let postId: string | null = null
+  if (media_urls && media_urls.length > 0) {
+    const form = new FormData()
+    form.append('message', content)
+    form.append('access_token', token)
+    const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/photos`, {
+      method: 'POST',
+      body: form,
+    })
+    const data = await res.json()
+    postId = data.post_id || data.id
+  } else {
+    const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: content, access_token: token }),
+    })
+    const data = await res.json()
+    postId = data.id
+  }
+
+  await supabase.from('planner_tasks').update({ status: 'published' }).eq('id', task_id)
+  await supabase.from('scheduled_posts').update({ published_at: new Date().toISOString(), published_url: `https://facebook.com/${postId}` }).eq('planner_task_id', task_id)
+
+  return new Response(JSON.stringify({ success: true, post_id: postId }), { headers: { 'Content-Type': 'application/json' } })
+})

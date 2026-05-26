@@ -1,0 +1,124 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { PlannerTask } from '@/types'
+import { isDemoMode, demoTasks } from '@/lib/demo'
+import type { Database } from '@/types/database'
+
+type PlannerTaskInsert = Database['public']['Tables']['planner_tasks']['Insert']
+type PlannerTaskUpdate = Database['public']['Tables']['planner_tasks']['Update']
+
+export function usePlannerTasks(workspaceId?: string) {
+  const [tasks, setTasks] = useState<PlannerTask[]>(isDemoMode ? demoTasks : [])
+  const [loading, setLoading] = useState(!isDemoMode)
+
+  useEffect(() => {
+    if (isDemoMode) {
+      return
+    }
+
+    let active = true
+
+    const fetchTasks = async () => {
+      if (!workspaceId) {
+        if (active) {
+          setTasks([])
+          setLoading(false)
+        }
+        return
+      }
+
+      setLoading(true)
+
+      const { data } = await supabase
+        .from('planner_tasks')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('scheduled_at', { ascending: true })
+
+      if (!active) {
+        return
+      }
+
+      setTasks((data as PlannerTask[]) || [])
+      setLoading(false)
+    }
+
+    void fetchTasks()
+
+    const channel = supabase
+      .channel('planner_tasks_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'planner_tasks', filter: `workspace_id=eq.${workspaceId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks((prev) => [...prev, payload.new as PlannerTask])
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks((prev) => prev.map((t) => (t.id === payload.new.id ? (payload.new as PlannerTask) : t)))
+          } else if (payload.eventType === 'DELETE') {
+            setTasks((prev) => prev.filter((t) => t.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      supabase.removeChannel(channel)
+    }
+  }, [workspaceId])
+
+  const createTask = async (task: PlannerTaskInsert) => {
+    if (isDemoMode) {
+      const newTask = {
+        id: `task-${Date.now()}`,
+        user_id: 'demo-user-id',
+        workspace_id: task.workspace_id || 'demo-ws-1',
+        title: task.title || 'Untitled',
+        description: task.description || '',
+        scheduled_at: task.scheduled_at || new Date().toISOString(),
+        duration_minutes: task.duration_minutes || 60,
+        status: (task.status || 'draft') as PlannerTask['status'],
+        kind: (task.kind || 'post') as PlannerTask['kind'],
+        platform: (task.platform || null) as PlannerTask['platform'],
+        link_url: task.link_url || null,
+        color: task.color || null,
+        external_source: task.external_source || null,
+        external_id: task.external_id || null,
+        external_calendar_id: task.external_calendar_id || null,
+        payload: (task.payload || null) as PlannerTask['payload'],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as PlannerTask
+      setTasks((prev) => [...prev, newTask])
+      return newTask
+    }
+
+    const { data, error } = await supabase.from('planner_tasks').insert(task as never).select().single()
+    if (error) throw error
+    return data as PlannerTask
+  }
+
+  const updateTask = async (id: string, updates: PlannerTaskUpdate) => {
+    if (isDemoMode) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } as PlannerTask : t)))
+      return { ...tasks.find((t) => t.id === id), ...updates } as PlannerTask
+    }
+
+    const { data, error } = await supabase.from('planner_tasks').update(updates as never).eq('id', id).select().single()
+    if (error) throw error
+    return data as PlannerTask
+  }
+
+  const deleteTask = async (id: string) => {
+    if (isDemoMode) {
+      setTasks((prev) => prev.filter((t) => t.id !== id))
+      return
+    }
+
+    const { error } = await supabase.from('planner_tasks').delete().eq('id', id)
+    if (error) throw error
+  }
+
+  return { tasks, loading, createTask, updateTask, deleteTask }
+}
