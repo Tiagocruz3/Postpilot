@@ -475,12 +475,8 @@ export function ComposePage() {
       if (!replace) {
         return [...prev, item]
       }
-      const index = [...prev].reverse().findIndex((entry) => entry.type === item.type)
-      if (index === -1) {
-        return [...prev, item]
-      }
-      const actualIndex = prev.length - 1 - index
-      return prev.map((entry, i) => (i === actualIndex ? item : entry))
+      // Regenerate should fully replace prior media of the same type.
+      return [...prev.filter((entry) => entry.type !== item.type), item]
     })
     if (firstDraftCreated && item.type === 'image') {
       setShowPreview(true)
