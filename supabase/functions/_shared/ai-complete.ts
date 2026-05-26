@@ -18,45 +18,51 @@ export async function completeChat(options: {
   workspaceId?: string
 }): Promise<string> {
   const workspaceSettings = await getWorkspaceAiSettings(options.workspaceId)
-  const backend = workspaceSettings?.content_provider === 'lmstudio' ? 'lmstudio' : getPlatformAiBackend()
+  const backendPreference = workspaceSettings?.content_provider === 'lmstudio' ? 'lmstudio' : getPlatformAiBackend()
   const temperature = options.temperature ?? 0.7
 
-  if (backend === 'lmstudio') {
-    const baseUrl = (workspaceSettings?.lmstudio_base_url || 'http://127.0.0.1:1234/v1').replace(/\/$/, '')
-    const model = workspaceSettings?.lmstudio_content_model?.trim()
-    if (!model) {
-      throw new Error('LM Studio is selected, but no local model is configured in Settings.')
-    }
-    if (options.webSearch) {
-      throw new Error('Live web research is not supported with LM Studio. Switch Content AI to OpenRouter.')
-    }
+  if (backendPreference === 'lmstudio') {
+    try {
+      const baseUrl = (workspaceSettings?.lmstudio_base_url || 'http://127.0.0.1:1234/v1').replace(/\/$/, '')
+      const model = workspaceSettings?.lmstudio_content_model?.trim()
+      if (!model) {
+        throw new Error('LM Studio is selected, but no local model is configured in Settings.')
+      }
+      if (options.webSearch) {
+        throw new Error('Live web research is not supported with LM Studio. Switch Content AI to OpenRouter.')
+      }
 
-    const lmRes = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: options.messages,
-        temperature,
-        ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
-      }),
-    })
-    const lmData = await lmRes.json()
-    if (!lmRes.ok) {
-      const message =
-        (lmData as { error?: { message?: string } }).error?.message ||
-        (lmData as { message?: string }).message ||
-        'LM Studio request failed.'
-      throw new Error(message)
+      const lmRes = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: options.messages,
+          temperature,
+          ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
+        }),
+      })
+      const lmData = await lmRes.json()
+      if (!lmRes.ok) {
+        const message =
+          (lmData as { error?: { message?: string } }).error?.message ||
+          (lmData as { message?: string }).message ||
+          'LM Studio request failed.'
+        throw new Error(message)
+      }
+      const raw = (lmData as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]?.message?.content
+      if (!raw?.trim()) {
+        throw new Error('No response from the local model.')
+      }
+      return raw.trim()
+    } catch (lmError) {
+      if (!getOpenRouterApiKey()) {
+        throw lmError
+      }
     }
-    const raw = (lmData as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]?.message?.content
-    if (!raw?.trim()) {
-      throw new Error('No response from the local model.')
-    }
-    return raw.trim()
   }
 
-  if (backend === 'openrouter') {
+  if (getOpenRouterApiKey()) {
     const apiKey = getOpenRouterApiKey()
     if (!apiKey) {
       throw new Error('OpenRouter is not configured.')

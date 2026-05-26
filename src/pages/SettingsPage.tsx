@@ -128,6 +128,9 @@ export function SettingsPage() {
   const [openRouterTextModels, setOpenRouterTextModels] = useState<OpenRouterModelOption[]>([])
   const [openRouterImageModels, setOpenRouterImageModels] = useState<OpenRouterModelOption[]>([])
   const [lmStudioModels, setLmStudioModels] = useState<LmStudioModelOption[]>([])
+  const [openRouterTextQuery, setOpenRouterTextQuery] = useState('')
+  const [openRouterImageQuery, setOpenRouterImageQuery] = useState('')
+  const [lmStudioQuery, setLmStudioQuery] = useState('')
   const [openRouterTextLoading, setOpenRouterTextLoading] = useState(false)
   const [openRouterImageLoading, setOpenRouterImageLoading] = useState(false)
   const [lmStudioLoading, setLmStudioLoading] = useState(false)
@@ -282,6 +285,25 @@ export function SettingsPage() {
     () => DEFAULT_FAL_VIDEO_MODELS.find((model) => model.id === aiSettings.falVideoModel),
     [aiSettings.falVideoModel]
   )
+  const filteredOpenRouterTextModels = useMemo(() => {
+    const query = openRouterTextQuery.trim().toLowerCase()
+    if (!query) return openRouterTextModels
+    return openRouterTextModels.filter((model) =>
+      `${model.name ?? ''} ${model.id}`.toLowerCase().includes(query)
+    )
+  }, [openRouterTextModels, openRouterTextQuery])
+  const filteredOpenRouterImageModels = useMemo(() => {
+    const query = openRouterImageQuery.trim().toLowerCase()
+    if (!query) return openRouterImageModels
+    return openRouterImageModels.filter((model) =>
+      `${model.name ?? ''} ${model.id}`.toLowerCase().includes(query)
+    )
+  }, [openRouterImageModels, openRouterImageQuery])
+  const filteredLmStudioModels = useMemo(() => {
+    const query = lmStudioQuery.trim().toLowerCase()
+    if (!query) return lmStudioModels
+    return lmStudioModels.filter((model) => model.id.toLowerCase().includes(query))
+  }, [lmStudioModels, lmStudioQuery])
   const displayName = getPreferredDisplayName(profile?.display_name, userPreferences)
   const regionalPreview = formatUserDateTime(new Date(), userPreferences)
   const timeZoneOptions = useMemo(
@@ -814,8 +836,7 @@ export function SettingsPage() {
                   <Input
                     id="openrouter-content-model"
                     value={aiSettings.openRouterContentModel}
-                    list="openrouter-content-model-options"
-                    placeholder="Type to search or paste model id"
+                    placeholder="Selected model id"
                     onChange={(event) =>
                       setAiSettings((current) => ({
                         ...current,
@@ -823,14 +844,36 @@ export function SettingsPage() {
                       }))
                     }
                   />
-                  <datalist id="openrouter-content-model-options">
-                    {openRouterTextModels.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.name ?? model.id}
-                      </option>
-                    ))}
-                  </datalist>
-                  <p className="text-xs text-muted-foreground">Search by name or paste exact model id. This avoids large dropdown menus.</p>
+                  <Input
+                    value={openRouterTextQuery}
+                    onChange={(event) => setOpenRouterTextQuery(event.target.value)}
+                    placeholder="Search models..."
+                  />
+                  <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/20 p-1">
+                    {filteredOpenRouterTextModels.length ? (
+                      filteredOpenRouterTextModels.map((model) => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() =>
+                            setAiSettings((current) => ({
+                              ...current,
+                              openRouterContentModel: model.id,
+                            }))
+                          }
+                          className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                            aiSettings.openRouterContentModel === model.id ? 'bg-primary/10 text-primary' : ''
+                          }`}
+                          title={model.id}
+                        >
+                          {model.name ?? model.id}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching models.</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">All models stay inside this scrollable list.</p>
                 </div>
               </CardContent>
             </Card>
@@ -887,8 +930,7 @@ export function SettingsPage() {
                 <Input
                   id="openrouter-image-model"
                   value={aiSettings.openRouterImageModel}
-                  list="openrouter-image-model-options"
-                  placeholder="Type to search or paste image model id"
+                  placeholder="Selected image model id"
                   onChange={(event) =>
                     setAiSettings((current) => ({
                       ...current,
@@ -896,14 +938,36 @@ export function SettingsPage() {
                     }))
                   }
                 />
-                <datalist id="openrouter-image-model-options">
-                  {openRouterImageModels.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.name ?? model.id}
-                    </option>
-                  ))}
-                </datalist>
-                <p className="text-xs text-muted-foreground">Search by name or paste exact model id.</p>
+                <Input
+                  value={openRouterImageQuery}
+                  onChange={(event) => setOpenRouterImageQuery(event.target.value)}
+                  placeholder="Search image models..."
+                />
+                <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/20 p-1">
+                  {filteredOpenRouterImageModels.length ? (
+                    filteredOpenRouterImageModels.map((model) => (
+                      <button
+                        key={model.id}
+                        type="button"
+                        onClick={() =>
+                          setAiSettings((current) => ({
+                            ...current,
+                            openRouterImageModel: model.id,
+                          }))
+                        }
+                        className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                          aiSettings.openRouterImageModel === model.id ? 'bg-primary/10 text-primary' : ''
+                        }`}
+                        title={model.id}
+                      >
+                        {model.name ?? model.id}
+                      </button>
+                    ))
+                  ) : (
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching image models.</p>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">All image models stay inside this scrollable list.</p>
               </div>
             </CardContent>
           </Card>
@@ -1022,8 +1086,7 @@ export function SettingsPage() {
                   <Input
                     id="lmstudio-model"
                     value={aiSettings.lmStudioContentModel}
-                    list="lmstudio-model-options"
-                    placeholder="Type to search or paste local model id"
+                    placeholder="Selected local model id"
                     onChange={(event) =>
                       setAiSettings((current) => ({
                         ...current,
@@ -1031,13 +1094,34 @@ export function SettingsPage() {
                       }))
                     }
                   />
-                  <datalist id="lmstudio-model-options">
-                    {lmStudioModels.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.id}
-                      </option>
-                    ))}
-                  </datalist>
+                  <Input
+                    value={lmStudioQuery}
+                    onChange={(event) => setLmStudioQuery(event.target.value)}
+                    placeholder="Search local models..."
+                  />
+                  <div className="max-h-56 overflow-y-auto rounded-lg border bg-muted/20 p-1">
+                    {filteredLmStudioModels.length ? (
+                      filteredLmStudioModels.map((model) => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() =>
+                            setAiSettings((current) => ({
+                              ...current,
+                              lmStudioContentModel: model.id,
+                            }))
+                          }
+                          className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent ${
+                            aiSettings.lmStudioContentModel === model.id ? 'bg-primary/10 text-primary' : ''
+                          }`}
+                        >
+                          {model.id}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-2 py-1.5 text-xs text-muted-foreground">No matching local models.</p>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
