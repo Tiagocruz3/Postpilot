@@ -35,18 +35,22 @@ const DEMO_MEDIA: WorkspaceAiMedia[] = [
 ]
 
 export function useAiMediaLibrary(workspaceId: string | null | undefined) {
-  const [items, setItems] = useState<WorkspaceAiMedia[]>(isDemoMode ? DEMO_MEDIA : [])
+  const [items, setItems] = useState<WorkspaceAiMedia[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!workspaceId) {
       setItems([])
+      setLoading(false)
+      setError(null)
       return
     }
 
     if (isDemoMode) {
-      setItems(DEMO_MEDIA.filter((item) => item.workspace_id === workspaceId || workspaceId === 'demo-ws-1'))
+      setItems(DEMO_MEDIA.filter((item) => item.workspace_id === workspaceId))
+      setLoading(false)
+      setError(null)
       return
     }
 
@@ -70,8 +74,15 @@ export function useAiMediaLibrary(workspaceId: string | null | undefined) {
   }, [workspaceId])
 
   useEffect(() => {
+    setItems([])
+    setError(null)
+    if (!workspaceId) {
+      setLoading(false)
+      return
+    }
+    setLoading(!isDemoMode)
     void refresh()
-  }, [refresh])
+  }, [workspaceId, refresh])
 
   useEffect(() => {
     if (isDemoMode || !workspaceId) {

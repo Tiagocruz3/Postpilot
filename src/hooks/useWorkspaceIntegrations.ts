@@ -29,8 +29,10 @@ export function useWorkspaceIntegrations(workspaceId: string | null | undefined)
   }, [workspaceId])
 
   useEffect(() => {
+    setIntegrations([])
+    setLoading(Boolean(workspaceId && !isDemoMode))
     void refresh()
-  }, [refresh])
+  }, [workspaceId, refresh])
 
   useEffect(() => {
     if (isDemoMode || !workspaceId) {

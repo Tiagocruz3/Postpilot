@@ -34,20 +34,22 @@ const DEMO_POSTS: InspirationPost[] = [
 ]
 
 export function useInspirationFeed(workspaceId: string | null | undefined) {
-  const [watches, setWatches] = useState<CompetitorWatch[]>(isDemoMode ? DEMO_WATCHES : [])
-  const [posts, setPosts] = useState<InspirationPost[]>(isDemoMode ? DEMO_POSTS : [])
+  const [watches, setWatches] = useState<CompetitorWatch[]>([])
+  const [posts, setPosts] = useState<InspirationPost[]>([])
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!workspaceId) {
       setWatches([])
       setPosts([])
+      setLoading(false)
       return
     }
 
     if (isDemoMode) {
-      setWatches(DEMO_WATCHES)
-      setPosts(DEMO_POSTS)
+      setWatches(DEMO_WATCHES.filter((row) => row.workspace_id === workspaceId))
+      setPosts(DEMO_POSTS.filter((row) => row.workspace_id === workspaceId))
+      setLoading(false)
       return
     }
 
@@ -66,8 +68,11 @@ export function useInspirationFeed(workspaceId: string | null | undefined) {
   }, [workspaceId])
 
   useEffect(() => {
+    setWatches([])
+    setPosts([])
+    setLoading(Boolean(workspaceId && !isDemoMode))
     void refresh()
-  }, [refresh])
+  }, [workspaceId, refresh])
 
   const addWatch = useCallback(
     async (input: { platform: CompetitorWatch['platform']; handle: string; display_name?: string; niche?: string }) => {

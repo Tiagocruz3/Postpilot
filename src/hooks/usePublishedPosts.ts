@@ -51,6 +51,8 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
   const load = useCallback(async () => {
     if (!workspaceId || isDemoMode) {
       setPosts([])
+      setError(null)
+      setLoading(false)
       return
     }
 
@@ -95,8 +97,15 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
   }, [workspaceId])
 
   useEffect(() => {
+    setPosts([])
+    setError(null)
+    if (!workspaceId || isDemoMode) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     void load()
-  }, [load])
+  }, [workspaceId, load])
 
   useEffect(() => {
     if (!workspaceId || isDemoMode) return

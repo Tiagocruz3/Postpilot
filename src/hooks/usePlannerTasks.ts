@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PlannerTask } from '@/types'
-import { isDemoMode, demoTasks } from '@/lib/demo'
+import { isDemoMode, plannerTasksForWorkspace } from '@/lib/demo'
 import type { Database } from '@/types/database'
 
 type PlannerTaskInsert = Database['public']['Tables']['planner_tasks']['Insert']
@@ -14,27 +14,27 @@ function sortByScheduledAt(items: PlannerTask[]) {
 }
 
 export function usePlannerTasks(workspaceId?: string) {
-  const [tasks, setTasks] = useState<PlannerTask[]>(isDemoMode ? demoTasks : [])
+  const [tasks, setTasks] = useState<PlannerTask[]>([])
   const [loading, setLoading] = useState(!isDemoMode)
 
   useEffect(() => {
     if (isDemoMode) {
+      setTasks(plannerTasksForWorkspace(workspaceId))
+      setLoading(false)
+      return
+    }
+
+    if (!workspaceId) {
+      setTasks([])
+      setLoading(false)
       return
     }
 
     let active = true
+    setTasks([])
+    setLoading(true)
 
     const fetchTasks = async () => {
-      if (!workspaceId) {
-        if (active) {
-          setTasks([])
-          setLoading(false)
-        }
-        return
-      }
-
-      setLoading(true)
-
       const { data, error } = await supabase
         .from('planner_tasks')
         .select('*')
@@ -47,11 +47,9 @@ export function usePlannerTasks(workspaceId?: string) {
 
       if (error) {
         setTasks([])
-        setLoading(false)
-        return
+      } else {
+        setTasks(sortByScheduledAt((data as PlannerTask[]) || []))
       }
-
-      setTasks(sortByScheduledAt((data as PlannerTask[]) || []))
       setLoading(false)
     }
 
@@ -78,7 +76,7 @@ export function usePlannerTasks(workspaceId?: string) {
 
     return () => {
       active = false
-      supabase.removeChannel(channel)
+      void supabase.removeChannel(channel)
     }
   }, [workspaceId])
 
@@ -87,7 +85,7 @@ export function usePlannerTasks(workspaceId?: string) {
       const newTask = {
         id: `task-${Date.now()}`,
         user_id: 'demo-user-id',
-        workspace_id: task.workspace_id || 'demo-ws-1',
+        workspace_id: task.workspace_id || workspaceId || 'demo-ws-1',
         title: task.title || 'Untitled',
         description: task.description || '',
         scheduled_at: task.scheduled_at || new Date().toISOString(),
@@ -104,7 +102,7 @@ export function usePlannerTasks(workspaceId?: string) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as PlannerTask
-      setTasks((prev) => [...prev, newTask])
+      setTasks((prev) => sortByScheduledAt([...prev, newTask]))
       return newTask
     }
 

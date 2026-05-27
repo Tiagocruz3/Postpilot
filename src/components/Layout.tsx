@@ -191,8 +191,13 @@ export function Layout() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full">
                   {workspaces.map((ws) => (
-                    <DropdownMenuItem key={ws.id} onClick={() => handleWorkspaceChange(ws.id)}>
+                    <DropdownMenuItem
+                      key={ws.id}
+                      onClick={() => handleWorkspaceChange(ws.id)}
+                      className={cn(ws.id === currentWorkspace.id && 'bg-accent font-medium')}
+                    >
                       {ws.name}
+                      {ws.id === currentWorkspace.id ? ' · active' : ''}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
@@ -327,7 +332,7 @@ export function Layout() {
 
       <main className="relative flex-1 overflow-auto">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div key={location.pathname} className="alive-enter">
+        <div key={`${currentWorkspace?.id ?? 'no-workspace'}:${location.pathname}`} className="alive-enter">
           <Outlet context={{ currentWorkspaceId: currentWorkspace?.id ?? null, currentWorkspace }} />
         </div>
       </main>

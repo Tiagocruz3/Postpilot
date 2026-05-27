@@ -27,7 +27,19 @@ export const demoWorkspaces: Workspace[] = [
     owner_id: 'demo-user-id',
     created_at: new Date().toISOString(),
   },
+  {
+    id: 'demo-ws-2',
+    name: 'Northwind Agency',
+    slug: 'northwind-agency',
+    owner_id: 'demo-user-id',
+    created_at: new Date().toISOString(),
+  },
 ]
+
+export function plannerTasksForWorkspace(workspaceId: string | null | undefined): PlannerTask[] {
+  if (!workspaceId) return []
+  return demoTasks.filter((task) => task.workspace_id === workspaceId)
+}
 
 const now = new Date()
 const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0)

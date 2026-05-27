@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { isAfter, parseISO } from 'date-fns'
 import { isDemoMode } from '@/lib/demo'
+import { shouldUseDemoDashboardSeed } from '@/lib/workspace-scope'
 import {
   aggregateMetricsFromPosts,
   buildActivityFeed,
@@ -28,7 +29,10 @@ export function useDashboardData(workspaceId: string | null | undefined) {
 
     const metricsFromPosts = aggregateMetricsFromPosts(posts)
     const useDemoMetrics =
-      isDemoMode && metricsFromPosts.engagementTotal === 0 && posts.length === 0
+      isDemoMode &&
+      shouldUseDemoDashboardSeed(workspaceId) &&
+      metricsFromPosts.engagementTotal === 0 &&
+      posts.length === 0
 
     const metrics = useDemoMetrics ? DEMO_DASHBOARD_METRICS : metricsFromPosts
     const counts = useDemoMetrics
@@ -58,7 +62,7 @@ export function useDashboardData(workspaceId: string | null | undefined) {
       topPosts: buildTopPosts(posts),
       ads: buildAdsSnapshot(tasks),
     }
-  }, [tasks, posts])
+  }, [tasks, posts, workspaceId])
 
   return {
     ...data,
