@@ -97,6 +97,26 @@ export function useAiMediaLibrary(workspaceId: string | null | undefined) {
     }
   }, [workspaceId, refresh])
 
+  useEffect(() => {
+    if (isDemoMode || !workspaceId || typeof window === 'undefined') {
+      return
+    }
+    const handleFocus = () => {
+      void refresh()
+    }
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh()
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [workspaceId, refresh])
+
   const remove = useCallback(
     async (id: string) => {
       if (isDemoMode) {

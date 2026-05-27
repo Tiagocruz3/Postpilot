@@ -428,27 +428,49 @@ export function ComposePage() {
     }
   }
 
-  const saveAiLibraryFallback = async (input: {
+  const ensureInAiLibrary = async (input: {
     mediaType: 'image' | 'video'
     url: string
     prompt: string
+    alreadyPersisted: boolean
   }) => {
-    if (!currentWorkspaceId || !user?.id) return
-    const fallbackPath = `external/${user.id}/${Date.now()}-${crypto.randomUUID()}`
-    const { error } = await supabase.from('workspace_ai_media').insert({
-      workspace_id: currentWorkspaceId,
-      created_by: user.id,
-      media_type: input.mediaType,
-      storage_bucket: 'external_ai',
-      storage_path: fallbackPath,
-      public_url: input.url,
-      prompt: input.prompt,
-      source: 'compose',
-      metadata: { platform: activeTab, fallback_saved: true },
-    } as never)
-    if (error) {
-      throw error
+    if (!currentWorkspaceId || !user?.id) return { saved: false, reason: 'No workspace or session.' }
+
+    const existing = await supabase
+      .from('workspace_ai_media')
+      .select('id')
+      .eq('workspace_id', currentWorkspaceId)
+      .eq('public_url', input.url)
+      .limit(1)
+      .maybeSingle()
+    const existingRow = existing.data as { id?: string } | null
+    if (existingRow?.id) {
+      return { saved: true, id: existingRow.id, deduped: true }
     }
+
+    const path = input.alreadyPersisted
+      ? `mirror/${user.id}/${Date.now()}-${crypto.randomUUID()}`
+      : `external/${user.id}/${Date.now()}-${crypto.randomUUID()}`
+    const { data, error } = await supabase
+      .from('workspace_ai_media')
+      .insert({
+        workspace_id: currentWorkspaceId,
+        created_by: user.id,
+        media_type: input.mediaType,
+        storage_bucket: input.alreadyPersisted ? 'ai_library' : 'external_ai',
+        storage_path: path,
+        public_url: input.url,
+        prompt: input.prompt,
+        source: 'compose',
+        metadata: { platform: activeTab, fallback_saved: !input.alreadyPersisted },
+      } as never)
+      .select('id')
+      .single()
+    if (error) {
+      return { saved: false, reason: error.message }
+    }
+    const inserted = data as { id?: string } | null
+    return { saved: true, id: inserted?.id ?? null }
   }
 
   const connect = (platform: ComposePlatform) => {
@@ -731,22 +753,18 @@ export function ComposePage() {
 
       upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
       const baseStatus = data.fallback_notice ? `Image generated. ${data.fallback_notice}` : 'Image generated.'
-      setMessage(baseStatus)
 
-      if (!data.library_id) {
-        try {
-          await saveAiLibraryFallback({
-            mediaType: 'image',
-            url: data.url,
-            prompt: directPrompt || baseContent,
-          })
-          setMessage(`${baseStatus} Saved to AI Library.`)
-        } catch (libErr) {
-          const libDetail = data.library_save_error || (libErr instanceof Error ? libErr.message : 'unknown reason')
-          setMessage(`${baseStatus} Could not sync to AI Library (${libDetail}). Image is still attached to this post.`)
-        }
-      } else {
+      const libraryResult = await ensureInAiLibrary({
+        mediaType: 'image',
+        url: data.url,
+        prompt: directPrompt || baseContent,
+        alreadyPersisted: Boolean(data.library_id),
+      })
+      if (libraryResult.saved) {
         setMessage(`${baseStatus} Saved to AI Library.`)
+      } else {
+        const libDetail = libraryResult.reason || data.library_save_error || 'unknown reason'
+        setMessage(`${baseStatus} Could not sync to AI Library (${libDetail}). Image is still attached to this post.`)
       }
 
       if (firstDraftCreated) {
@@ -786,20 +804,17 @@ export function ComposePage() {
       const data = await invokeAi<AiMediaResponse>('generate-video', { prompt, duration_seconds: 15, ...ctx })
       if (data.url) {
         upsertMedia({ url: data.url, type: 'video', source: 'ai-video' }, regenerate)
-        if (!data.library_id) {
-          try {
-            await saveAiLibraryFallback({
-              mediaType: 'video',
-              url: data.url,
-              prompt,
-            })
-            setMessage('Video generated. Saved to AI Library.')
-          } catch (libErr) {
-            const libDetail = data.library_save_error || (libErr instanceof Error ? libErr.message : 'unknown reason')
-            setMessage(`Video generated. Could not sync to AI Library (${libDetail}). Video is still attached to this post.`)
-          }
-        } else {
+        const libraryResult = await ensureInAiLibrary({
+          mediaType: 'video',
+          url: data.url,
+          prompt,
+          alreadyPersisted: Boolean(data.library_id),
+        })
+        if (libraryResult.saved) {
           setMessage('Video generated. Saved to AI Library.')
+        } else {
+          const libDetail = libraryResult.reason || data.library_save_error || 'unknown reason'
+          setMessage(`Video generated. Could not sync to AI Library (${libDetail}). Video is still attached to this post.`)
         }
       }
     } catch (error) {
