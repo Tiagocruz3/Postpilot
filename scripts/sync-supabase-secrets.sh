@@ -14,8 +14,10 @@ set -a
 source .env
 set +a
 
+: "${PROD_APP_URL:=https://www.adguru.app}"
+
 supabase secrets set \
-  APP_URL="${APP_URL:-http://localhost:5173}" \
+  APP_URL="${PROD_APP_URL}" \
   META_APP_ID="${META_APP_ID:-}" \
   META_APP_SECRET="${META_APP_SECRET:-}" \
   LINKEDIN_CLIENT_ID="${LINKEDIN_CLIENT_ID:-}" \
