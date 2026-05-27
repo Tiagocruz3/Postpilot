@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { AppFooter } from '@/components/AppFooter'
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -41,7 +42,8 @@ export function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-50 px-4">
+    <div className="flex min-h-screen flex-col bg-gradient-to-b from-primary/5 to-background">
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
@@ -94,6 +96,8 @@ export function SignupPage() {
           </p>
         </CardFooter>
       </Card>
+      </div>
+      <AppFooter compact />
     </div>
   )
 }

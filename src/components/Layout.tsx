@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { isDemoMode } from '@/lib/demo'
 import { getInitials, getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
+import { AppFooter } from '@/components/AppFooter'
 
 const SIDEBAR_TRANSITION = 'transition-[width,padding,margin] duration-200 ease-out'
 
@@ -87,8 +88,9 @@ export function Layout() {
 
   if (!loading && workspaces.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="w-full max-w-xl rounded-3xl border bg-card p-8 shadow-sm">
+      <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex flex-1 items-center justify-center px-4 py-10">
+          <div className="w-full max-w-xl rounded-3xl border bg-card p-8 shadow-sm">
           <div className="mb-5 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             Workspace bootstrap
           </div>
@@ -117,13 +119,16 @@ export function Layout() {
           >
             Create workspace
           </button>
+          </div>
         </div>
+        <AppFooter />
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen w-full bg-background">
+    <div className="flex h-screen w-full flex-col bg-background">
+      <div className="flex min-h-0 flex-1">
       <aside
         className={cn(
           'flex min-h-0 shrink-0 flex-col border-r bg-card',
@@ -325,10 +330,12 @@ export function Layout() {
 
       <main className="relative flex-1 overflow-auto">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div key={location.pathname} className="alive-enter">
+        <div key={location.pathname} className="alive-enter min-h-full">
           <Outlet context={{ currentWorkspaceId: currentWorkspace?.id ?? null, currentWorkspace }} />
         </div>
       </main>
+      </div>
+      <AppFooter />
     </div>
   )
 }

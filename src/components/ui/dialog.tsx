@@ -6,19 +6,24 @@ const Dialog = ({
   onOpenChange,
   children,
   panelClassName,
+  overlayClassName,
 }: {
   open?: boolean
   onOpenChange?: (v: boolean) => void
   children: React.ReactNode
   panelClassName?: string
+  overlayClassName?: string
 }) => {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => onOpenChange?.(false)}>
+    <div
+      className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4', overlayClassName)}
+      onClick={() => onOpenChange?.(false)}
+    >
       <div
         className={cn(
-          'relative z-50 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border bg-card p-6 shadow-lg',
-          panelClassName,
+          'relative z-50 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl border bg-card p-6 shadow-lg',
+          panelClassName ?? 'max-w-lg',
         )}
         onClick={(e) => e.stopPropagation()}
       >

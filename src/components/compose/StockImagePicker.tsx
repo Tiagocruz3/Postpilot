@@ -118,7 +118,12 @@ export function StockImagePicker({ open, onOpenChange, onSelect }: StockImagePic
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} panelClassName="max-w-6xl p-0">
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      overlayClassName="p-2 sm:p-3"
+      panelClassName="w-[min(1440px,calc(100vw-1.5rem))] max-w-none max-h-[94vh] p-0"
+    >
       <DialogHeader className="border-b px-6 py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -200,14 +205,14 @@ export function StockImagePicker({ open, onOpenChange, onSelect }: StockImagePic
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
 
-      <div className="min-h-[320px] flex-1 overflow-y-auto px-6 py-5">
+      <div className="min-h-[420px] flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
         {loading ? (
-          <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+          <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             Searching Pixabay...
           </div>
         ) : results.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {results.map((hit) => (
               <button
                 key={hit.id}
