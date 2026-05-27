@@ -35,46 +35,60 @@ async function fetchPostDetails(postId: string, token: string) {
 }
 
 async function fetchPostMetrics(postId: string, token: string) {
-  const fields = [
-    'reactions.summary(total_count).limit(0)',
-    'comments.summary(total_count).limit(0)',
-    'shares',
-    'insights.metric(post_impressions,post_impressions_unique,post_video_views)',
-  ].join(',')
-
-  const url = `https://graph.facebook.com/v18.0/${encodeURIComponent(postId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`
-  const res = await fetch(url)
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    const message = (data as { error?: { message?: string } }).error?.message
-    return { metrics: null, error: message || `Facebook metrics returned ${res.status}` }
+  const metrics: Record<string, number | null> = {
+    reactions: null,
+    comments: null,
+    shares: null,
+    impressions: null,
+    unique_impressions: null,
+    video_views: null,
   }
+  const errors: string[] = []
 
-  const reactions = data.reactions?.summary?.total_count ?? 0
-  const comments = data.comments?.summary?.total_count ?? 0
-  const shares = data.shares?.count ?? 0
-  const insights = Array.isArray(data.insights?.data) ? data.insights.data : []
-  const insightMap: Record<string, number> = {}
-  for (const entry of insights) {
-    if (entry && typeof entry.name === 'string' && Array.isArray(entry.values)) {
-      const value = entry.values[0]?.value
-      if (typeof value === 'number') {
-        insightMap[entry.name] = value
-      }
+  try {
+    const fields = 'reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares'
+    const url = `https://graph.facebook.com/v18.0/${encodeURIComponent(postId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`
+    const res = await fetch(url)
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      metrics.reactions = data.reactions?.summary?.total_count ?? 0
+      metrics.comments = data.comments?.summary?.total_count ?? 0
+      metrics.shares = data.shares?.count ?? 0
+    } else {
+      const message = (data as { error?: { message?: string } }).error?.message
+      errors.push(message || `Facebook basic metrics returned ${res.status}`)
     }
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : 'Basic metrics fetch crashed.')
   }
 
-  return {
-    metrics: {
-      reactions,
-      comments,
-      shares,
-      impressions: insightMap.post_impressions ?? null,
-      unique_impressions: insightMap.post_impressions_unique ?? null,
-      video_views: insightMap.post_video_views ?? null,
-    },
-    error: null as string | null,
+  try {
+    const metric = 'post_impressions,post_impressions_unique,post_video_views'
+    const url = `https://graph.facebook.com/v18.0/${encodeURIComponent(postId)}/insights?metric=${encodeURIComponent(metric)}&access_token=${encodeURIComponent(token)}`
+    const res = await fetch(url)
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      const entries = Array.isArray(data.data) ? data.data : []
+      for (const entry of entries) {
+        if (entry?.name && Array.isArray(entry.values)) {
+          const value = entry.values[0]?.value
+          if (typeof value === 'number') {
+            if (entry.name === 'post_impressions') metrics.impressions = value
+            if (entry.name === 'post_impressions_unique') metrics.unique_impressions = value
+            if (entry.name === 'post_video_views') metrics.video_views = value
+          }
+        }
+      }
+    } else {
+      const message = (data as { error?: { message?: string } }).error?.message
+      // Don't surface this as a blocking error — insights need read_insights / pages_read_engagement.
+      console.warn('facebook insights:', message)
+    }
+  } catch (err) {
+    console.warn('facebook insights crashed:', err instanceof Error ? err.message : err)
   }
+
+  return { metrics, error: errors.length ? errors.join(' · ') : null }
 }
 
 serve(async (req) => {

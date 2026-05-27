@@ -21,6 +21,15 @@ export async function resolveRequestUserId(
     return null
   }
 
-  const { data: { user } } = await supabase.auth.getUser(token)
-  return user?.id ?? null
+  try {
+    const { data, error } = await supabase.auth.getUser(token)
+    if (error) {
+      console.warn('resolveRequestUserId getUser error:', error.message)
+      return null
+    }
+    return data.user?.id ?? null
+  } catch (err) {
+    console.warn('resolveRequestUserId threw:', err instanceof Error ? err.message : err)
+    return null
+  }
 }

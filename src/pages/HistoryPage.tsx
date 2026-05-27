@@ -10,6 +10,7 @@ import {
   MessageCircle,
   RefreshCw,
   Repeat2,
+  Send,
   Share2,
   XCircle,
 } from 'lucide-react'
@@ -93,6 +94,7 @@ export function HistoryPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [query, setQuery] = useState('')
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
+  const [retryingId, setRetryingId] = useState<string | null>(null)
   const [refreshMessage, setRefreshMessage] = useState<string>('')
 
   const filtered = useMemo(() => {
@@ -112,6 +114,58 @@ export function HistoryPage() {
     const value = metrics?.impressions ?? metrics?.reach
     return acc + (typeof value === 'number' ? value : 0)
   }, 0)
+
+  const retryPublish = async (post: PublishedPost) => {
+    if (isDemoMode) return
+    setRetryingId(post.id)
+    setRefreshMessage('')
+    try {
+      await supabase
+        .from('scheduled_posts')
+        .update({ error: null } as never)
+        .eq('id', post.id)
+      await supabase
+        .from('planner_tasks')
+        .update({ status: 'scheduled' } as never)
+        .eq('id', post.planner_task_id)
+
+      const { data, error: invokeError } = await supabase.functions.invoke<{
+        success?: boolean
+        error?: string
+        permalink_url?: string | null
+      }>(`${post.platform}-api`, {
+        body: {
+          task_id: post.planner_task_id,
+          content: post.content,
+          media_urls: post.media_urls ?? [],
+        },
+      })
+      if (invokeError) {
+        const context = (invokeError as { context?: { json?: () => Promise<unknown> } }).context
+        let detailed = invokeError.message
+        if (context?.json) {
+          try {
+            const payload = (await context.json()) as { error?: string }
+            detailed = payload?.error || detailed
+          } catch {
+            // ignore
+          }
+        }
+        setRefreshMessage(detailed || `Retry failed on ${platformLabel(post.platform)}.`)
+      } else if (data?.error) {
+        setRefreshMessage(data.error)
+      } else if (data?.permalink_url) {
+        setRefreshMessage(`Republished. View on ${platformLabel(post.platform)}.`)
+      } else {
+        setRefreshMessage('Republished. Refreshing list...')
+      }
+      void refresh()
+    } catch (err) {
+      setRefreshMessage(err instanceof Error ? err.message : 'Retry failed.')
+    } finally {
+      setRetryingId(null)
+    }
+  }
 
   const refreshMetrics = async (post: PublishedPost) => {
     if (isDemoMode || !post.platform_post_id) return
@@ -320,6 +374,21 @@ export function HistoryPage() {
                               <ExternalLink className="h-3 w-3" />
                               View on {platformLabel(post.platform)}
                             </a>
+                          ) : null}
+                          {postStatus === 'failed' ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              disabled={retryingId === post.id}
+                              onClick={() => void retryPublish(post)}
+                            >
+                              {retryingId === post.id ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Send className="mr-2 h-3.5 w-3.5" />
+                              )}
+                              Retry publish
+                            </Button>
                           ) : null}
                           <Button
                             size="sm"
