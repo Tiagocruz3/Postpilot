@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Images,
+  History,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -72,6 +73,7 @@ export function Layout() {
     { path: '/compose', label: 'Compose', icon: PenTool, hint: 'Write, research, remix' },
     { path: '/library', label: 'AI Library', icon: Images, hint: 'Generated images & video' },
     { path: '/ads', label: 'Ads', icon: BarChart3, hint: 'Meta AI ad studio' },
+    { path: '/history', label: 'History', icon: History, hint: 'Published posts + metrics' },
   ]
 
   const handleSignOut = async () => {

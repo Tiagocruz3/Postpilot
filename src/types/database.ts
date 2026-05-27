@@ -219,6 +219,12 @@ export interface Database {
           media_urls: string[] | null
           published_at: string | null
           published_url: string | null
+          platform_post_id: string | null
+          permalink_url: string | null
+          preview_image_url: string | null
+          metrics: Json
+          metrics_updated_at: string | null
+          metrics_error: string | null
           error: string | null
           created_at: string
         }
@@ -230,6 +236,12 @@ export interface Database {
           media_urls?: string[] | null
           published_at?: string | null
           published_url?: string | null
+          platform_post_id?: string | null
+          permalink_url?: string | null
+          preview_image_url?: string | null
+          metrics?: Json
+          metrics_updated_at?: string | null
+          metrics_error?: string | null
           error?: string | null
           created_at?: string
         }
@@ -241,6 +253,12 @@ export interface Database {
           media_urls?: string[] | null
           published_at?: string | null
           published_url?: string | null
+          platform_post_id?: string | null
+          permalink_url?: string | null
+          preview_image_url?: string | null
+          metrics?: Json
+          metrics_updated_at?: string | null
+          metrics_error?: string | null
           error?: string | null
           created_at?: string
         }

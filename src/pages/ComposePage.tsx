@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useOutletContext } from 'react-router-dom'
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import {
   Calendar,
   Check,
@@ -70,6 +70,11 @@ type CompletedPost = {
   content: string
   media: MediaItem[]
   scheduledAt: string
+  permalinkUrl?: string | null
+  previewImageUrl?: string | null
+  platformPostId?: string | null
+  scheduledPostId?: string | null
+  errorMessage?: string | null
 }
 
 type AiMediaResponse = {
@@ -120,6 +125,7 @@ function clearDraftSnapshot(workspaceId: string | null) {
 
 export function ComposePage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user } = useAuth()
 
@@ -513,22 +519,69 @@ export function ComposePage() {
       const scheduledPostRes = await supabase.from('scheduled_posts').insert(scheduledPost as never)
       if (scheduledPostRes.error) throw scheduledPostRes.error
 
+      let permalinkUrl: string | null = null
+      let previewImageUrl: string | null = mediaSnapshot.find((item) => item.type === 'image')?.url ?? null
+      let platformPostId: string | null = null
+      let scheduledPostId: string | null = null
+      let errorMessage: string | null = null
+
       if (action === 'now') {
-        await supabase.functions.invoke(`${activeTab}-api`, {
+        const invokeRes = await supabase.functions.invoke<{
+          success?: boolean
+          permalink_url?: string | null
+          preview_image_url?: string | null
+          post_id?: string | null
+          scheduled_post_id?: string | null
+          error?: string
+        }>(`${activeTab}-api`, {
           body: { task_id: createdTask.id, content: cleanContent, media_urls: mediaUrls },
         })
+
+        if (invokeRes.error) {
+          const context = (invokeRes.error as { context?: { json?: () => Promise<unknown> } }).context
+          let detailed = invokeRes.error.message
+          if (context?.json) {
+            try {
+              const payload = (await context.json()) as { error?: string; message?: string }
+              detailed = payload?.error || payload?.message || detailed
+            } catch {
+              // ignore parse failure
+            }
+          }
+          errorMessage = detailed || `Could not publish to ${platformLabel(activeTab)}.`
+        } else if (invokeRes.data?.error) {
+          errorMessage = invokeRes.data.error
+        } else if (invokeRes.data) {
+          permalinkUrl = invokeRes.data.permalink_url ?? null
+          previewImageUrl = invokeRes.data.preview_image_url ?? previewImageUrl
+          platformPostId = invokeRes.data.post_id ?? null
+          scheduledPostId = invokeRes.data.scheduled_post_id ?? null
+        }
       }
 
-      setMessage(`${action === 'now' ? 'Posted' : 'Scheduled'} to ${platformLabel(activeTab)}.`)
+      if (errorMessage) {
+        setMessage(`Publish failed: ${errorMessage}`)
+      } else {
+        setMessage(`${action === 'now' ? 'Posted' : 'Scheduled'} to ${platformLabel(activeTab)}.`)
+      }
+
       setCompletedPost({
         action,
         platform: activeTab,
         content: cleanContent,
         media: mediaSnapshot,
         scheduledAt: targetTime,
+        permalinkUrl,
+        previewImageUrl,
+        platformPostId,
+        scheduledPostId,
+        errorMessage,
       })
       setShowCompletedPost(true)
-      resetForm()
+
+      if (!errorMessage) {
+        resetForm()
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to save this post right now.')
     } finally {
@@ -1510,23 +1563,46 @@ export function ComposePage() {
           <Button variant="outline" onClick={() => setShowDraftRequired(false)}>Close</Button>
         </DialogFooter>
       </Dialog>
-      <Dialog open={showCompletedPost} onOpenChange={setShowCompletedPost}>
-        <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(event) => event.stopPropagation()}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-primary" />
-              Post completed
-            </DialogTitle>
-            <DialogDescription>
-              {completedPost
-                ? `${completedPost.action === 'now' ? 'Published' : 'Scheduled'} on ${platformLabel(completedPost.platform)}`
-                : 'Your post is ready.'}
-            </DialogDescription>
-          </DialogHeader>
-          {completedPost ? (
-            <div className="mt-4 space-y-3">
-              <Textarea readOnly value={completedPost.content} className="min-h-[140px]" />
-              {completedPost.media.length ? (
+      <Dialog
+        open={showCompletedPost}
+        onOpenChange={setShowCompletedPost}
+        panelClassName="w-full max-w-2xl p-0"
+      >
+        {completedPost ? (
+          <div className="flex max-h-[90vh] flex-col">
+            <DialogHeader className="border-b px-6 py-5">
+              <DialogTitle className="flex items-center gap-2">
+                {completedPost.errorMessage ? (
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-destructive/10 text-destructive">!</span>
+                ) : (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                )}
+                {completedPost.errorMessage
+                  ? `Publish failed on ${platformLabel(completedPost.platform)}`
+                  : completedPost.action === 'now'
+                    ? `Posted to ${platformLabel(completedPost.platform)}`
+                    : `Scheduled for ${platformLabel(completedPost.platform)}`}
+              </DialogTitle>
+              <DialogDescription>
+                {completedPost.errorMessage
+                  ? completedPost.errorMessage
+                  : completedPost.action === 'now'
+                    ? 'Your post is live. View it on the platform or check publishing history any time.'
+                    : `It will publish automatically at ${new Date(completedPost.scheduledAt).toLocaleString()}.`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 overflow-y-auto px-6 py-5">
+              <div className="rounded-2xl border bg-muted/30 p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Post content</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{completedPost.content}</p>
+              </div>
+
+              {completedPost.previewImageUrl ? (
+                <div className="overflow-hidden rounded-2xl border">
+                  <img src={completedPost.previewImageUrl} alt="Posted media" className="h-72 w-full object-cover" />
+                </div>
+              ) : completedPost.media.length ? (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {completedPost.media.map((item, index) =>
                     item.type === 'video' ? (
@@ -1536,15 +1612,33 @@ export function ComposePage() {
                     ),
                   )}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No media attached.</p>
+              ) : null}
+
+              {completedPost.permalinkUrl ? (
+                <a
+                  href={completedPost.permalinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10"
+                >
+                  <Link className="h-4 w-4" />
+                  View live post on {platformLabel(completedPost.platform)}
+                </a>
+              ) : completedPost.errorMessage ? null : (
+                <p className="text-xs text-muted-foreground">
+                  Live link will appear here once the platform returns the URL.
+                </p>
               )}
             </div>
-          ) : null}
-          <DialogFooter className="mt-4">
-            <Button onClick={() => setShowCompletedPost(false)}>Done</Button>
-          </DialogFooter>
-        </div>
+
+            <DialogFooter className="border-t bg-muted/20 px-6 py-4">
+              <Button variant="outline" onClick={() => navigate('/history')}>
+                Publishing history
+              </Button>
+              <Button onClick={() => setShowCompletedPost(false)}>Done</Button>
+            </DialogFooter>
+          </div>
+        ) : null}
       </Dialog>
       <input
         ref={userMediaInputRef}

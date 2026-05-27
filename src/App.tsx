@@ -10,6 +10,7 @@ import { ComposePage } from '@/pages/ComposePage'
 import { AdsPage } from '@/pages/AdsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { LibraryPage } from '@/pages/LibraryPage'
+import { HistoryPage } from '@/pages/HistoryPage'
 
 function App() {
   const { profile, loading } = useAuth()
@@ -34,6 +35,7 @@ function App() {
           <Route path="compose" element={<ComposePage />} />
           <Route path="ads" element={<AdsPage />} />
           <Route path="library" element={<LibraryPage />} />
+          <Route path="history" element={<HistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
