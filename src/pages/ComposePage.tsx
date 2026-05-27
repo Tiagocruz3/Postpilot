@@ -1152,6 +1152,54 @@ export function ComposePage() {
                   </p>
                 </div>
 
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your post</p>
+                  <div className="relative">
+                    <Textarea
+                      placeholder="What's on your mind?"
+                      value={content}
+                      onChange={(event) => setContent(event.target.value)}
+                      onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
+                      className="min-h-[180px] resize-none border-primary/20 bg-background text-base leading-relaxed shadow-sm"
+                    />
+                    <div className="absolute bottom-3 right-3">
+                      <Badge variant={charCount > maxChars ? 'destructive' : 'secondary'}>
+                        {charCount}/{maxChars}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${charCount > maxChars ? 'bg-destructive' : 'bg-primary'}`}
+                      style={{ width: `${Math.min(100, Math.max(4, (charCount / maxChars) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {media.length ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Attached media</p>
+                    <div className="flex flex-wrap gap-2">
+                      {media.map((item, index) => (
+                        <div key={`${item.url}-${index}`} className="relative h-28 w-28 overflow-hidden rounded-xl border">
+                          {item.type === 'video' ? (
+                            <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                          ) : (
+                            <img src={item.url} alt="" className="h-full w-full object-cover" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
+                            className="absolute right-1 top-1 rounded-full bg-black/50 px-1.5 text-xs text-white"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <ComposeAiWriteSection
                   draftTopic={draftTopic}
                   onDraftTopicChange={setDraftTopic}
@@ -1165,48 +1213,6 @@ export function ComposePage() {
                     setShowRemix(true)
                   }}
                 />
-
-                <div className="relative">
-                  <Textarea
-                    placeholder="What's on your mind?"
-                    value={content}
-                    onChange={(event) => setContent(event.target.value)}
-                    onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
-                    className="min-h-[180px] resize-none"
-                  />
-                  <div className="absolute bottom-3 right-3">
-                    <Badge variant={charCount > maxChars ? 'destructive' : 'secondary'}>
-                      {charCount}/{maxChars}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="h-1 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${charCount > maxChars ? 'bg-destructive' : 'bg-primary'}`}
-                    style={{ width: `${Math.min(100, Math.max(4, (charCount / maxChars) * 100))}%` }}
-                  />
-                </div>
-
-                {media.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {media.map((item, index) => (
-                      <div key={`${item.url}-${index}`} className="relative h-28 w-28 overflow-hidden rounded-xl border">
-                        {item.type === 'video' ? (
-                          <video src={item.url} className="h-full w-full object-cover" muted playsInline />
-                        ) : (
-                          <img src={item.url} alt="" className="h-full w-full object-cover" />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
-                          className="absolute right-1 top-1 rounded-full bg-black/50 px-1.5 text-xs text-white"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
         </CardContent>
       </Card>
 
