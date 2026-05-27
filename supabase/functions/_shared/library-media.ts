@@ -10,16 +10,28 @@ export async function assertWorkspaceMember(
   workspaceId: string,
   userId: string,
 ) {
-  const { data, error } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from('workspace_members')
     .select('id')
     .eq('workspace_id', workspaceId)
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (error || !data) {
-    throw new Error('User is not a member of this workspace.')
+  if (!memberError && member) {
+    return
   }
+
+  const { data: workspace, error: workspaceError } = await supabase
+    .from('workspaces')
+    .select('owner_id')
+    .eq('id', workspaceId)
+    .maybeSingle()
+
+  if (!workspaceError && (workspace as { owner_id?: string } | null)?.owner_id === userId) {
+    return
+  }
+
+  throw new Error('User is not a member of this workspace.')
 }
 
 async function bytesFromSourceUrl(sourceUrl: string, mediaType: AiMediaType): Promise<{ bytes: Uint8Array; contentType: string }> {

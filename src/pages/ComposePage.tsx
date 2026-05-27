@@ -29,6 +29,7 @@ import {
   sanitizeComposeCopy,
   type ComposePlatform,
 } from '@/lib/compose-copy'
+import { saveGeneratedMediaToVault } from '@/lib/ai-library'
 import { APP_PAGE } from '@/lib/app-labels'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
@@ -427,49 +428,33 @@ export function ComposePage() {
     }
   }
 
-  const ensureInAiLibrary = async (input: {
+  const saveToAiVault = async (input: {
     mediaType: 'image' | 'video'
     url: string
     prompt: string
-    alreadyPersisted: boolean
+    libraryId?: string | null
+    librarySaveError?: string | null
   }) => {
-    if (!currentWorkspaceId || !user?.id) return { saved: false, reason: 'No workspace or session.' }
-
-    const existing = await supabase
-      .from('workspace_ai_media')
-      .select('id')
-      .eq('workspace_id', currentWorkspaceId)
-      .eq('public_url', input.url)
-      .limit(1)
-      .maybeSingle()
-    const existingRow = existing.data as { id?: string } | null
-    if (existingRow?.id) {
-      return { saved: true, id: existingRow.id, deduped: true }
+    if (!currentWorkspaceId || !user?.id) {
+      return { saved: false as const, reason: 'No workspace or session.' }
     }
 
-    const path = input.alreadyPersisted
-      ? `mirror/${user.id}/${Date.now()}-${crypto.randomUUID()}`
-      : `external/${user.id}/${Date.now()}-${crypto.randomUUID()}`
-    const { data, error } = await supabase
-      .from('workspace_ai_media')
-      .insert({
-        workspace_id: currentWorkspaceId,
-        created_by: user.id,
-        media_type: input.mediaType,
-        storage_bucket: input.alreadyPersisted ? 'ai_library' : 'external_ai',
-        storage_path: path,
-        public_url: input.url,
-        prompt: input.prompt,
-        source: 'compose',
-        metadata: { platform: activeTab, fallback_saved: !input.alreadyPersisted },
-      } as never)
-      .select('id')
-      .single()
-    if (error) {
-      return { saved: false, reason: error.message }
+    if (input.libraryId) {
+      return { saved: true as const, id: input.libraryId }
     }
-    const inserted = data as { id?: string } | null
-    return { saved: true, id: inserted?.id ?? null }
+
+    return saveGeneratedMediaToVault({
+      workspaceId: currentWorkspaceId,
+      userId: user.id,
+      mediaType: input.mediaType,
+      sourceUrl: input.url,
+      prompt: input.prompt,
+      source: 'compose',
+      metadata: {
+        platform: activeTab,
+        server_save_error: input.librarySaveError ?? null,
+      },
+    })
   }
 
   const connect = (platform: ComposePlatform) => {
@@ -757,11 +742,12 @@ export function ComposePage() {
       upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
       const baseStatus = data.fallback_notice ? `Image generated. ${data.fallback_notice}` : 'Image generated.'
 
-      const libraryResult = await ensureInAiLibrary({
+      const libraryResult = await saveToAiVault({
         mediaType: 'image',
         url: data.url,
         prompt: directPrompt || baseContent,
-        alreadyPersisted: Boolean(data.library_id),
+        libraryId: data.library_id,
+        librarySaveError: data.library_save_error,
       })
       if (libraryResult.saved) {
         setMessage(`${baseStatus} Saved to ${APP_PAGE.aiVault}.`)
@@ -807,11 +793,12 @@ export function ComposePage() {
       const data = await invokeAi<AiMediaResponse>('generate-video', { prompt, duration_seconds: 15, ...ctx })
       if (data.url) {
         upsertMedia({ url: data.url, type: 'video', source: 'ai-video' }, regenerate)
-        const libraryResult = await ensureInAiLibrary({
+        const libraryResult = await saveToAiVault({
           mediaType: 'video',
           url: data.url,
           prompt,
-          alreadyPersisted: Boolean(data.library_id),
+          libraryId: data.library_id,
+          librarySaveError: data.library_save_error,
         })
         if (libraryResult.saved) {
           setMessage(`Video generated. Saved to ${APP_PAGE.aiVault}.`)
