@@ -4,7 +4,6 @@ import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
-  Bot,
   PenTool,
   BarChart3,
   Settings,
@@ -15,8 +14,8 @@ import {
   Building2,
   Sparkles,
   LayoutDashboard,
-  Menu,
-  ChevronLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Images,
 } from 'lucide-react'
 import {
@@ -31,6 +30,8 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { isDemoMode } from '@/lib/demo'
 import { getInitials, getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
+
+const SIDEBAR_TRANSITION = 'transition-[width,padding,margin] duration-200 ease-out'
 
 export function Layout() {
   const navigate = useNavigate()
@@ -125,54 +126,65 @@ export function Layout() {
     <div className="flex h-screen w-full bg-background">
       <aside
         className={cn(
-          'flex min-h-0 flex-col border-r bg-card transition-[width] duration-300 ease-out',
-          sidebarOpen ? 'w-72' : 'w-24'
+          'flex min-h-0 shrink-0 flex-col border-r bg-card',
+          SIDEBAR_TRANSITION,
+          sidebarOpen ? 'w-64' : 'w-[68px]'
         )}
       >
-        <div className="flex items-center justify-between px-4 py-5">
-          <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground shadow-sm">
-              A
-            </div>
-            <div
-              className={cn(
-                'min-w-0 overflow-hidden transition-all duration-200 ease-out',
-                sidebarOpen ? 'max-w-[180px] translate-x-0 opacity-100' : 'max-w-0 -translate-x-2 opacity-0'
-              )}
-            >
-              <div>
-                <span className="block text-lg font-bold tracking-tight text-navy-900">Ad Guru</span>
-                <span className="text-xs text-muted-foreground">Social + ads scheduler</span>
-              </div>
-            </div>
+        <div
+          className={cn(
+            'flex items-center gap-2 py-4',
+            SIDEBAR_TRANSITION,
+            sidebarOpen ? 'px-4' : 'px-3 justify-center'
+          )}
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-sm">
+            A
+          </div>
+          <div
+            className={cn(
+              'min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-opacity duration-150',
+              sidebarOpen ? 'opacity-100 delay-100' : 'pointer-events-none opacity-0'
+            )}
+            aria-hidden={!sidebarOpen}
+          >
+            <span className="block truncate text-sm font-semibold tracking-tight text-foreground">Ad Guru</span>
+            <span className="block truncate text-[11px] text-muted-foreground">Social + ads workspace</span>
           </div>
           <button
             type="button"
             onClick={() => setSidebarOpen((current) => !current)}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
+            className={cn(
+              'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+              sidebarOpen ? '' : 'absolute right-2 top-3'
+            )}
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
           </button>
         </div>
 
-        <div className="px-4 py-2">
-          {currentWorkspace && (
-            sidebarOpen ? (
+        {currentWorkspace ? (
+          <div
+            className={cn(
+              'pb-2',
+              SIDEBAR_TRANSITION,
+              sidebarOpen ? 'px-3' : 'px-2'
+            )}
+          >
+            {sidebarOpen ? (
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <Button
                     variant="outline"
-                    className="h-12 w-full justify-between rounded-2xl px-4 transition-all duration-200"
+                    className="h-10 w-full justify-between rounded-lg px-3"
                   >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <Building2 className="h-4 w-4 shrink-0" />
-                      <div className="min-w-0 text-left transition-all duration-200">
-                        <div className="truncate text-sm font-medium">{currentWorkspace.name}</div>
-                        <div className="text-xs text-muted-foreground">Workspace active</div>
-                      </div>
+                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-sm font-medium">{currentWorkspace.name}</span>
                     </div>
-                    <ChevronDown className="h-4 w-4 shrink-0 opacity-50 transition-all duration-200" />
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-full">
@@ -187,47 +199,23 @@ export function Layout() {
               </DropdownMenu>
             ) : (
               <div
-                className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-input bg-muted/40 text-muted-foreground"
+                className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground"
                 title={currentWorkspace.name}
                 aria-hidden="true"
               >
                 <Building2 className="h-4 w-4" />
               </div>
-            )
-          )}
-        </div>
-
-        <div className="px-4 pb-2 pt-4">
-          <div
-            className={cn(
-              'rounded-2xl bg-primary/8 transition-all duration-200',
-              sidebarOpen ? 'p-4' : 'mx-auto flex h-12 w-12 items-center justify-center p-0'
             )}
-            title={!sidebarOpen ? 'Build order' : undefined}
-          >
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <Bot className="h-4 w-4 shrink-0 text-primary" />
-              <div
-                className={cn(
-                  'overflow-hidden transition-all duration-200',
-                  sidebarOpen ? 'max-w-[160px] opacity-100' : 'max-w-0 opacity-0'
-                )}
-              >
-                Build order
-              </div>
-            </div>
-            <p
-              className={cn(
-                'text-xs leading-5 text-muted-foreground transition-all duration-200',
-                sidebarOpen ? 'mt-2 max-h-20 opacity-100' : 'max-h-0 opacity-0'
-              )}
-            >
-              Auth and workspace bootstrap first, then the planner, post composers, ads module, and scheduler automation.
-            </p>
           </div>
-        </div>
+        ) : null}
 
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav
+          className={cn(
+            'min-h-0 flex-1 space-y-0.5 overflow-y-auto py-2',
+            SIDEBAR_TRANSITION,
+            sidebarOpen ? 'px-3' : 'px-2'
+          )}
+        >
           {navItems.map((item) => {
             const active = location.pathname === item.path
             const Icon = item.icon
@@ -236,44 +224,46 @@ export function Layout() {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'alive-lift flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  sidebarOpen ? 'gap-3' : 'justify-center gap-0',
-                  active ? 'alive-ring bg-primary text-primary-foreground' : 'text-navy-700 hover:bg-accent'
+                  'group relative flex w-full items-center rounded-lg text-sm font-medium transition-colors',
+                  sidebarOpen ? 'h-10 gap-3 px-3' : 'h-10 justify-center px-0',
+                  active
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-foreground/80 hover:bg-accent hover:text-foreground'
                 )}
                 title={!sidebarOpen ? item.label : undefined}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <div
+                <span
                   className={cn(
-                    'min-w-0 overflow-hidden text-left transition-all duration-200',
-                    sidebarOpen ? 'max-w-[160px] opacity-100' : 'max-w-0 opacity-0'
+                    'flex-1 truncate text-left transition-opacity duration-150',
+                    sidebarOpen ? 'opacity-100 delay-100' : 'pointer-events-none w-0 overflow-hidden opacity-0'
                   )}
                 >
-                  <div className="min-w-0 text-left">
-                    <div>{item.label}</div>
-                    {'hint' in item && item.hint ? (
-                      <div className={cn('truncate text-xs', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                        {item.hint}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+                  {item.label}
+                </span>
               </button>
             )
           })}
         </nav>
 
-        <div className="relative border-t p-4">
+        <div
+          className={cn(
+            'border-t py-3',
+            SIDEBAR_TRANSITION,
+            sidebarOpen ? 'px-3' : 'px-2'
+          )}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger>
               <button
                 type="button"
                 className={cn(
-                  'flex w-full items-center rounded-2xl px-2 py-2 text-left transition-colors hover:bg-accent',
-                  sidebarOpen ? 'gap-3' : 'justify-center'
+                  'flex w-full items-center rounded-lg text-left transition-colors hover:bg-accent',
+                  sidebarOpen ? 'h-11 gap-3 px-2' : 'h-11 justify-center px-0'
                 )}
+                title={!sidebarOpen ? displayName : undefined}
               >
-                <Avatar className="h-9 w-9 shrink-0">
+                <Avatar className="h-8 w-8 shrink-0">
                   {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
                   <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
                     {getInitials(displayName)}
@@ -281,17 +271,19 @@ export function Layout() {
                 </Avatar>
                 <div
                   className={cn(
-                    'min-w-0 flex-1 overflow-hidden transition-all duration-200',
-                    sidebarOpen ? 'max-w-[140px] opacity-100' : 'max-w-0 opacity-0'
+                    'min-w-0 flex-1 overflow-hidden transition-opacity duration-150',
+                    sidebarOpen ? 'opacity-100 delay-100' : 'pointer-events-none w-0 opacity-0'
                   )}
                 >
-                  <p className="truncate text-sm font-medium">{displayName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'Account'}</p>
+                  <p className="truncate text-sm font-medium leading-tight">{displayName}</p>
+                  <p className="truncate text-[11px] text-muted-foreground leading-tight">
+                    {user?.email ?? 'Account'}
+                  </p>
                 </div>
                 <ChevronDown
                   className={cn(
-                    'h-4 w-4 shrink-0 text-muted-foreground transition-all duration-200',
-                    sidebarOpen ? 'opacity-100' : 'max-w-0 opacity-0'
+                    'h-4 w-4 shrink-0 text-muted-foreground transition-opacity duration-150',
+                    sidebarOpen ? 'opacity-100 delay-100' : 'opacity-0'
                   )}
                 />
               </button>
