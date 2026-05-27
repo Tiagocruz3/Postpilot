@@ -942,8 +942,15 @@ export function ComposePage() {
     void generateVideo(false)
   }
 
+  const showImageMediaTools = draftReady && mediaSource === 'ai-image'
+  const showVideoMediaTools = draftReady && mediaSource === 'ai-video'
+  const showStockMediaTools = draftReady && mediaSource === 'stock-image'
+  const showUserMediaTools = draftReady && mediaSource === 'user-media'
+  const hasImageMedia = media.some((item) => item.type === 'image')
+  const hasVideoMedia = media.some((item) => item.type === 'video')
+
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-6xl p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Compose</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -965,6 +972,7 @@ export function ComposePage() {
         </div>
       ) : null}
 
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <Card className="alive-enter">
         <CardHeader className="flex-row items-center justify-between gap-4">
           <div>
@@ -1268,16 +1276,6 @@ export function ComposePage() {
                   />
                 </div>
 
-                {linkUrl ? (
-                  <div className="flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2 text-sm">
-                    <Link className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 truncate">{linkUrl}</span>
-                    <button type="button" onClick={() => setLinkUrl('')} className="text-muted-foreground hover:text-foreground">
-                      ×
-                    </button>
-                  </div>
-                ) : null}
-
                 {media.length ? (
                   <div className="flex flex-wrap gap-2">
                     {media.map((item, index) => (
@@ -1298,145 +1296,202 @@ export function ComposePage() {
                     ))}
                   </div>
                 ) : null}
+        </CardContent>
+      </Card>
 
-                {firstDraftCreated ? (
-                  <div className="space-y-2 rounded-2xl border p-3">
-                    {draftReady && mediaSource === 'ai-image' ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Input
-                        placeholder="Image direction (optional)"
-                        value={imageHint}
-                        onChange={(event) => setImageHint(event.target.value)}
-                        className="min-w-[220px] flex-1"
-                      />
-                      <Button type="button" size="sm" variant="outline" disabled={imageLoading} onClick={() => void generateImage(false)}>
+      <aside className="lg:sticky lg:top-6 lg:self-start">
+        <Card className="alive-enter">
+          <CardHeader>
+            <CardTitle className="text-base">Publish</CardTitle>
+            <CardDescription className="mt-1">
+              Media tools, link, schedule, and posting — all here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {firstDraftCreated ? (
+              <div className="space-y-3 rounded-2xl border bg-muted/20 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {mediaSource === 'ai-image' && 'AI image'}
+                  {mediaSource === 'ai-video' && 'AI video'}
+                  {mediaSource === 'stock-image' && 'Stock image'}
+                  {mediaSource === 'user-media' && 'Your media'}
+                </p>
+
+                {showImageMediaTools ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Image direction (optional)"
+                      value={imageHint}
+                      onChange={(event) => setImageHint(event.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" size="sm" variant="outline" disabled={imageLoading} onClick={() => void generateImage(false)} className="flex-1">
                         {imageLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        {imageLoading ? 'Generating...' : 'Generate image'}
+                        {imageLoading ? 'Generating...' : 'Generate'}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled={imageLoading || !media.some((item) => item.type === 'image')}
+                        disabled={imageLoading || !hasImageMedia}
                         onClick={() => void generateImage(true)}
+                        className="flex-1"
                       >
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Regenerate
                       </Button>
                     </div>
-                    ) : null}
-
-                    {draftReady && mediaSource === 'ai-video' ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          placeholder="Video direction (optional)"
-                          value={videoHint}
-                          onChange={(event) => setVideoHint(event.target.value)}
-                          className="min-w-[220px] flex-1"
-                        />
-                        <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)}>
-                          {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                          {videoLoading ? 'Generating...' : 'Generate video'}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={videoLoading || !media.some((item) => item.type === 'video')}
-                          onClick={() => void generateVideo(true)}
-                        >
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Regenerate
-                        </Button>
-                      </div>
-                    ) : null}
-
-                    {draftReady && mediaSource === 'stock-image' ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm text-muted-foreground">Browse Pixabay stock images and select one for this post.</p>
-                        <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)}>Open stock picker</Button>
-                      </div>
-                    ) : null}
-
-                    {draftReady && mediaSource === 'user-media' ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm text-muted-foreground">Upload your own image or video.</p>
-                        <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()}>Upload media</Button>
-                      </div>
-                    ) : null}
-
-                    {draftReady ? (
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={videoLoading || !media.some((item) => item.type === 'video')}
-                          onClick={() => void generateVideo(true)}
-                        >
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Regenerate video
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setReplaceInPreview(true)
-                            setShowStockPicker(true)
-                          }}
-                        >
-                          Replace image with stock
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setReplaceInPreview(true)
-                            userMediaInputRef.current?.click()
-                          }}
-                        >
-                          Replace image with user
-                        </Button>
-                      </div>
-                    ) : null}
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    placeholder="Add a link..."
-                    value={linkUrl}
-                    onChange={(event) => setLinkUrl(event.target.value)}
-                    className="max-w-xs"
-                  />
-                  {firstDraftCreated && hasVisual ? (
-                    <Button type="button" variant="outline" onClick={() => setShowPreview(true)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Preview Post
-                    </Button>
-                  ) : null}
-                </div>
+                {showVideoMediaTools ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Video direction (optional)"
+                      value={videoHint}
+                      onChange={(event) => setVideoHint(event.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)} className="flex-1">
+                        {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        {videoLoading ? 'Generating...' : 'Generate'}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={videoLoading || !hasVideoMedia}
+                        onClick={() => void generateVideo(true)}
+                        className="flex-1"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Regenerate
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <Input
-                    type="datetime-local"
-                    value={scheduleAt}
-                    onChange={(event) => setScheduleAt(event.target.value)}
-                    className="max-w-xs"
-                  />
-                  <Button variant="outline" onClick={() => publish('schedule')} disabled={loading || !content.trim()}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
-                    {loading ? 'Saving...' : 'Schedule Post'}
+                {showStockMediaTools ? (
+                  <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)} className="w-full">
+                    Open stock picker
                   </Button>
-                  <Button onClick={() => publish('now')} disabled={loading || !content.trim()}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    {loading ? 'Publishing...' : 'Publish Now'}
+                ) : null}
+
+                {showUserMediaTools ? (
+                  <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()} className="w-full">
+                    Upload media
                   </Button>
+                ) : null}
+
+                {hasVisual ? (
+                  <div className="space-y-2 border-t pt-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Replace media</p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setReplaceInPreview(true)
+                          setShowStockPicker(true)
+                        }}
+                        className="flex-1"
+                      >
+                        Stock
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setReplaceInPreview(true)
+                          userMediaInputRef.current?.click()
+                        }}
+                        className="flex-1"
+                      >
+                        Your media
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={videoLoading || !hasVideoMedia}
+                        onClick={() => void generateVideo(true)}
+                        className="flex-1"
+                        title="Regenerate AI video"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed bg-muted/10 p-4 text-xs text-muted-foreground">
+                Write your draft first — media tools unlock once you have content.
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="compose-link" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Link
+              </Label>
+              {linkUrl ? (
+                <div className="flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2 text-sm">
+                  <Link className="h-4 w-4 text-muted-foreground" />
+                  <span className="flex-1 truncate">{linkUrl}</span>
+                  <button type="button" onClick={() => setLinkUrl('')} className="text-muted-foreground hover:text-foreground">
+                    ×
+                  </button>
                 </div>
-        </CardContent>
-      </Card>
+              ) : (
+                <Input
+                  id="compose-link"
+                  placeholder="Add a link..."
+                  value={linkUrl}
+                  onChange={(event) => setLinkUrl(event.target.value)}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="compose-schedule" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Schedule
+              </Label>
+              <Input
+                id="compose-schedule"
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(event) => setScheduleAt(event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 border-t pt-3">
+              <Button onClick={() => publish('now')} disabled={loading || !content.trim()} className="w-full">
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                {loading ? 'Publishing...' : 'Publish Now'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => publish('schedule')}
+                disabled={loading || !content.trim() || !scheduleAt}
+                className="w-full"
+                title={!scheduleAt ? 'Pick a date and time above first.' : undefined}
+              >
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
+                {loading ? 'Saving...' : 'Schedule Post'}
+              </Button>
+              {firstDraftCreated && hasVisual ? (
+                <Button type="button" variant="ghost" onClick={() => setShowPreview(true)} className="w-full">
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview post
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      </aside>
+      </div>
 
       <ResearchTopicModal
         open={showResearch}
