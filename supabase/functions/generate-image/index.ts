@@ -21,14 +21,38 @@ function isPlatform(value: unknown): value is ComposePlatform {
   return value === 'facebook' || value === 'linkedin' || value === 'x'
 }
 
+function asDataUrl(contentType: string, base64: string): string {
+  return `data:${contentType};base64,${base64}`
+}
+
 function extractImageUrl(aiData: Record<string, unknown>): string {
-  const choice = (aiData.choices as Array<{ message?: { content?: unknown; images?: Array<{ image_url?: { url?: string } }> } }> | undefined)?.[0]
+  const choice = (
+    aiData.choices as Array<{
+      message?: {
+        content?: unknown
+        images?: Array<{ image_url?: { url?: string; b64_json?: string } | string; b64_json?: string }>
+      }
+    }> | undefined
+  )?.[0]
   const images = choice?.message?.images
   if (Array.isArray(images)) {
     for (const image of images) {
-      const url = image.image_url?.url
+      const imageUrl = image.image_url
+      const url =
+        typeof imageUrl === 'string'
+          ? imageUrl
+          : imageUrl && typeof imageUrl === 'object'
+            ? (imageUrl as { url?: string }).url
+            : undefined
       if (url) {
         return url
+      }
+      const b64 =
+        (typeof imageUrl === 'object' && imageUrl !== null
+          ? (imageUrl as { b64_json?: string }).b64_json
+          : undefined) || image.b64_json
+      if (b64) {
+        return asDataUrl('image/png', b64)
       }
     }
   }
@@ -53,12 +77,34 @@ function extractImageUrl(aiData: Record<string, unknown>): string {
             return url
           }
         }
+        if (record.type === 'image_base64' && typeof record.image_base64 === 'string') {
+          return asDataUrl('image/png', record.image_base64)
+        }
+        if (typeof record.b64_json === 'string') {
+          return asDataUrl('image/png', record.b64_json)
+        }
       }
     }
   }
 
-  const data = aiData.data as Array<{ url?: string }> | undefined
-  return data?.[0]?.url ?? ''
+  const data = aiData.data as Array<{ url?: string; b64_json?: string }> | undefined
+  const dataUrl = data?.[0]?.url
+  if (dataUrl) {
+    return dataUrl
+  }
+  if (data?.[0]?.b64_json) {
+    return asDataUrl('image/png', data[0].b64_json)
+  }
+
+  const output = aiData.output as Array<{ url?: string; image?: { url?: string } }> | undefined
+  if (output?.[0]?.url) {
+    return output[0].url
+  }
+  if (output?.[0]?.image?.url) {
+    return output[0].image.url
+  }
+
+  return ''
 }
 
 serve(async (req) => {
@@ -135,7 +181,8 @@ serve(async (req) => {
 
     const sourceUrl = extractImageUrl(aiData)
     if (!sourceUrl) {
-      return new Response(JSON.stringify({ error: 'No image URL returned from the model.' }), {
+      const model = getOpenRouterImageModel(workspaceSettings)
+      return new Response(JSON.stringify({ error: `No image URL returned from model "${model}". Try another image model in Settings.` }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })

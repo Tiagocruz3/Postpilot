@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { isDemoMode } from '@/lib/demo'
 import {
+  DEFAULT_AI_SETTINGS,
   DEFAULT_FAL_VIDEO_MODELS,
   type AiSettings,
   type ContentAiProvider,
@@ -253,11 +254,14 @@ export function SettingsPage() {
         setAiSettings((current) => ({
           ...current,
           contentProvider: workspaceSettings.content_provider,
-          openRouterContentModel: workspaceSettings.openrouter_content_model ?? current.openRouterContentModel,
-          openRouterImageModel: workspaceSettings.openrouter_image_model ?? current.openRouterImageModel,
-          falVideoModel: workspaceSettings.fal_video_model ?? current.falVideoModel,
-          lmStudioBaseUrl: workspaceSettings.lmstudio_base_url || current.lmStudioBaseUrl,
-          lmStudioContentModel: workspaceSettings.lmstudio_content_model ?? current.lmStudioContentModel,
+          openRouterContentModel:
+            workspaceSettings.openrouter_content_model ?? DEFAULT_AI_SETTINGS.openRouterContentModel,
+          openRouterImageModel:
+            workspaceSettings.openrouter_image_model ?? DEFAULT_AI_SETTINGS.openRouterImageModel,
+          falVideoModel: workspaceSettings.fal_video_model ?? DEFAULT_AI_SETTINGS.falVideoModel,
+          lmStudioBaseUrl: workspaceSettings.lmstudio_base_url || DEFAULT_AI_SETTINGS.lmStudioBaseUrl,
+          lmStudioContentModel:
+            workspaceSettings.lmstudio_content_model ?? DEFAULT_AI_SETTINGS.lmStudioContentModel,
         }))
       }
 
