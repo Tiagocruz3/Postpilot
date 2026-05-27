@@ -71,6 +71,8 @@ type CompletedPost = {
 type AiMediaResponse = {
   url?: string
   library_id?: string | null
+  model?: string
+  fallback_notice?: string | null
 }
 
 export function ComposePage() {
@@ -402,7 +404,7 @@ export function ComposePage() {
       }
 
       upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
-      setMessage('Image generated.')
+      setMessage(data.fallback_notice ? `Image generated. ${data.fallback_notice}` : 'Image generated.')
 
       if (!data.library_id) {
         try {

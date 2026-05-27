@@ -25,6 +25,27 @@ function asDataUrl(contentType: string, base64: string): string {
   return `data:${contentType};base64,${base64}`
 }
 
+const KNOWN_GOOD_IMAGE_MODEL = 'google/gemini-2.5-flash-image-preview'
+
+async function callOpenRouterImage(apiKey: string, model: string, prompt: string): Promise<{ res: Response; data: Record<string, unknown> }> {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': Deno.env.get('APP_URL') || 'https://adguru.app',
+      'X-Title': 'Ad Guru',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      modalities: ['image', 'text'],
+    }),
+  })
+  const data = await res.json().catch(() => ({}))
+  return { res, data: data as Record<string, unknown> }
+}
+
 function extractImageUrl(aiData: Record<string, unknown>): string {
   const choice = (
     aiData.choices as Array<{
@@ -132,23 +153,27 @@ serve(async (req) => {
 
     const backend = getPlatformAiBackend()
     let aiRes: Response
+    let aiData: Record<string, unknown>
+    let modelUsed = ''
+    let fallbackNotice: string | null = null
 
     if (backend === 'openrouter') {
       const apiKey = getOpenRouterApiKey()!
-      aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': Deno.env.get('APP_URL') || 'https://adguru.app',
-          'X-Title': 'Ad Guru',
-        },
-        body: JSON.stringify({
-          model: getOpenRouterImageModel(workspaceSettings),
-          messages: [{ role: 'user', content: prompt }],
-          modalities: ['image', 'text'],
-        }),
-      })
+      const requestedModel = getOpenRouterImageModel(workspaceSettings)
+      modelUsed = requestedModel
+      const first = await callOpenRouterImage(apiKey, requestedModel, prompt)
+      aiRes = first.res
+      aiData = first.data
+
+      if (aiRes.ok && !extractImageUrl(aiData) && requestedModel !== KNOWN_GOOD_IMAGE_MODEL) {
+        const retry = await callOpenRouterImage(apiKey, KNOWN_GOOD_IMAGE_MODEL, prompt)
+        if (retry.res.ok && extractImageUrl(retry.data)) {
+          aiRes = retry.res
+          aiData = retry.data
+          modelUsed = KNOWN_GOOD_IMAGE_MODEL
+          fallbackNotice = `"${requestedModel}" returned no image, used "${KNOWN_GOOD_IMAGE_MODEL}" instead. Update Settings → Image AI to make this the default.`
+        }
+      }
     } else {
       const lovableKey = getLovableApiKey()
       if (!lovableKey) {
@@ -157,6 +182,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
+      modelUsed = 'google/gemini-2.5-flash-image (lovable)'
 
       aiRes = await fetch(`${getLovableAiUrl()}/images/generations`, {
         method: 'POST',
@@ -168,9 +194,9 @@ serve(async (req) => {
           size: '1024x1024',
         }),
       })
+      aiData = (await aiRes.json().catch(() => ({}))) as Record<string, unknown>
     }
 
-    const aiData = await aiRes.json()
     if (!aiRes.ok) {
       const message = (aiData as { error?: { message?: string } }).error?.message || 'Image generation failed.'
       return new Response(JSON.stringify({ error: message }), {
@@ -181,7 +207,6 @@ serve(async (req) => {
 
     const sourceUrl = extractImageUrl(aiData)
     if (!sourceUrl) {
-      const model = getOpenRouterImageModel(workspaceSettings)
       const choice = (
         aiData as { choices?: Array<{ message?: { content?: unknown }; finish_reason?: string }> }
       ).choices?.[0]
@@ -191,12 +216,12 @@ serve(async (req) => {
           : null
       const finishReason = choice?.finish_reason || null
       const hint = refusal
-        ? `Model "${model}" replied without an image (${finishReason ?? 'no finish reason'}): ${refusal.slice(0, 240)}`
-        : `Model "${model}" returned no image. It may not support image generation on OpenRouter — pick a different image model in Settings (e.g. google/gemini-2.5-flash-image-preview).`
+        ? `Model "${modelUsed}" replied without an image (${finishReason ?? 'no finish reason'}): ${refusal.slice(0, 240)}`
+        : `Model "${modelUsed}" returned no image. It may not support image generation on OpenRouter — pick a different image model in Settings (e.g. ${KNOWN_GOOD_IMAGE_MODEL}).`
       return new Response(
         JSON.stringify({
           error: hint,
-          model,
+          model: modelUsed,
           finish_reason: finishReason,
           raw_preview: JSON.stringify(aiData).slice(0, 1200),
         }),
@@ -225,7 +250,7 @@ serve(async (req) => {
       libraryId = saved.id
     }
 
-    return new Response(JSON.stringify({ url, library_id: libraryId }), {
+    return new Response(JSON.stringify({ url, library_id: libraryId, model: modelUsed, fallback_notice: fallbackNotice }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
