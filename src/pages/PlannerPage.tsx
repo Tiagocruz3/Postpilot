@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { usePlannerTasks } from '@/hooks/usePlannerTasks'
 import { CalendarEvent, PlannerTask, Workspace } from '@/types'
@@ -13,14 +13,16 @@ import {
   startOfDay,
   startOfWeek,
 } from 'date-fns'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 
 interface OutletContext {
   currentWorkspaceId: string | null
@@ -43,10 +45,12 @@ const PLATFORM_COLORS: Record<string, string> = {
 export function PlannerPage() {
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const { tasks, createTask, updateTask, deleteTask, loading } = usePlannerTasks(currentWorkspaceId || undefined)
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
+  const [previewTask, setPreviewTask] = useState<PlannerTask | null>(null)
   const [plannerMessage, setPlannerMessage] = useState('')
 
   const today = new Date()
@@ -236,7 +240,10 @@ export function PlannerPage() {
                                 style={{ top: safeTop, height: safeHeight, backgroundColor: event.color }}
                                 onClick={() => {
                                   const task = tasks.find((item) => item.id === event.id)
-                                  if (task) {
+                                  if (!task) return
+                                  if (task.kind === 'post') {
+                                    setPreviewTask(task)
+                                  } else {
                                     setEditingTask(task)
                                     setShowDialog(true)
                                   }
@@ -363,6 +370,90 @@ export function PlannerPage() {
           </Button>
           <Button onClick={saveTask}>Save</Button>
         </DialogFooter>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(previewTask)}
+        onOpenChange={(open) => {
+          if (!open) setPreviewTask(null)
+        }}
+        panelClassName="w-full max-w-2xl p-0"
+      >
+        {previewTask ? (
+          <div className="flex max-h-[92vh] flex-col">
+            <DialogHeader className="border-b px-6 py-5">
+              <DialogTitle className="flex items-center gap-3">
+                <span>{previewTask.title || 'Scheduled post'}</span>
+                <Badge variant={previewTask.status === 'published' ? 'default' : previewTask.status === 'failed' ? 'destructive' : 'secondary'} className="capitalize">
+                  {previewTask.status}
+                </Badge>
+                {previewTask.platform ? (
+                  <Badge variant="outline" className="capitalize">{previewTask.platform.replace('_', ' ')}</Badge>
+                ) : null}
+              </DialogTitle>
+              <DialogDescription>
+                {format(parseISO(previewTask.scheduled_at), 'EEEE, MMM d, yyyy · h:mm a')}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 overflow-y-auto bg-muted/30 px-6 py-5">
+              {previewTask.platform && ['facebook', 'instagram', 'linkedin', 'x'].includes(previewTask.platform) ? (
+                <PlatformPostPreview
+                  platform={previewTask.platform as PreviewPlatform}
+                  brandName={currentWorkspace?.name ?? 'Your brand'}
+                  content={previewTask.description ?? ''}
+                  mediaUrl={
+                    (previewTask.payload?.media_urls?.[0] as string | undefined) ||
+                    (previewTask.payload?.media?.[0] as string | undefined) ||
+                    null
+                  }
+                  mediaType={
+                    typeof previewTask.payload?.media_urls?.[0] === 'string' &&
+                    /\.(mp4|webm|mov)(\?|$)/i.test(previewTask.payload.media_urls[0] as string)
+                      ? 'video'
+                      : 'image'
+                  }
+                  scheduledAt={previewTask.scheduled_at}
+                  status={previewTask.status === 'published' ? 'posted' : 'scheduled'}
+                />
+              ) : (
+                <div className="rounded-2xl border bg-background p-5">
+                  <p className="whitespace-pre-wrap text-sm">{previewTask.description || 'No description.'}</p>
+                </div>
+              )}
+
+              {previewTask.payload?.link_url ? (
+                <a
+                  href={previewTask.payload.link_url as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {previewTask.payload.link_url as string}
+                </a>
+              ) : null}
+            </div>
+
+            <DialogFooter className="border-t bg-background px-6 py-4">
+              <Button variant="outline" onClick={() => navigate('/history')}>
+                Open history
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingTask(previewTask)
+                  setPreviewTask(null)
+                  setShowDialog(true)
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+              <Button onClick={() => setPreviewTask(null)}>Close</Button>
+            </DialogFooter>
+          </div>
+        ) : null}
       </Dialog>
     </div>
   )

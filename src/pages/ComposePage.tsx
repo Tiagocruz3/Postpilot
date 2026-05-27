@@ -19,6 +19,7 @@ import {
 import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
 import { RemixPostModal } from '@/components/compose/RemixPostModal'
 import { StockImagePicker, type StockImageMeta } from '@/components/compose/StockImagePicker'
+import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 import type { Workspace } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
@@ -1569,11 +1570,13 @@ export function ComposePage() {
         panelClassName="w-full max-w-2xl p-0"
       >
         {completedPost ? (
-          <div className="flex max-h-[90vh] flex-col">
+          <div className="flex max-h-[92vh] flex-col">
             <DialogHeader className="border-b px-6 py-5">
               <DialogTitle className="flex items-center gap-2">
                 {completedPost.errorMessage ? (
                   <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-destructive/10 text-destructive">!</span>
+                ) : completedPost.action === 'schedule' ? (
+                  <Calendar className="h-5 w-5 text-primary" />
                 ) : (
                   <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                 )}
@@ -1587,32 +1590,34 @@ export function ComposePage() {
                 {completedPost.errorMessage
                   ? completedPost.errorMessage
                   : completedPost.action === 'now'
-                    ? 'Your post is live. View it on the platform or check publishing history any time.'
-                    : `It will publish automatically at ${new Date(completedPost.scheduledAt).toLocaleString()}.`}
+                    ? 'Your post is live. Preview below or open it on the platform.'
+                    : `It will publish automatically on ${new Date(completedPost.scheduledAt).toLocaleString()}.`}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 overflow-y-auto px-6 py-5">
-              <div className="rounded-2xl border bg-muted/30 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Post content</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{completedPost.content}</p>
-              </div>
-
-              {completedPost.previewImageUrl ? (
-                <div className="overflow-hidden rounded-2xl border">
-                  <img src={completedPost.previewImageUrl} alt="Posted media" className="h-72 w-full object-cover" />
-                </div>
-              ) : completedPost.media.length ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {completedPost.media.map((item, index) =>
-                    item.type === 'video' ? (
-                      <video key={`${item.url}-${index}`} src={item.url} controls className="h-44 w-full rounded-xl border object-cover" />
-                    ) : (
-                      <img key={`${item.url}-${index}`} src={item.url} alt="" className="h-44 w-full rounded-xl border object-cover" />
-                    ),
-                  )}
-                </div>
-              ) : null}
+            <div className="space-y-4 overflow-y-auto bg-muted/30 px-6 py-5">
+              <PlatformPostPreview
+                platform={completedPost.platform as PreviewPlatform}
+                brandName={brandName}
+                content={completedPost.content}
+                mediaUrl={
+                  completedPost.previewImageUrl ||
+                  completedPost.media.find((item) => item.type === 'image')?.url ||
+                  completedPost.media[0]?.url ||
+                  null
+                }
+                mediaType={
+                  completedPost.media.find((item) => item.type === 'video')
+                    ? 'video'
+                    : completedPost.media.find((item) => item.type === 'image')
+                      ? 'image'
+                      : completedPost.previewImageUrl
+                        ? 'image'
+                        : undefined
+                }
+                scheduledAt={completedPost.scheduledAt}
+                status={completedPost.action === 'schedule' ? 'scheduled' : 'posted'}
+              />
 
               {completedPost.permalinkUrl ? (
                 <a
@@ -1624,17 +1629,23 @@ export function ComposePage() {
                   <Link className="h-4 w-4" />
                   View live post on {platformLabel(completedPost.platform)}
                 </a>
-              ) : completedPost.errorMessage ? null : (
+              ) : completedPost.errorMessage || completedPost.action === 'schedule' ? null : (
                 <p className="text-xs text-muted-foreground">
                   Live link will appear here once the platform returns the URL.
                 </p>
               )}
             </div>
 
-            <DialogFooter className="border-t bg-muted/20 px-6 py-4">
-              <Button variant="outline" onClick={() => navigate('/history')}>
-                Publishing history
-              </Button>
+            <DialogFooter className="border-t bg-background px-6 py-4">
+              {completedPost.action === 'schedule' ? (
+                <Button variant="outline" onClick={() => navigate('/planner')}>
+                  Open planner
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => navigate('/history')}>
+                  Publishing history
+                </Button>
+              )}
               <Button onClick={() => setShowCompletedPost(false)}>Done</Button>
             </DialogFooter>
           </div>
