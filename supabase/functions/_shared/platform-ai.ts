@@ -52,12 +52,32 @@ export function getOpenRouterResearchModel(): string {
 }
 
 export function getOpenRouterImageModel(workspaceSettings?: WorkspaceAiSettings | null): string {
-  return (
-    workspaceSettings?.openrouter_image_model?.trim() ||
-    Deno.env.get('OPENROUTER_IMAGE_MODEL')?.trim() ||
-    'google/gemini-2.5-flash-image-preview'
-  )
+  const fromWorkspace = workspaceSettings?.openrouter_image_model?.trim()
+  const fromEnv = Deno.env.get('OPENROUTER_IMAGE_MODEL')?.trim()
+  const fallback = 'google/gemini-2.5-flash-image-preview'
+  const resolved = fromWorkspace || fromEnv || fallback
+
+  // Guard against text models accidentally saved as the image model in workspace settings.
+  if (fromWorkspace && !looksLikeImageModel(fromWorkspace)) {
+    return fromEnv && looksLikeImageModel(fromEnv) ? fromEnv : fallback
+  }
+
+  return resolved
 }
+
+function looksLikeImageModel(modelId: string): boolean {
+  const id = modelId.toLowerCase()
+  if (id.includes('image') || id.includes('flux') || id.includes('riverflow') || id.includes('stable-diffusion')) {
+    return true
+  }
+  return OPENROUTER_IMAGE_MODEL_FALLBACKS.some((known) => known === modelId)
+}
+
+const OPENROUTER_IMAGE_MODEL_FALLBACKS = [
+  'google/gemini-2.5-flash-image-preview',
+  'google/gemini-2.5-flash-image',
+  'google/gemini-3.1-flash-image-preview',
+] as const
 
 export function getLovableApiKey(): string | null {
   const key = Deno.env.get('LOVABLE_API_KEY')?.trim()

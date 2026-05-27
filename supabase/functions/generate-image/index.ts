@@ -27,7 +27,35 @@ function asDataUrl(contentType: string, base64: string): string {
 
 const KNOWN_GOOD_IMAGE_MODEL = 'google/gemini-2.5-flash-image-preview'
 
-async function callOpenRouterImage(apiKey: string, model: string, prompt: string): Promise<{ res: Response; data: Record<string, unknown> }> {
+const OPENROUTER_IMAGE_MODEL_FALLBACKS = [
+  'google/gemini-2.5-flash-image-preview',
+  'google/gemini-2.5-flash-image',
+  'google/gemini-3.1-flash-image-preview',
+] as const
+
+function openRouterErrorMessage(data: Record<string, unknown>): string {
+  const nested = (data.error as { message?: string } | undefined)?.message
+  if (typeof nested === 'string' && nested.trim()) return nested.trim()
+  if (typeof data.message === 'string' && data.message.trim()) return data.message.trim()
+  return ''
+}
+
+function isModalitiesOrEndpointError(message: string, status: number): boolean {
+  const lower = message.toLowerCase()
+  return (
+    status === 404 ||
+    lower.includes('output modalities') ||
+    lower.includes('modalities') ||
+    lower.includes('no endpoints found')
+  )
+}
+
+async function callOpenRouterImage(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  modalities: string[],
+): Promise<{ res: Response; data: Record<string, unknown> }> {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -39,11 +67,66 @@ async function callOpenRouterImage(apiKey: string, model: string, prompt: string
     body: JSON.stringify({
       model,
       messages: [{ role: 'user', content: prompt }],
-      modalities: ['image', 'text'],
+      modalities,
     }),
   })
   const data = await res.json().catch(() => ({}))
   return { res, data: data as Record<string, unknown> }
+}
+
+async function generateOpenRouterImage(
+  apiKey: string,
+  requestedModel: string,
+  prompt: string,
+): Promise<{
+  aiRes: Response
+  aiData: Record<string, unknown>
+  modelUsed: string
+  fallbackNotice: string | null
+}> {
+  const modelsToTry = [...new Set([requestedModel, ...OPENROUTER_IMAGE_MODEL_FALLBACKS])]
+  const modalitySets: string[][] = [['image', 'text'], ['image']]
+
+  let lastRes: Response | null = null
+  let lastData: Record<string, unknown> = {}
+  let lastMessage = 'Image generation failed.'
+
+  for (const model of modelsToTry) {
+    for (const modalities of modalitySets) {
+      const { res, data } = await callOpenRouterImage(apiKey, model, prompt, modalities)
+      lastRes = res
+      lastData = data
+      const imageUrl = extractImageUrl(data)
+      const errorMessage = openRouterErrorMessage(data)
+
+      if (res.ok && imageUrl) {
+        const fallbackNotice =
+          model !== requestedModel
+            ? `"${requestedModel}" is not image-capable on OpenRouter. Used "${model}" instead — update Settings → Image AI.`
+            : null
+        return { aiRes: res, aiData: data, modelUsed: model, fallbackNotice }
+      }
+
+      lastMessage = errorMessage || lastMessage
+
+      if (res.ok && !imageUrl) {
+        // Model responded but produced no image — try next model.
+        break
+      }
+
+      if (!isModalitiesOrEndpointError(errorMessage, res.status)) {
+        // Non-recoverable provider error for this model.
+        break
+      }
+    }
+  }
+
+  return {
+    aiRes: lastRes ?? new Response(null, { status: 502 }),
+    aiData: lastData,
+    modelUsed: requestedModel,
+    fallbackNotice: null,
+  }
 }
 
 function extractImageUrl(aiData: Record<string, unknown>): string {
@@ -160,20 +243,11 @@ serve(async (req) => {
     if (backend === 'openrouter') {
       const apiKey = getOpenRouterApiKey()!
       const requestedModel = getOpenRouterImageModel(workspaceSettings)
-      modelUsed = requestedModel
-      const first = await callOpenRouterImage(apiKey, requestedModel, prompt)
-      aiRes = first.res
-      aiData = first.data
-
-      if (aiRes.ok && !extractImageUrl(aiData) && requestedModel !== KNOWN_GOOD_IMAGE_MODEL) {
-        const retry = await callOpenRouterImage(apiKey, KNOWN_GOOD_IMAGE_MODEL, prompt)
-        if (retry.res.ok && extractImageUrl(retry.data)) {
-          aiRes = retry.res
-          aiData = retry.data
-          modelUsed = KNOWN_GOOD_IMAGE_MODEL
-          fallbackNotice = `"${requestedModel}" returned no image, used "${KNOWN_GOOD_IMAGE_MODEL}" instead. Update Settings → Image AI to make this the default.`
-        }
-      }
+      const result = await generateOpenRouterImage(apiKey, requestedModel, prompt)
+      aiRes = result.aiRes
+      aiData = result.aiData
+      modelUsed = result.modelUsed
+      fallbackNotice = result.fallbackNotice
     } else {
       const lovableKey = getLovableApiKey()
       if (!lovableKey) {
@@ -198,9 +272,12 @@ serve(async (req) => {
     }
 
     if (!aiRes.ok) {
-      const message = (aiData as { error?: { message?: string } }).error?.message || 'Image generation failed.'
-      return new Response(JSON.stringify({ error: message }), {
-        status: aiRes.status,
+      const message =
+        openRouterErrorMessage(aiData) ||
+        (aiData as { error?: { message?: string } }).error?.message ||
+        'Image generation failed.'
+      return new Response(JSON.stringify({ error: message, model: modelUsed }), {
+        status: aiRes.status >= 400 ? aiRes.status : 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
