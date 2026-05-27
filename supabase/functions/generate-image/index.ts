@@ -234,25 +234,38 @@ serve(async (req) => {
 
     let url = sourceUrl
     let libraryId: string | null = null
+    let librarySaveError: string | null = null
 
     if (workspaceId && userId) {
-      const supabase = getAdminClient()
-      const saved = await persistAiMedia(supabase, {
-        workspaceId,
-        userId,
-        mediaType: 'image',
-        sourceUrl,
-        prompt,
-        source,
-        metadata: { platform, ...metadata },
-      })
-      url = saved.url
-      libraryId = saved.id
+      try {
+        const supabase = getAdminClient()
+        const saved = await persistAiMedia(supabase, {
+          workspaceId,
+          userId,
+          mediaType: 'image',
+          sourceUrl,
+          prompt,
+          source,
+          metadata: { platform, ...metadata },
+        })
+        url = saved.url
+        libraryId = saved.id
+      } catch (err) {
+        librarySaveError = err instanceof Error ? err.message : 'Unknown library save error.'
+        console.error('generate-image library save error:', err)
+      }
     }
 
-    return new Response(JSON.stringify({ url, library_id: libraryId, model: modelUsed, fallback_notice: fallbackNotice }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({
+        url,
+        library_id: libraryId,
+        model: modelUsed,
+        fallback_notice: fallbackNotice,
+        library_save_error: librarySaveError,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unable to generate image.'
     return new Response(JSON.stringify({ error: message }), {

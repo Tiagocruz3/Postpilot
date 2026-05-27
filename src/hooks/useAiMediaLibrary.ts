@@ -73,6 +73,30 @@ export function useAiMediaLibrary(workspaceId: string | null | undefined) {
     void refresh()
   }, [refresh])
 
+  useEffect(() => {
+    if (isDemoMode || !workspaceId) {
+      return
+    }
+    const channel = supabase
+      .channel(`workspace_ai_media_changes_${workspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workspace_ai_media',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        () => {
+          void refresh()
+        },
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [workspaceId, refresh])
+
   const remove = useCallback(
     async (id: string) => {
       if (isDemoMode) {

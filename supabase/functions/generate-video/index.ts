@@ -127,25 +127,32 @@ serve(async (req) => {
 
     let url = sourceUrl
     let libraryId: string | null = null
+    let librarySaveError: string | null = null
 
     if (workspaceId && userId) {
-      const supabase = getAdminClient()
-      const saved = await persistAiMedia(supabase, {
-        workspaceId,
-        userId,
-        mediaType: 'video',
-        sourceUrl,
-        prompt,
-        source,
-        metadata: { platform, model, ...metadata },
-      })
-      url = saved.url
-      libraryId = saved.id
+      try {
+        const supabase = getAdminClient()
+        const saved = await persistAiMedia(supabase, {
+          workspaceId,
+          userId,
+          mediaType: 'video',
+          sourceUrl,
+          prompt,
+          source,
+          metadata: { platform, model, ...metadata },
+        })
+        url = saved.url
+        libraryId = saved.id
+      } catch (err) {
+        librarySaveError = err instanceof Error ? err.message : 'Unknown library save error.'
+        console.error('generate-video library save error:', err)
+      }
     }
 
-    return new Response(JSON.stringify({ url, model, library_id: libraryId }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ url, model, library_id: libraryId, library_save_error: librarySaveError }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unable to generate video.'
     return new Response(JSON.stringify({ error: message }), {

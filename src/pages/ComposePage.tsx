@@ -73,20 +73,64 @@ type AiMediaResponse = {
   library_id?: string | null
   model?: string
   fallback_notice?: string | null
+  library_save_error?: string | null
+}
+
+type DraftSnapshot = {
+  activeTab: ComposePlatform
+  content: string
+  draftTopic: string
+  imageHint: string
+  videoHint: string
+  media: MediaItem[]
+  linkUrl: string
+  scheduleAt: string
+  firstDraftCreated: boolean
+}
+
+const DRAFT_STORAGE_PREFIX = 'compose-draft:'
+
+function draftStorageKey(workspaceId: string | null) {
+  return workspaceId ? `${DRAFT_STORAGE_PREFIX}${workspaceId}` : null
+}
+
+function loadDraftSnapshot(workspaceId: string | null): Partial<DraftSnapshot> | null {
+  const key = draftStorageKey(workspaceId)
+  if (!key || typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const raw = window.sessionStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as Partial<DraftSnapshot>
+  } catch {
+    return null
+  }
+}
+
+function clearDraftSnapshot(workspaceId: string | null) {
+  const key = draftStorageKey(workspaceId)
+  if (!key || typeof window === 'undefined') return
+  window.sessionStorage.removeItem(key)
 }
 
 export function ComposePage() {
   const location = useLocation()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState<ComposePlatform>('facebook')
-  const [content, setContent] = useState('')
-  const [draftTopic, setDraftTopic] = useState('')
-  const [imageHint, setImageHint] = useState('')
-  const [videoHint, setVideoHint] = useState('')
-  const [media, setMedia] = useState<MediaItem[]>([])
-  const [linkUrl, setLinkUrl] = useState('')
-  const [scheduleAt, setScheduleAt] = useState('')
+
+  const initialSnapshot = loadDraftSnapshot(currentWorkspaceId)
+  const snapshotWorkspaceRef = useRef<string | null>(currentWorkspaceId)
+  const draftRestoredRef = useRef(Boolean(initialSnapshot))
+
+  const [activeTab, setActiveTab] = useState<ComposePlatform>(initialSnapshot?.activeTab ?? 'facebook')
+  const [content, setContent] = useState(initialSnapshot?.content ?? '')
+  const [draftTopic, setDraftTopic] = useState(initialSnapshot?.draftTopic ?? '')
+  const [imageHint, setImageHint] = useState(initialSnapshot?.imageHint ?? '')
+  const [videoHint, setVideoHint] = useState(initialSnapshot?.videoHint ?? '')
+  const [media, setMedia] = useState<MediaItem[]>(initialSnapshot?.media ?? [])
+  const [linkUrl, setLinkUrl] = useState(initialSnapshot?.linkUrl ?? '')
+  const [scheduleAt, setScheduleAt] = useState(initialSnapshot?.scheduleAt ?? '')
   const [loading, setLoading] = useState(false)
   const [copyLoading, setCopyLoading] = useState(false)
   const [imageLoading, setImageLoading] = useState(false)
@@ -94,7 +138,7 @@ export function ComposePage() {
   const [mediaSource, setMediaSource] = useState<MediaSourceType>('ai-image')
   const [showStockPicker, setShowStockPicker] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [firstDraftCreated, setFirstDraftCreated] = useState(false)
+  const [firstDraftCreated, setFirstDraftCreated] = useState(Boolean(initialSnapshot?.firstDraftCreated))
   const [replaceInPreview, setReplaceInPreview] = useState(false)
   const [message, setMessage] = useState('')
   const [showResearch, setShowResearch] = useState(false)
@@ -109,6 +153,69 @@ export function ComposePage() {
 
   const maxChars = COMPOSE_CHAR_LIMITS[activeTab]
   const charCount = content.length
+
+  useEffect(() => {
+    if (snapshotWorkspaceRef.current === currentWorkspaceId) {
+      return
+    }
+    snapshotWorkspaceRef.current = currentWorkspaceId
+    const snapshot = loadDraftSnapshot(currentWorkspaceId)
+    setActiveTab(snapshot?.activeTab ?? 'facebook')
+    setContent(snapshot?.content ?? '')
+    setDraftTopic(snapshot?.draftTopic ?? '')
+    setImageHint(snapshot?.imageHint ?? '')
+    setVideoHint(snapshot?.videoHint ?? '')
+    setMedia(snapshot?.media ?? [])
+    setLinkUrl(snapshot?.linkUrl ?? '')
+    setScheduleAt(snapshot?.scheduleAt ?? '')
+    setFirstDraftCreated(Boolean(snapshot?.firstDraftCreated))
+    draftRestoredRef.current = Boolean(snapshot)
+  }, [currentWorkspaceId])
+
+  useEffect(() => {
+    const key = draftStorageKey(currentWorkspaceId)
+    if (!key || typeof window === 'undefined') return
+    const snapshot: DraftSnapshot = {
+      activeTab,
+      content,
+      draftTopic,
+      imageHint,
+      videoHint,
+      media,
+      linkUrl,
+      scheduleAt,
+      firstDraftCreated,
+    }
+    const isEmpty =
+      !content.trim() &&
+      !draftTopic.trim() &&
+      !imageHint.trim() &&
+      !videoHint.trim() &&
+      media.length === 0 &&
+      !linkUrl.trim() &&
+      !scheduleAt &&
+      !firstDraftCreated
+    if (isEmpty) {
+      window.sessionStorage.removeItem(key)
+    } else {
+      try {
+        window.sessionStorage.setItem(key, JSON.stringify(snapshot))
+      } catch {
+        // sessionStorage quota — silently ignore; user just won't see persistence.
+      }
+    }
+  }, [
+    currentWorkspaceId,
+    activeTab,
+    content,
+    draftTopic,
+    imageHint,
+    videoHint,
+    media,
+    linkUrl,
+    scheduleAt,
+    firstDraftCreated,
+  ])
 
   useEffect(() => {
     const state = location.state as ComposeLocationState | null
@@ -404,7 +511,8 @@ export function ComposePage() {
       }
 
       upsertMedia({ url: data.url, type: 'image', source: 'ai-image' }, regenerate)
-      setMessage(data.fallback_notice ? `Image generated. ${data.fallback_notice}` : 'Image generated.')
+      const baseStatus = data.fallback_notice ? `Image generated. ${data.fallback_notice}` : 'Image generated.'
+      setMessage(baseStatus)
 
       if (!data.library_id) {
         try {
@@ -413,9 +521,13 @@ export function ComposePage() {
             url: data.url,
             prompt: directPrompt || baseContent,
           })
-        } catch {
-          setMessage('Image generated. Could not sync to AI Library, but your image is attached to this post.')
+          setMessage(`${baseStatus} Saved to AI Library.`)
+        } catch (libErr) {
+          const libDetail = data.library_save_error || (libErr instanceof Error ? libErr.message : 'unknown reason')
+          setMessage(`${baseStatus} Could not sync to AI Library (${libDetail}). Image is still attached to this post.`)
         }
+      } else {
+        setMessage(`${baseStatus} Saved to AI Library.`)
       }
 
       if (firstDraftCreated) {
@@ -456,13 +568,20 @@ export function ComposePage() {
       if (data.url) {
         upsertMedia({ url: data.url, type: 'video', source: 'ai-video' }, regenerate)
         if (!data.library_id) {
-          await saveAiLibraryFallback({
-            mediaType: 'video',
-            url: data.url,
-            prompt,
-          })
+          try {
+            await saveAiLibraryFallback({
+              mediaType: 'video',
+              url: data.url,
+              prompt,
+            })
+            setMessage('Video generated. Saved to AI Library.')
+          } catch (libErr) {
+            const libDetail = data.library_save_error || (libErr instanceof Error ? libErr.message : 'unknown reason')
+            setMessage(`Video generated. Could not sync to AI Library (${libDetail}). Video is still attached to this post.`)
+          }
+        } else {
+          setMessage('Video generated. Saved to AI Library.')
         }
-        setMessage('Video generated.')
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not generate video.')
@@ -504,6 +623,7 @@ export function ComposePage() {
     setScheduleAt('')
     setShowPreview(false)
     setFirstDraftCreated(false)
+    clearDraftSnapshot(currentWorkspaceId)
   }
 
   const activeMedia = media[media.length - 1] ?? null
