@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import {
   Calendar,
+  Check,
   CheckCircle2,
   Eye,
   Image as ImageIcon,
@@ -17,7 +18,7 @@ import {
 import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
 import { RemixPostModal } from '@/components/compose/RemixPostModal'
 import { StockImagePicker, type StockImageMeta } from '@/components/compose/StockImagePicker'
-import type { Workspace } from '@/types'
+import type { UserIntegration, Workspace } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { isDemoMode } from '@/lib/demo'
 import {
@@ -147,6 +148,7 @@ export function ComposePage() {
   const [showDraftRequired, setShowDraftRequired] = useState(false)
   const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
   const [showCompletedPost, setShowCompletedPost] = useState(false)
+  const [integrations, setIntegrations] = useState<UserIntegration[]>([])
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
@@ -216,6 +218,57 @@ export function ComposePage() {
     scheduleAt,
     firstDraftCreated,
   ])
+
+  useEffect(() => {
+    if (isDemoMode) {
+      setIntegrations([])
+      return
+    }
+    if (!currentWorkspaceId) {
+      setIntegrations([])
+      return
+    }
+    let active = true
+    const loadIntegrations = async () => {
+      const { data } = await supabase
+        .from('user_integrations')
+        .select('*')
+        .eq('workspace_id', currentWorkspaceId)
+      if (active) {
+        setIntegrations((data as UserIntegration[]) ?? [])
+      }
+    }
+    void loadIntegrations()
+
+    const channel = supabase
+      .channel(`user_integrations_compose_${currentWorkspaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_integrations',
+          filter: `workspace_id=eq.${currentWorkspaceId}`,
+        },
+        () => {
+          void loadIntegrations()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      void supabase.removeChannel(channel)
+    }
+  }, [currentWorkspaceId])
+
+  const isPlatformConnected = (platform: ComposePlatform) => {
+    if (isDemoMode) return true
+    if (platform === 'facebook') {
+      return integrations.some((integration) => integration.provider === 'facebook' || integration.provider === 'meta')
+    }
+    return integrations.some((integration) => integration.provider === platform)
+  }
 
   useEffect(() => {
     const state = location.state as ComposeLocationState | null
@@ -736,9 +789,16 @@ export function ComposePage() {
                   <CardTitle className="text-base">{platformLabel(platform)} composer</CardTitle>
                   <CardDescription className="mt-1">Write, research, and publish with media in one simple flow.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => connect(platform)}>
-                  Connect {platformLabel(platform)}
-                </Button>
+                {isPlatformConnected(platform) ? (
+                  <Button size="sm" variant="outline" disabled className="cursor-default opacity-90">
+                    <Check className="mr-2 h-4 w-4 text-emerald-500" />
+                    {platformLabel(platform)} connected
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => connect(platform)}>
+                    Connect {platformLabel(platform)}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="rounded-2xl border bg-muted/20 p-3">
