@@ -135,9 +135,14 @@ serve(async (req) => {
       return redirectWithOAuthError(`Could not save Facebook connection: ${error.message ?? 'database error'}`)
     }
 
+    const returnTo =
+      typeof state.return_to === 'string' && state.return_to.startsWith('/')
+        ? state.return_to
+        : '/settings?oauth=facebook&status=connected'
+
     return new Response(null, {
       status: 302,
-      headers: { Location: appRedirect('/settings?oauth=facebook&status=connected') },
+      headers: { Location: appRedirect(returnTo) },
     })
   } catch (err) {
     console.error('facebook-oauth-callback:', err)

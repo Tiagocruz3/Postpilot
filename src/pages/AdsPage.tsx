@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useLocation, useOutletContext } from 'react-router-dom'
 import { Link, Sparkles, Wand2 } from 'lucide-react'
+import { MetaConnectionFields } from '@/components/ads/MetaConnectionFields'
 import { useAuth } from '@/hooks/useAuth'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
+import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { isDemoMode } from '@/lib/demo'
+import {
+  defaultFacebookPageId,
+  defaultInstagramAccountId,
+  defaultMetaAdAccountId,
+  findFacebookIntegration,
+  findMetaAdsIntegration,
+} from '@/lib/meta-integration-options'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -159,9 +168,11 @@ const requiredByStep: Record<number, string[]> = {
 }
 
 export function AdsPage() {
+  const location = useLocation()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const { user } = useAuth()
   const { items: mediaItems, remove: removeMedia, refresh: refreshMedia } = useAiMediaLibrary(currentWorkspaceId)
+  const { integrations, refresh: refreshIntegrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const [activeTab, setActiveTab] = useState<AdsTab>('studio')
   const [showProfile, setShowProfile] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(1)
@@ -241,6 +252,54 @@ export function AdsPage() {
   }, [completion])
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('oauth') === 'facebook' && params.get('status') === 'connected') {
+      setMessage('Facebook connected. Select your Page and Instagram account below.')
+      void refreshIntegrations()
+      window.history.replaceState({}, '', location.pathname)
+    }
+    if (params.get('oauth') === 'meta' && params.get('status') === 'connected') {
+      setMessage('Meta Ads connected. Select your ad account below.')
+      void refreshIntegrations()
+      window.history.replaceState({}, '', location.pathname)
+    }
+  }, [location.pathname, location.search, refreshIntegrations])
+
+  useEffect(() => {
+    if (isDemoMode) return
+
+    const facebookIntegration = findFacebookIntegration(integrations)
+    const metaIntegration = findMetaAdsIntegration(integrations)
+    const nextPageId = defaultFacebookPageId(facebookIntegration)
+    const nextInstagramId = defaultInstagramAccountId(facebookIntegration)
+    const nextAdAccountId = defaultMetaAdAccountId(metaIntegration)
+
+    if (!nextPageId && !nextInstagramId && !nextAdAccountId) return
+
+    setProfile((prev) => {
+      const metaConnection = { ...prev.metaConnection }
+      let changed = false
+
+      if (!metaConnection.facebookPageId && nextPageId) {
+        metaConnection.facebookPageId = nextPageId
+        changed = true
+      }
+      if (!metaConnection.instagramAccountId && nextInstagramId) {
+        metaConnection.instagramAccountId = nextInstagramId
+        changed = true
+      }
+      if (!metaConnection.adAccountId && nextAdAccountId) {
+        metaConnection.adAccountId = nextAdAccountId
+        changed = true
+      }
+
+      if (!changed) return prev
+      metaConnection.connectedAt = metaConnection.connectedAt || new Date().toISOString()
+      return { ...prev, metaConnection }
+    })
+  }, [integrations])
+
+  useEffect(() => {
     setDraft((prev) => ({
       ...prev,
       campaignName: prev.campaignName || `${profile.businessProfile.businessName || 'My'} Campaign`,
@@ -273,6 +332,14 @@ export function AdsPage() {
   const connectMeta = () => {
     if (isDemoMode) return setMessage('Demo mode: Meta connected.')
     void redirectToEdgeFunction('meta-oauth-start', { workspace_id: currentWorkspaceId })
+  }
+
+  const connectFacebook = () => {
+    if (isDemoMode) return setMessage('Demo mode: Facebook connected.')
+    void redirectToEdgeFunction('facebook-oauth-start', {
+      workspace_id: currentWorkspaceId,
+      return_to: '/ads?oauth=facebook&status=connected',
+    })
   }
 
   const saveProfile = async () => {
@@ -402,7 +469,8 @@ export function AdsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowProfile(true)}>Edit AI Profile</Button>
-          <Button variant="outline" onClick={connectMeta}><Link className="mr-2 h-4 w-4" />Connect Meta</Button>
+          <Button variant="outline" onClick={connectFacebook}><Link className="mr-2 h-4 w-4" />Connect Facebook</Button>
+          <Button variant="outline" onClick={connectMeta}><Link className="mr-2 h-4 w-4" />Connect Meta Ads</Button>
         </div>
       </div>
 
@@ -435,14 +503,23 @@ export function AdsPage() {
             </div>
 
             {onboardingStep === 1 ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Your Facebook and Instagram accounts are connected. Set your AI Ads Profile for better campaigns.</p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <Field label="Facebook Page" value={profile.metaConnection.facebookPageId} onChange={(v) => setProfile((p) => ({ ...p, metaConnection: { ...p.metaConnection, facebookPageId: v, connectedAt: new Date().toISOString() } }))} />
-                  <Field label="Instagram Account" value={profile.metaConnection.instagramAccountId} onChange={(v) => setProfile((p) => ({ ...p, metaConnection: { ...p.metaConnection, instagramAccountId: v, connectedAt: new Date().toISOString() } }))} />
-                  <Field label="Meta Ad Account" value={profile.metaConnection.adAccountId} onChange={(v) => setProfile((p) => ({ ...p, metaConnection: { ...p.metaConnection, adAccountId: v, connectedAt: new Date().toISOString() } }))} />
-                </div>
-              </div>
+              <MetaConnectionFields
+                value={profile.metaConnection}
+                onChange={(next) =>
+                  setProfile((prev) => ({
+                    ...prev,
+                    metaConnection: {
+                      ...prev.metaConnection,
+                      ...next,
+                      connectedAt: next.connectedAt ?? prev.metaConnection.connectedAt ?? new Date().toISOString(),
+                    },
+                  }))
+                }
+                integrations={integrations}
+                isDemoMode={isDemoMode}
+                onConnectFacebook={connectFacebook}
+                onConnectMeta={connectMeta}
+              />
             ) : null}
 
             {onboardingStep === 2 ? (
