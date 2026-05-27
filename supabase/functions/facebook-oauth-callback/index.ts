@@ -71,24 +71,34 @@ serve(async (req) => {
       return redirectWithOAuthError(pagesData.error.message || 'Failed to load Facebook Pages.')
     }
 
-    const page = pagesData.data?.[0] as { id?: string; name?: string; access_token?: string } | undefined
-    if (!page?.access_token || !page.id) {
+    const allPages = (pagesData.data ?? []) as Array<{ id?: string; name?: string; access_token?: string }>
+    const validPages = allPages.filter(
+      (p): p is { id: string; name: string; access_token: string } =>
+        Boolean(p.id && p.name && p.access_token),
+    )
+    if (validPages.length === 0) {
       return redirectWithOAuthError(
         'No Facebook Page found. Create a Page or grant this app access to one, then connect again.',
       )
     }
 
+    const primary = validPages[0]
     const supabase = getAdminClient()
     const { error } = await supabase.from('user_integrations').upsert(
       {
         user_id: userId,
         workspace_id: workspaceId,
         provider: 'facebook',
-        access_token_encrypted: page.access_token,
+        access_token_encrypted: primary.access_token,
         token_iv: '',
-        refresh_token_encrypted: page.access_token,
+        refresh_token_encrypted: primary.access_token,
         expires_at: tokenExpiresAt(tokenData.expires_in),
-        metadata: { page_id: page.id, page_name: page.name },
+        metadata: {
+          page_id: primary.id,
+          page_name: primary.name,
+          selected_page_id: primary.id,
+          pages: validPages.map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })),
+        },
       },
       { onConflict: 'user_id,workspace_id,provider' },
     )

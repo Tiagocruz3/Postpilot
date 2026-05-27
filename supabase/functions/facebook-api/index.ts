@@ -20,8 +20,23 @@ serve(async (req) => {
 
   if (!integration) return new Response('No Facebook integration', { status: 400 })
 
-  const pageId = integration.metadata?.page_id
-  const token = integration.access_token_encrypted
+  const meta = (integration.metadata ?? {}) as {
+    page_id?: string
+    selected_page_id?: string
+    pages?: Array<{ id?: string; name?: string; access_token?: string }>
+  }
+  const targetPageId = meta.selected_page_id || meta.page_id
+  const pageEntry = Array.isArray(meta.pages)
+    ? meta.pages.find((p) => p && p.id && p.id === targetPageId)
+    : undefined
+  const pageId = pageEntry?.id || targetPageId
+  const token = pageEntry?.access_token || integration.access_token_encrypted
+
+  if (!pageId || !token) {
+    return new Response('Facebook integration is missing a page or access token. Reconnect Facebook in Settings.', {
+      status: 400,
+    })
+  }
 
   let postId: string | null = null
   if (media_urls && media_urls.length > 0) {

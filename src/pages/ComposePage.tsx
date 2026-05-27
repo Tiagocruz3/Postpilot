@@ -36,6 +36,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { Database } from '@/types/database'
@@ -149,8 +151,57 @@ export function ComposePage() {
   const [showDraftRequired, setShowDraftRequired] = useState(false)
   const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
   const [showCompletedPost, setShowCompletedPost] = useState(false)
-  const { isConnected } = useWorkspaceIntegrations(currentWorkspaceId)
+  const { integrations, isConnected, refresh: refreshIntegrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
+  const [updatingPage, setUpdatingPage] = useState(false)
+
+  const facebookIntegration = integrations.find(
+    (row) => row.provider === 'facebook' || row.provider === 'meta',
+  )
+  const facebookPages = (() => {
+    const raw = facebookIntegration?.metadata?.pages
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null
+        const record = entry as Record<string, unknown>
+        const id = typeof record.id === 'string' ? record.id : null
+        const name = typeof record.name === 'string' ? record.name : id
+        return id ? { id, name: name || id } : null
+      })
+      .filter((entry): entry is { id: string; name: string } => Boolean(entry))
+  })()
+  const selectedFacebookPageId =
+    (facebookIntegration?.metadata as { selected_page_id?: string } | undefined)?.selected_page_id ||
+    (facebookIntegration?.metadata as { page_id?: string } | undefined)?.page_id ||
+    facebookPages[0]?.id ||
+    ''
+
+  const updateFacebookPage = async (pageId: string) => {
+    if (!facebookIntegration || pageId === selectedFacebookPageId) return
+    setUpdatingPage(true)
+    try {
+      const nextPage = facebookPages.find((p) => p.id === pageId)
+      const nextMetadata = {
+        ...(facebookIntegration.metadata ?? {}),
+        selected_page_id: pageId,
+        page_id: pageId,
+        page_name: nextPage?.name ?? pageId,
+      }
+      const { error } = await supabase
+        .from('user_integrations')
+        .update({ metadata: nextMetadata } as never)
+        .eq('id', facebookIntegration.id)
+      if (error) {
+        setMessage(`Could not update Facebook Page: ${error.message}`)
+      } else {
+        setMessage(`Posting to ${nextPage?.name ?? pageId} on Facebook.`)
+        void refreshIntegrations()
+      }
+    } finally {
+      setUpdatingPage(false)
+    }
+  }
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
 
@@ -754,6 +805,31 @@ export function ComposePage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-5">
+                {platform === 'facebook' && isPlatformConnected('facebook') && facebookPages.length > 0 ? (
+                  <div className="rounded-2xl border bg-muted/20 p-3">
+                    <Label htmlFor="facebook-page-select" className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Posting to Facebook Page
+                    </Label>
+                    <Select
+                      id="facebook-page-select"
+                      value={selectedFacebookPageId}
+                      onChange={(event) => void updateFacebookPage(event.target.value)}
+                      disabled={updatingPage || facebookPages.length === 1}
+                    >
+                      {facebookPages.map((page) => (
+                        <option key={page.id} value={page.id}>
+                          {page.name}
+                        </option>
+                      ))}
+                    </Select>
+                    {facebookPages.length === 1 ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Only one Page is connected. Reconnect Facebook from Settings to grant access to more Pages.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="rounded-2xl border bg-muted/20 p-3">
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Media Source</p>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
