@@ -508,6 +508,7 @@ export function ComposePage() {
   const hasVisual = media.length > 0
   const draftReady = firstDraftCreated || Boolean(content.trim())
   const isGenerating = copyLoading || imageLoading || videoLoading || loading
+  const visibleMessage = isGenerating ? '' : message
   const generationLabel = copyLoading
     ? 'Writing your draft'
     : imageLoading
@@ -577,8 +578,8 @@ export function ComposePage() {
         </p>
       </div>
 
-      {message ? (
-        <div className="alive-enter mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{message}</div>
+      {visibleMessage ? (
+        <div className="alive-enter mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{visibleMessage}</div>
       ) : null}
       {isGenerating ? (
         <div className="alive-enter mb-4 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 text-sm">
@@ -1156,7 +1157,22 @@ export function ComposePage() {
 async function invokeAi<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(functionName, { body })
   if (error) {
-    throw new Error(error.message)
+    const context = (error as { context?: { json?: () => Promise<unknown> } }).context
+    if (context?.json) {
+      try {
+        const errorPayload = (await context.json()) as { error?: string; message?: string }
+        const detailedMessage = errorPayload?.error || errorPayload?.message
+        if (detailedMessage) {
+          throw new Error(detailedMessage)
+        }
+      } catch (contextError) {
+        if (contextError instanceof Error && contextError.message) {
+          throw contextError
+        }
+        // Fall through to default error message when payload parsing fails.
+      }
+    }
+    throw new Error(error.message || 'AI request failed.')
   }
   const payload = data as T & { error?: string }
   if (payload && typeof payload === 'object' && 'error' in payload && payload.error) {
