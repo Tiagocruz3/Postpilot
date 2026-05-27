@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react'
+import { APP_PAGE } from '@/lib/app-labels'
 import { cn } from '@/lib/utils'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 
@@ -155,9 +156,9 @@ export function PlannerPage() {
     <div className="flex min-h-[calc(100vh-1rem)] flex-col p-4">
       <header className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Planner</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{APP_PAGE.contentCalendar}</h1>
           <p className="text-xs text-muted-foreground">
-            {currentWorkspace?.name ?? 'Workspace'} calendar for social posts, ad launches, and imported Google events.
+            {currentWorkspace?.name ?? 'Workspace'} schedule for social posts, ad launches, and imported Google events.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -488,7 +489,7 @@ export function PlannerPage() {
 
             <DialogFooter className="border-t bg-background px-6 py-4">
               <Button variant="outline" onClick={() => navigate('/history')}>
-                Open history
+                Open {APP_PAGE.activityLog}
               </Button>
               <Button
                 variant="outline"

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { APP_PAGE } from '@/lib/app-labels'
 import { cn } from '@/lib/utils'
 import { isDemoMode } from '@/lib/demo'
 import { getInitials, getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
@@ -68,12 +69,12 @@ export function Layout() {
   }, [sidebarOpen])
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard, hint: 'Overview + quick actions' },
-    { path: '/planner', label: 'Planner', icon: CalendarDays, hint: 'Calendar + Google sync' },
-    { path: '/compose', label: 'Compose', icon: PenTool, hint: 'Write, research, remix' },
-    { path: '/library', label: 'AI Library', icon: Images, hint: 'Generated images & video' },
-    { path: '/ads', label: 'Ads', icon: BarChart3, hint: 'Meta AI ad studio' },
-    { path: '/history', label: 'History', icon: History, hint: 'Published posts + metrics' },
+    { path: '/', label: APP_PAGE.commandCenter, icon: LayoutDashboard, hint: 'Overview + quick actions' },
+    { path: '/planner', label: APP_PAGE.contentCalendar, icon: CalendarDays, hint: 'Calendar + Google sync' },
+    { path: '/compose', label: APP_PAGE.createStudio, icon: PenTool, hint: 'Write, research, remix' },
+    { path: '/library', label: APP_PAGE.aiVault, icon: Images, hint: 'Generated images & video' },
+    { path: '/ads', label: APP_PAGE.growthAds, icon: BarChart3, hint: 'Meta AI ad campaigns' },
+    { path: '/history', label: APP_PAGE.activityLog, icon: History, hint: 'Published posts + metrics' },
   ]
 
   const handleSignOut = async () => {
@@ -105,7 +106,7 @@ export function Layout() {
             </div>
             <div className="rounded-2xl border bg-background p-4">
               <CalendarDays className="h-5 w-5 text-primary" />
-              <p className="mt-3 text-sm font-medium">Planner-ready from day one</p>
+              <p className="mt-3 text-sm font-medium">Content Calendar-ready from day one</p>
             </div>
             <div className="rounded-2xl border bg-background p-4">
               <Sparkles className="h-5 w-5 text-primary" />

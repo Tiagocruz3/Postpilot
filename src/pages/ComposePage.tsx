@@ -29,6 +29,7 @@ import {
   sanitizeComposeCopy,
   type ComposePlatform,
 } from '@/lib/compose-copy'
+import { APP_PAGE } from '@/lib/app-labels'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -396,7 +397,7 @@ export function ComposePage() {
     }
     if (state.libraryUrl && state.libraryType) {
       setMedia((prev) => [...prev, { url: state.libraryUrl!, type: state.libraryType!, source: 'user-media' }])
-      setMessage('Added media from AI Library.')
+      setMessage(`Added media from ${APP_PAGE.aiVault}.`)
     }
     if (state.caption) {
       setContent(sanitizeComposeCopy(state.caption))
@@ -763,10 +764,10 @@ export function ComposePage() {
         alreadyPersisted: Boolean(data.library_id),
       })
       if (libraryResult.saved) {
-        setMessage(`${baseStatus} Saved to AI Library.`)
+        setMessage(`${baseStatus} Saved to ${APP_PAGE.aiVault}.`)
       } else {
         const libDetail = libraryResult.reason || data.library_save_error || 'unknown reason'
-        setMessage(`${baseStatus} Could not sync to AI Library (${libDetail}). Image is still attached to this post.`)
+        setMessage(`${baseStatus} Could not sync to ${APP_PAGE.aiVault} (${libDetail}). Image is still attached to this post.`)
       }
 
       if (firstDraftCreated) {
@@ -813,10 +814,10 @@ export function ComposePage() {
           alreadyPersisted: Boolean(data.library_id),
         })
         if (libraryResult.saved) {
-          setMessage('Video generated. Saved to AI Library.')
+          setMessage(`Video generated. Saved to ${APP_PAGE.aiVault}.`)
         } else {
           const libDetail = libraryResult.reason || data.library_save_error || 'unknown reason'
-          setMessage(`Video generated. Could not sync to AI Library (${libDetail}). Video is still attached to this post.`)
+          setMessage(`Video generated. Could not sync to ${APP_PAGE.aiVault} (${libDetail}). Video is still attached to this post.`)
         }
       }
     } catch (error) {
@@ -956,7 +957,7 @@ export function ComposePage() {
   return (
     <div className="mx-auto max-w-6xl p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Compose</h1>
+        <h1 className="text-2xl font-bold">{APP_PAGE.createStudio}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Write, research, remix, and publish with Post Intelligence. All content stays scoped to your workspace.
         </p>
@@ -969,7 +970,7 @@ export function ComposePage() {
       <Card className="alive-enter">
         <CardHeader className="flex-row items-center justify-between gap-4">
           <div>
-            <CardTitle className="text-base">Compose post</CardTitle>
+            <CardTitle className="text-base">Studio post</CardTitle>
             <CardDescription className="mt-1">One draft for every channel. Pick the platform and posting profile below.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1635,7 +1636,7 @@ export function ComposePage() {
                 </Button>
               ) : (
                 <Button variant="outline" onClick={() => navigate('/history')}>
-                  Publishing history
+                  {APP_PAGE.activityLog}
                 </Button>
               )}
               <Button onClick={() => setShowCompletedPost(false)}>Done</Button>

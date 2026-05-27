@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { APP_PAGE } from '@/lib/app-labels'
 import type { Workspace } from '@/types'
 
 interface OutletContext {
@@ -45,7 +46,7 @@ export function LibraryPage() {
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">AI Library</h1>
+          <h1 className="text-2xl font-bold">{APP_PAGE.aiVault}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             All AI-generated images and videos for {currentWorkspace?.name ?? 'this workspace'}. Shared with workspace
             members only.
@@ -87,12 +88,12 @@ export function LibraryPage() {
                 <CardHeader>
                   <CardTitle className="text-base">No AI {tab === 'image' ? 'images' : 'videos'} yet</CardTitle>
                   <CardDescription>
-                    Generate {tab === 'image' ? 'images' : 'videos'} in Compose or Ads. They are saved here automatically
+                    Generate {tab === 'image' ? 'images' : 'videos'} in {APP_PAGE.createStudio} or {APP_PAGE.growthAds}. They are saved here automatically
                     for your workspace.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button onClick={() => navigate(tab === 'image' ? '/compose' : '/compose')}>Open Compose</Button>
+                  <Button onClick={() => navigate('/compose')}>Open {APP_PAGE.createStudio}</Button>
                 </CardContent>
               </Card>
             ) : (
@@ -124,7 +125,7 @@ export function LibraryPage() {
                           Copy URL
                         </Button>
                         <Button size="sm" onClick={() => useInCompose(item.public_url, item.media_type)}>
-                          Use in Compose
+                          Use in {APP_PAGE.createStudio}
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => void handleDelete(item.id)}>
                           <Trash2 className="mr-1 h-3 w-3" />

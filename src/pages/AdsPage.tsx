@@ -5,6 +5,7 @@ import { MetaConnectionFields } from '@/components/ads/MetaConnectionFields'
 import { useAuth } from '@/hooks/useAuth'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
+import { APP_PAGE } from '@/lib/app-labels'
 import { isDemoMode } from '@/lib/demo'
 import {
   defaultFacebookPageId,
@@ -457,14 +458,14 @@ export function AdsPage() {
   const completeOnboarding = async () => {
     await saveProfile()
     setOnboardingDone(true)
-    setMessage('Your Ads Studio AI Profile is ready.')
+    setMessage('Your Growth Ads AI Profile is ready.')
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 alive-enter">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Ads Studio</h1>
+          <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
           <p className="mt-1 text-sm text-muted-foreground">AI-based ad creation with a clean, simple flow.</p>
         </div>
         <div className="flex gap-2">
@@ -475,7 +476,7 @@ export function AdsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">Ads Studio Profile {completion}% complete</Badge>
+        <Badge variant="outline">Growth Ads Profile {completion}% complete</Badge>
         <Badge variant="secondary" className="alive-soft-pulse">
           Step {onboardingDone ? studioStep : onboardingStep} active
         </Badge>
@@ -489,7 +490,7 @@ export function AdsPage() {
         <Card className="alive-enter">
           <CardHeader>
             <CardTitle>{ONBOARDING_STEPS[onboardingStep - 1]}</CardTitle>
-            <CardDescription>Meta Connected to Ads Studio Onboarding to Ads Studio Ready</CardDescription>
+            <CardDescription>Meta Connected to Growth Ads Onboarding to Growth Ads Ready</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -669,7 +670,7 @@ export function AdsPage() {
                 {onboardingStep < 8 ? (
                   <Button onClick={() => void nextOnboarding()}>Next</Button>
                 ) : (
-                  <Button onClick={() => void completeOnboarding()}>Build My Ads Studio Profile</Button>
+                  <Button onClick={() => void completeOnboarding()}>Build My Growth Ads Profile</Button>
                 )}
               </div>
             </div>
@@ -677,17 +678,17 @@ export function AdsPage() {
             {onboardingDone ? (
               <Card className="border-primary/40 bg-primary/5">
                 <CardHeader>
-                  <CardTitle>Your Ads Studio AI Profile is ready</CardTitle>
+                  <CardTitle>Your Growth Ads AI Profile is ready</CardTitle>
                   <CardDescription>Ad Guru can now generate smarter Meta campaigns using your business, audience, offer, and creative style.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm font-medium">Ads Studio Profile: {completion}% Complete</p>
+                  <p className="text-sm font-medium">Growth Ads Profile: {completion}% Complete</p>
                   <div className="grid gap-2 sm:grid-cols-2 text-sm">
                     <p>Business Profile</p><p>Offer</p><p>Audience</p><p>Brand Voice</p><p>Destination</p><p>Creative Preferences</p><p>AI Optimization</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={() => setStudioStep(1)}>Create First Meta Ad</Button>
-                    <Button variant="outline" onClick={() => setOnboardingDone(true)}>Go to Ads Studio</Button>
+                    <Button variant="outline" onClick={() => setOnboardingDone(true)}>Go to Growth Ads</Button>
                     <Button variant="outline" onClick={() => setOnboardingStep(2)}>Complete Missing Details</Button>
                   </div>
                 </CardContent>
@@ -724,7 +725,7 @@ export function AdsPage() {
               </div>
               <Card className="bg-muted/30">
                 <CardContent className="p-3 text-sm">
-                  <p className="font-medium">Using Your Ads Studio Profile</p>
+                  <p className="font-medium">Using Your Growth Ads Profile</p>
                   <p className="text-muted-foreground">We pre-filled this campaign using your business, audience, offer, and brand voice.</p>
                   <Button size="sm" className="mt-2" variant="outline" onClick={() => setShowProfile(true)}>Edit Profile Context</Button>
                 </CardContent>
@@ -1328,7 +1329,7 @@ export function AdsPage() {
       storage_bucket: 'ai_library',
       storage_path: path,
       public_url: data.publicUrl,
-      prompt: 'Uploaded for Ads Studio',
+      prompt: 'Uploaded for Growth Ads',
       source: 'ads',
       metadata: { campaignId: draft.campaignName || null, adOptionId: selectedOptionId, source: 'upload', status: 'uploaded' },
     } as never)
@@ -1395,7 +1396,7 @@ export function AdsPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Ads Studio</h1>
+          <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Create Facebook and Instagram ads with AI-powered campaign generation.
           </p>
@@ -1423,7 +1424,7 @@ export function AdsPage() {
       <Tabs>
         <TabsList className="mb-4">
           <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>
-            Ads Studio
+            Growth Ads
           </TabsTrigger>
           <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>
             Media Library
@@ -1667,7 +1668,7 @@ export function AdsPage() {
             </CardHeader>
             <CardContent>
               {adsMedia.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No assets yet. Generate in Ads Studio and they will appear here.</p>
+                <p className="text-sm text-muted-foreground">No assets yet. Generate in Growth Ads and they will appear here.</p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {adsMedia.map((asset) => (
@@ -1684,7 +1685,7 @@ export function AdsPage() {
                             variant="outline"
                             onClick={() => {
                               if (!selectedOptionId) {
-                                setMessage('Select an ad option in Ads Studio first.')
+                                setMessage('Select an ad option in Growth Ads first.')
                                 return
                               }
                               setOptions((list) => list.map((e) => (e.id === selectedOptionId ? { ...e, previewUrl: asset.public_url, previewType: asset.media_type } : e)))
@@ -2242,7 +2243,7 @@ export function AdsPage() {
       storage_bucket: 'ai_library',
       storage_path: path,
       public_url: urlData.publicUrl,
-      prompt: 'Uploaded for Ads Studio',
+      prompt: 'Uploaded for Growth Ads',
       source: 'ads',
       metadata: {
         campaignId: draft.campaignName || null,
@@ -2319,7 +2320,7 @@ export function AdsPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Ads Studio</h1>
+          <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Create Facebook and Instagram ads with AI-powered campaign generation.
           </p>
@@ -2347,7 +2348,7 @@ export function AdsPage() {
       <Tabs>
         <TabsList className="mb-4">
           <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>
-            Ads Studio
+            Growth Ads
           </TabsTrigger>
           <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>
             Media Library
@@ -2618,7 +2619,7 @@ export function AdsPage() {
             </CardHeader>
             <CardContent>
               {adsMedia.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No assets yet. Generate from Ads Studio and they will appear here.</p>
+                <p className="text-sm text-muted-foreground">No assets yet. Generate from Growth Ads and they will appear here.</p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {adsMedia.map((asset) => (
@@ -2635,7 +2636,7 @@ export function AdsPage() {
                             variant="outline"
                             onClick={() => {
                               if (!selectedOptionId) {
-                                setMessage('Select an ad option in Ads Studio first.')
+                                setMessage('Select an ad option in Growth Ads first.')
                                 return
                               }
                               setOptions((current) =>
@@ -3364,7 +3365,7 @@ export function AdsPage() {
     <div className="mx-auto max-w-7xl space-y-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Ads Studio</h1>
+          <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Create Facebook and Instagram ads with AI-powered campaign generation.
           </p>
@@ -3413,7 +3414,7 @@ export function AdsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Create Meta Ad</CardTitle>
-            <CardDescription>Build a Facebook or Instagram ad using your Ads Studio AI Profile.</CardDescription>
+            <CardDescription>Build a Facebook or Instagram ad using your Growth Ads AI Profile.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => { setActiveTab('studio'); setStep(1) }}>Start Campaign</Button>
@@ -3479,7 +3480,7 @@ export function AdsPage() {
       <Tabs>
         <TabsList className="mb-4">
           <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>
-            Ads Studio
+            Growth Ads
           </TabsTrigger>
           <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>
             Media Library
@@ -3539,7 +3540,7 @@ export function AdsPage() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <AiCard title="Using Your Ads Studio Profile" body={`${profile.businessName || 'Your business'} · ${profile.targetAudience || 'Audience pending'} · ${profile.tone || 'Tone pending'}`} />
+                    <AiCard title="Using Your Growth Ads Profile" body={`${profile.businessName || 'Your business'} · ${profile.targetAudience || 'Audience pending'} · ${profile.tone || 'Tone pending'}`} />
                     <AiCard title="Suggested Campaign Angle" body={`Lead with ${draft.mainOffer || 'your offer'} and outcome for ${draft.targetAudience || 'your audience'}.`} />
                     <AiCard title="Suggested Offer Improvement" body={draft.mainOffer ? `Add urgency and proof around "${draft.mainOffer}".` : 'Add a clear offer to improve conversion intent.'} />
                     <AiCard title="Suggested Hooks" body={`1) ${draft.mainOffer || 'The offer'} for ${draft.targetAudience || 'your audience'}. 2) Before/after benefit. 3) Fast win CTA.`} />
@@ -3887,7 +3888,7 @@ export function AdsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Analytics</CardTitle>
-              <CardDescription>Track spend, clicks, leads, and AI recommendations using your Ads Studio Profile.</CardDescription>
+              <CardDescription>Track spend, clicks, leads, and AI recommendations using your Growth Ads Profile.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

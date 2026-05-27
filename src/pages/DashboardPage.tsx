@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { APP_PAGE } from '@/lib/app-labels'
 import { formatScheduledLabel } from '@/lib/dashboard-stats'
 import { getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
 
@@ -101,7 +102,7 @@ export function DashboardPage() {
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Dashboard</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{APP_PAGE.commandCenter}</p>
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               Welcome back, {displayName}
             </h1>
@@ -208,7 +209,7 @@ export function DashboardPage() {
             ))}
             <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/compose')}>
               <Sparkles className="mr-2 h-4 w-4" />
-              Open Compose
+              Open {APP_PAGE.createStudio}
             </Button>
           </CardContent>
         </Card>
@@ -221,10 +222,10 @@ export function DashboardPage() {
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-lg">Upcoming Scheduled Posts</CardTitle>
-              <CardDescription>Posts and ads queued on your planner calendar.</CardDescription>
+              <CardDescription>Posts and ads queued on your {APP_PAGE.contentCalendar.toLowerCase()}.</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate('/planner')}>
-              View planner
+              Open {APP_PAGE.contentCalendar}
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Button>
           </CardHeader>
@@ -288,7 +289,7 @@ export function DashboardPage() {
               <p className="text-sm text-muted-foreground">Loading engagement…</p>
             ) : topPosts.length === 0 ? (
               <div className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">
-                Publish posts and refresh metrics in History to rank performance.
+                Publish posts and refresh metrics in {APP_PAGE.activityLog} to rank performance.
               </div>
             ) : (
               topPosts.map((post, index) => (
@@ -310,7 +311,7 @@ export function DashboardPage() {
               ))
             )}
             <Button variant="ghost" size="sm" className="mt-1 w-full" onClick={() => navigate('/history')}>
-              View full history
+              View {APP_PAGE.activityLog}
             </Button>
           </CardContent>
         </Card>
@@ -324,7 +325,7 @@ export function DashboardPage() {
             <CardDescription>
               {ads.hasLiveData
                 ? 'Live Meta Ads performance.'
-                : 'Planner ad tasks and estimates until Meta insights sync.'}
+                : `${APP_PAGE.contentCalendar} ad tasks and estimates until Meta insights sync.`}
             </CardDescription>
           </CardHeader>
           <CardContent>

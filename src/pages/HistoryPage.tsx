@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import type { Workspace } from '@/types'
+import { APP_PAGE } from '@/lib/app-labels'
 import { usePublishedPosts, type PublishedPost } from '@/hooks/usePublishedPosts'
 import { supabase } from '@/lib/supabase'
 import { isDemoMode } from '@/lib/demo'
@@ -228,9 +229,9 @@ export function HistoryPage() {
     <div className="mx-auto max-w-6xl space-y-6 p-6 alive-enter">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Publishing history</h1>
+          <h1 className="text-2xl font-bold">{APP_PAGE.activityLog}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Every post published from the composer, with live links and engagement metrics from each platform.
+            Every post published from {APP_PAGE.createStudio}, with live links and engagement metrics from each platform.
           </p>
         </div>
         <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
@@ -325,7 +326,7 @@ export function HistoryPage() {
           {filtered.length === 0 ? (
             <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
               {posts.length === 0
-                ? 'Nothing published yet. Send a post from Compose and it will appear here.'
+                ? `Nothing published yet. Send a post from ${APP_PAGE.createStudio} and it will appear here.`
                 : 'No posts match these filters.'}
             </div>
           ) : (
