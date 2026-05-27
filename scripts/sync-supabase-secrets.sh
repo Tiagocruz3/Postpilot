@@ -27,7 +27,7 @@ supabase secrets set \
   INTEGRATION_ENCRYPTION_KEY="${INTEGRATION_ENCRYPTION_KEY:-}" \
   OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
   OPENROUTER_CONTENT_MODEL="${OPENROUTER_CONTENT_MODEL:-google/gemini-2.5-pro}" \
-  OPENROUTER_IMAGE_MODEL="${OPENROUTER_IMAGE_MODEL:-google/gemini-3.1-flash-image-preview}" \
+  OPENROUTER_IMAGE_MODEL="${OPENROUTER_IMAGE_MODEL:-google/gemini-2.5-flash-image-preview}" \
   LOVABLE_API_KEY="${LOVABLE_API_KEY:-}" \
   LOVABLE_AI_URL="${LOVABLE_AI_URL:-https://ai.lovable.dev/v1}" \
   FAL_API_KEY="${FAL_API_KEY:-}" \
