@@ -19,7 +19,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } fr
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
@@ -30,10 +30,9 @@ interface OutletContext {
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
-const ROW_HEIGHT_PX = 52
 const GRID_START_HOUR = HOURS[0]
 const GRID_END_HOUR = HOURS[HOURS.length - 1] + 1
-const GRID_HEIGHT_PX = HOURS.length * ROW_HEIGHT_PX
+const GRID_TOTAL_MINUTES = (GRID_END_HOUR - GRID_START_HOUR) * 60
 const PLATFORM_COLORS: Record<string, string> = {
   facebook: '#1877F2',
   instagram: '#E1306C',
@@ -150,16 +149,16 @@ export function PlannerPage() {
   }
 
   return (
-    <div className="flex h-full flex-col p-6">
-      <header className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex h-full min-h-0 flex-col p-4">
+      <header className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Planner</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Planner</h1>
+          <p className="text-xs text-muted-foreground">
             {currentWorkspace?.name ?? 'Workspace'} calendar for social posts, ad launches, and imported Google events.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-2xl border bg-card px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl border bg-card px-2.5 py-1.5">
             <button type="button" onClick={() => setWeekOffset((o) => o - 1)} className="rounded-md p-1 hover:bg-accent">
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -170,43 +169,39 @@ export function PlannerPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <Button onClick={() => openNewTask()}>
+          <Button size="sm" onClick={() => openNewTask()}>
             <Plus className="mr-2 h-4 w-4" />
-            New planner item
+            New
           </Button>
         </div>
       </header>
 
-      <Card className="flex flex-1 flex-col overflow-hidden">
-        <CardHeader>
-          <CardTitle>Week view</CardTitle>
-          <CardDescription>Visual time-grid for scheduled posts, ads, and Google Calendar events.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-auto">
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-2 p-3">
           {plannerMessage ? (
-            <div className="mb-3 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <div className="shrink-0 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
               {plannerMessage}
             </div>
           ) : null}
 
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            <span className="font-medium uppercase tracking-wide text-foreground">Legend</span>
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground">
+            <span className="font-semibold uppercase tracking-wide text-foreground">Legend</span>
             <div className="flex flex-wrap items-center gap-3">
               {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
                 <span key={key} className="inline-flex items-center gap-1.5">
                   <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    className="inline-block h-2 w-2 rounded-full"
                     style={{ backgroundColor: PLATFORM_COLORS[key] }}
                   />
                   {label}
                 </span>
               ))}
             </div>
-            <span className="hidden h-4 w-px bg-border sm:block" />
+            <span className="hidden h-3 w-px bg-border sm:block" />
             <div className="flex flex-wrap items-center gap-3">
               {KIND_BADGES.map((badge) => (
                 <span key={badge.id} className="inline-flex items-center gap-1.5">
-                  <span className={cn('text-[14px] leading-none', badge.className)}>{badge.symbol}</span>
+                  <span className={cn('text-[12px] leading-none', badge.className)}>{badge.symbol}</span>
                   {badge.label}
                 </span>
               ))}
@@ -214,101 +209,98 @@ export function PlannerPage() {
           </div>
 
           {loading ? (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading planner…</div>
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Loading planner…</div>
           ) : (
-            <div className="h-full overflow-auto">
-              <div className="flex min-w-[860px] rounded-2xl border bg-card">
-                <div className="w-14 shrink-0 border-r bg-muted/30">
-                  <div className="h-11 border-b" />
+            <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-card">
+              <div className="flex w-12 shrink-0 flex-col border-r bg-muted/30">
+                <div className="h-9 shrink-0 border-b" />
+                <div className="flex min-h-0 flex-1 flex-col">
                   {HOURS.map((hour) => (
                     <div
                       key={hour}
-                      className="flex items-start justify-end border-b pr-2 pt-1 text-right text-[10px] text-muted-foreground"
-                      style={{ height: ROW_HEIGHT_PX }}
+                      className="flex flex-1 items-start justify-end border-b pr-1.5 pt-0.5 text-right text-[9px] text-muted-foreground"
                     >
                       <span>{format(setHours(new Date(), hour), 'ha')}</span>
                     </div>
                   ))}
                 </div>
+              </div>
 
-                <div className="grid flex-1 grid-cols-7">
-                  {weekDays.map((day) => (
-                    <div key={day.toISOString()} className={cn('border-r', isSameDay(day, today) && 'bg-primary/5')}>
-                      <div
-                        className={cn(
-                          'h-11 border-b px-2 py-1.5 text-center',
-                          isSameDay(day, today) && 'text-primary'
-                        )}
-                      >
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{format(day, 'EEE')}</div>
-                        <div className="text-sm font-semibold leading-tight">{format(day, 'd')}</div>
-                      </div>
-                      <div className="relative">
-                        {HOURS.map((hour) => (
-                          <button
-                            key={hour}
-                            type="button"
-                            className="w-full border-b border-dashed border-border/60 hover:bg-accent/40"
-                            style={{ height: ROW_HEIGHT_PX }}
-                            onClick={() => openNewTask(day, hour)}
-                          />
-                        ))}
-                        {events
-                          .filter((event) => isSameDay(event.start, day))
-                          .map((event) => {
-                            const eventMinutes = event.start.getHours() * 60 + event.start.getMinutes()
-                            const gridStartMinutes = GRID_START_HOUR * 60
-                            const gridEndMinutes = GRID_END_HOUR * 60
-                            const durationMinutes = Math.max(
-                              Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60)),
-                              30
-                            )
-                            const boundedStart = Math.max(eventMinutes, gridStartMinutes)
-                            const boundedEnd = Math.min(eventMinutes + durationMinutes, gridEndMinutes)
-                            const visibleMinutes = boundedEnd - boundedStart
-
-                            if (visibleMinutes <= 0) {
-                              return null
-                            }
-
-                            const top = ((boundedStart - gridStartMinutes) / 60) * ROW_HEIGHT_PX
-                            const minHeight = 26
-                            const height = Math.max((visibleMinutes / 60) * ROW_HEIGHT_PX, minHeight)
-                            const safeTop = Math.max(0, Math.min(top, GRID_HEIGHT_PX - minHeight))
-                            const safeHeight = Math.max(minHeight, Math.min(height, GRID_HEIGHT_PX - safeTop))
-                            const kindBadge = KIND_BADGES.find((entry) => entry.id === event.kind)
-
-                            return (
-                              <button
-                                key={event.id}
-                                type="button"
-                                className="absolute left-1 right-1 overflow-hidden rounded-lg px-1.5 py-1 text-left text-[11px] leading-tight text-white shadow-sm transition hover:brightness-95"
-                                style={{ top: safeTop, height: safeHeight, backgroundColor: event.color }}
-                                onClick={() => {
-                                  const task = tasks.find((item) => item.id === event.id)
-                                  if (!task) return
-                                  if (task.kind === 'post') {
-                                    setPreviewTask(task)
-                                  } else {
-                                    setEditingTask(task)
-                                    setShowDialog(true)
-                                  }
-                                }}
-                              >
-                                <div className="flex items-center gap-1 truncate font-semibold">
-                                  {kindBadge ? <span aria-hidden>{kindBadge.symbol}</span> : null}
-                                  <span className="truncate">{event.title}</span>
-                                </div>
-                                <div className="mt-0.5 flex items-center gap-1.5 truncate opacity-90">
-                                  <span>{format(event.start, 'h:mm a')}</span>
-                                </div>
-                              </button>
-                            )
-                          })}
-                      </div>
+              <div className="grid min-w-0 flex-1 grid-cols-7">
+                {weekDays.map((day) => (
+                  <div key={day.toISOString()} className={cn('flex flex-col border-r last:border-r-0', isSameDay(day, today) && 'bg-primary/5')}>
+                    <div
+                      className={cn(
+                        'flex h-9 shrink-0 flex-col items-center justify-center border-b px-1',
+                        isSameDay(day, today) && 'text-primary'
+                      )}
+                    >
+                      <div className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">{format(day, 'EEE')}</div>
+                      <div className="text-sm font-semibold leading-none">{format(day, 'd')}</div>
                     </div>
-                  ))}
-                </div>
+                    <div className="relative flex min-h-0 flex-1 flex-col">
+                      {HOURS.map((hour) => (
+                        <button
+                          key={hour}
+                          type="button"
+                          className="w-full flex-1 border-b border-dashed border-border/60 last:border-b-0 hover:bg-accent/40"
+                          onClick={() => openNewTask(day, hour)}
+                        />
+                      ))}
+                      {events
+                        .filter((event) => isSameDay(event.start, day))
+                        .map((event) => {
+                          const eventMinutes = event.start.getHours() * 60 + event.start.getMinutes()
+                          const gridStartMinutes = GRID_START_HOUR * 60
+                          const gridEndMinutes = GRID_END_HOUR * 60
+                          const durationMinutes = Math.max(
+                            Math.round((event.end.getTime() - event.start.getTime()) / (1000 * 60)),
+                            30
+                          )
+                          const boundedStart = Math.max(eventMinutes, gridStartMinutes)
+                          const boundedEnd = Math.min(eventMinutes + durationMinutes, gridEndMinutes)
+                          const visibleMinutes = boundedEnd - boundedStart
+
+                          if (visibleMinutes <= 0) {
+                            return null
+                          }
+
+                          const topPct = ((boundedStart - gridStartMinutes) / GRID_TOTAL_MINUTES) * 100
+                          const heightPct = Math.max((visibleMinutes / GRID_TOTAL_MINUTES) * 100, 4)
+                          const safeTop = Math.max(0, Math.min(topPct, 100 - 4))
+                          const safeHeight = Math.max(4, Math.min(heightPct, 100 - safeTop))
+                          const kindBadge = KIND_BADGES.find((entry) => entry.id === event.kind)
+
+                          return (
+                            <button
+                              key={event.id}
+                              type="button"
+                              className="absolute left-0.5 right-0.5 overflow-hidden rounded-md px-1 py-0.5 text-left text-[10px] leading-tight text-white shadow-sm transition hover:brightness-95"
+                              style={{ top: `${safeTop}%`, height: `${safeHeight}%`, backgroundColor: event.color }}
+                              onClick={() => {
+                                const task = tasks.find((item) => item.id === event.id)
+                                if (!task) return
+                                if (task.kind === 'post') {
+                                  setPreviewTask(task)
+                                } else {
+                                  setEditingTask(task)
+                                  setShowDialog(true)
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-1 truncate font-semibold">
+                                {kindBadge ? <span aria-hidden>{kindBadge.symbol}</span> : null}
+                                <span className="truncate">{event.title}</span>
+                              </div>
+                              <div className="truncate opacity-90">
+                                {format(event.start, 'h:mm a')}
+                              </div>
+                            </button>
+                          )
+                        })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
