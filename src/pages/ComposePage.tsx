@@ -9,6 +9,7 @@ import {
   Loader2,
   Link,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   Sparkles,
@@ -203,7 +204,7 @@ export function ComposePage() {
         .filter((entry): entry is { id: string; name: string; type: 'person' | 'organization' } => Boolean(entry))
     }
     const linkedinId = linkedinIntegration?.metadata?.linkedin_id
-    if (typeof linkedinId === 'string') {
+    if (typeof linkedinId === 'string' && linkedinIntegration) {
       const name =
         (typeof linkedinIntegration.metadata?.linkedin_name === 'string' &&
           linkedinIntegration.metadata.linkedin_name) ||
@@ -787,8 +788,27 @@ export function ComposePage() {
     setScheduleAt('')
     setShowPreview(false)
     setFirstDraftCreated(false)
+    setMessage('')
+    setMediaSource('ai-image')
+    setShowStockPicker(false)
+    setReplaceInPreview(false)
+    setShowResearch(false)
+    setShowRemix(false)
+    setRemixSeed({ text: '', niche: '' })
+    setShowDraftRequired(false)
+    setShowCompletedPost(false)
+    setCompletedPost(null)
+    draftRestoredRef.current = false
     clearDraftSnapshot(currentWorkspaceId)
   }
+
+  const hasComposerContent =
+    Boolean(content.trim()) ||
+    Boolean(draftTopic.trim()) ||
+    media.length > 0 ||
+    Boolean(linkUrl.trim()) ||
+    Boolean(scheduleAt.trim()) ||
+    firstDraftCreated
 
   const activeMedia = media[media.length - 1] ?? null
   const hasVisual = media.length > 0
@@ -884,16 +904,29 @@ export function ComposePage() {
             <CardTitle className="text-base">Compose post</CardTitle>
             <CardDescription className="mt-1">One draft for every channel. Pick the platform and posting profile below.</CardDescription>
           </div>
-          {isPlatformConnected(activeTab) ? (
-            <Button size="sm" variant="outline" disabled className="cursor-default opacity-90">
-              <Check className="mr-2 h-4 w-4 text-emerald-500" />
-              {platformLabel(activeTab)} connected
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={resetForm}
+              disabled={!hasComposerContent || isGenerating}
+              title={hasComposerContent ? 'Clear draft and start over' : 'Nothing to clear yet'}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Clear
             </Button>
-          ) : (
-            <Button size="sm" variant="outline" onClick={() => connect(activeTab)}>
-              Connect {platformLabel(activeTab)}
-            </Button>
-          )}
+            {isPlatformConnected(activeTab) ? (
+              <Button size="sm" variant="outline" disabled className="cursor-default opacity-90">
+                <Check className="mr-2 h-4 w-4 text-emerald-500" />
+                {platformLabel(activeTab)} connected
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => connect(activeTab)}>
+                Connect {platformLabel(activeTab)}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-3 md:grid-cols-2">

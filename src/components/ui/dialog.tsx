@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 
 const Dialog = ({
@@ -6,30 +7,35 @@ const Dialog = ({
   onOpenChange,
   children,
   panelClassName,
+  panelStyle,
   overlayClassName,
 }: {
   open?: boolean
   onOpenChange?: (v: boolean) => void
   children: React.ReactNode
   panelClassName?: string
+  panelStyle?: React.CSSProperties
   overlayClassName?: string
 }) => {
   if (!open) return null
-  return (
+
+  return createPortal(
     <div
-      className={cn('fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4', overlayClassName)}
+      className={cn('fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-2 sm:p-3', overlayClassName)}
       onClick={() => onOpenChange?.(false)}
     >
       <div
         className={cn(
-          'relative z-50 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl border bg-card p-6 shadow-lg',
-          panelClassName ?? 'max-w-lg',
+          'relative z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-2xl border bg-card shadow-lg',
+          panelClassName ?? 'w-full max-w-lg p-6',
         )}
+        style={panelStyle}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

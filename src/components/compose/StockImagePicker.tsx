@@ -121,8 +121,9 @@ export function StockImagePicker({ open, onOpenChange, onSelect }: StockImagePic
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      overlayClassName="p-2 sm:p-3"
-      panelClassName="w-[min(1440px,calc(100vw-1.5rem))] max-w-none max-h-[94vh] p-0"
+      overlayClassName="p-2 sm:p-4"
+      panelClassName="max-h-[94vh] p-0"
+      panelStyle={{ width: 'min(1440px, calc(100vw - 2rem))', maxWidth: 'none' }}
     >
       <DialogHeader className="border-b px-6 py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
