@@ -850,8 +850,6 @@ export function ComposePage() {
     setShowRemix(false)
     setRemixSeed({ text: '', niche: '' })
     setShowDraftRequired(false)
-    setShowCompletedPost(false)
-    setCompletedPost(null)
     draftRestoredRef.current = false
     clearDraftSnapshot(currentWorkspaceId)
   }
