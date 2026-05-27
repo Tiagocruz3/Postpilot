@@ -149,6 +149,7 @@ export function ComposePage() {
   const [mediaSource, setMediaSource] = useState<MediaSourceType>('ai-image')
   const [showStockPicker, setShowStockPicker] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [attachmentPreview, setAttachmentPreview] = useState<MediaItem | null>(null)
   const [firstDraftCreated, setFirstDraftCreated] = useState(Boolean(initialSnapshot?.firstDraftCreated))
   const [replaceInPreview, setReplaceInPreview] = useState(false)
   const [message, setMessage] = useState('')
@@ -1169,15 +1170,29 @@ export function ComposePage() {
                     <div className="flex flex-wrap gap-2">
                       {media.map((item, index) => (
                         <div key={`${item.url}-${index}`} className="relative h-28 w-28 overflow-hidden rounded-xl border">
-                          {item.type === 'video' ? (
-                            <video src={item.url} className="h-full w-full object-cover" muted playsInline />
-                          ) : (
-                            <img src={item.url} alt="" className="h-full w-full object-cover" />
-                          )}
                           <button
                             type="button"
-                            onClick={() => setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))}
-                            className="absolute right-1 top-1 rounded-full bg-black/50 px-1.5 text-xs text-white"
+                            className="block h-full w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            onClick={() => setAttachmentPreview(item)}
+                            aria-label={`Preview attached ${item.type}`}
+                          >
+                            {item.type === 'video' ? (
+                              <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                            ) : (
+                              <img src={item.url} alt="" className="h-full w-full object-cover" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))
+                              if (attachmentPreview?.url === item.url) {
+                                setAttachmentPreview(null)
+                              }
+                            }}
+                            className="absolute right-1 top-1 z-10 rounded-full bg-black/60 px-1.5 text-xs text-white hover:bg-black/80"
+                            aria-label="Remove attachment"
                           >
                             ×
                           </button>
@@ -1474,6 +1489,47 @@ export function ComposePage() {
           setMessage('Stock image selected.')
         }}
       />
+
+      <Dialog
+        open={Boolean(attachmentPreview)}
+        onOpenChange={(open) => {
+          if (!open) setAttachmentPreview(null)
+        }}
+        panelClassName="w-full max-w-4xl p-0"
+        overlayClassName="bg-black/70 backdrop-blur-[2px]"
+      >
+        {attachmentPreview ? (
+          <div className="flex max-h-[92vh] flex-col">
+            <DialogHeader className="border-b px-5 py-4 text-left">
+              <DialogTitle>
+                {attachmentPreview.type === 'video' ? 'Video preview' : 'Image preview'}
+              </DialogTitle>
+              <DialogDescription>Attached media before you publish.</DialogDescription>
+            </DialogHeader>
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/30 p-4">
+              {attachmentPreview.type === 'video' ? (
+                <video
+                  src={attachmentPreview.url}
+                  controls
+                  autoPlay
+                  className="max-h-[70vh] w-full rounded-xl border bg-black object-contain"
+                />
+              ) : (
+                <img
+                  src={attachmentPreview.url}
+                  alt="Attached post media preview"
+                  className="max-h-[70vh] w-full rounded-xl border object-contain shadow-sm"
+                />
+              )}
+            </div>
+            <DialogFooter className="border-t px-5 py-4">
+              <Button variant="outline" onClick={() => setAttachmentPreview(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : null}
+      </Dialog>
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto" onClick={(event) => event.stopPropagation()}>
