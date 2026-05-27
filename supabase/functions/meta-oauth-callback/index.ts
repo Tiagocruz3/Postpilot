@@ -31,5 +31,10 @@ serve(async (req) => {
     metadata: { ad_accounts: accountsData.data || [] },
   }, { onConflict: 'user_id,workspace_id,provider' })
 
-  return new Response(null, { status: 302, headers: { Location: appRedirect('/ads?oauth=meta&status=connected') } })
+  const returnTo =
+    typeof state.return_to === 'string' && state.return_to.startsWith('/')
+      ? state.return_to
+      : '/ads?oauth=meta&status=connected'
+
+  return new Response(null, { status: 302, headers: { Location: appRedirect(returnTo) } })
 })

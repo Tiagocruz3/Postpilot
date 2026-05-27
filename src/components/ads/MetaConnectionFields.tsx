@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -21,6 +21,7 @@ export type MetaConnectionValues = {
   facebookPageId: string
   instagramAccountId: string
   adAccountId: string
+  connectedAt?: string
 }
 
 type MetaConnectionFieldsProps = {
@@ -30,6 +31,7 @@ type MetaConnectionFieldsProps = {
   isDemoMode?: boolean
   onConnectFacebook: () => void
   onConnectMeta: () => void
+  onRefreshConnections?: () => void
 }
 
 export function MetaConnectionFields({
@@ -39,24 +41,34 @@ export function MetaConnectionFields({
   isDemoMode = false,
   onConnectFacebook,
   onConnectMeta,
+  onRefreshConnections,
 }: MetaConnectionFieldsProps) {
   const facebookIntegration = findFacebookIntegration(integrations)
   const metaIntegration = findMetaAdsIntegration(integrations)
 
   const pages: MetaPageOption[] = isDemoMode ? DEMO_META_PAGES : parseFacebookPages(facebookIntegration)
-  const instagramAccounts: MetaInstagramOption[] = isDemoMode
+  const allInstagramAccounts: MetaInstagramOption[] = isDemoMode
     ? DEMO_META_INSTAGRAM
     : parseInstagramAccounts(facebookIntegration)
-  const adAccounts: MetaAdAccountOption[] = isDemoMode ? DEMO_META_AD_ACCOUNTS : parseMetaAdAccounts(metaIntegration)
+  const adAccounts: MetaAdAccountOption[] = isDemoMode
+    ? DEMO_META_AD_ACCOUNTS
+    : parseMetaAdAccounts(metaIntegration, facebookIntegration)
 
+  const facebookLinked = Boolean(facebookIntegration)
   const facebookConnected = pages.length > 0
   const metaAdsConnected = adAccounts.length > 0
 
+  const instagramAccounts = value.facebookPageId
+    ? allInstagramAccounts.filter((account) => account.pageId === value.facebookPageId)
+    : allInstagramAccounts
+
+  const selectedPage = pages.find((page) => page.id === value.facebookPageId)
+
   const handlePageChange = (pageId: string) => {
-    const linkedInstagram = instagramAccounts.find((account) => account.pageId === pageId)
+    const linkedInstagram = allInstagramAccounts.find((account) => account.pageId === pageId)
     onChange({
       facebookPageId: pageId,
-      instagramAccountId: linkedInstagram?.id ?? value.instagramAccountId,
+      instagramAccountId: linkedInstagram?.id ?? '',
       connectedAt: new Date().toISOString(),
     })
   }
@@ -64,8 +76,16 @@ export function MetaConnectionFields({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Pick your real Facebook Page, Instagram account, and Meta ad account from the connected data below.
+        Connect Facebook once to load your Page, linked Instagram, and ad accounts. If you connected before this update,
+        use <span className="font-medium text-foreground">Refresh connection</span> below.
       </p>
+
+      {facebookLinked && onRefreshConnections ? (
+        <Button type="button" size="sm" variant="outline" onClick={onRefreshConnections}>
+          <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+          Refresh connection
+        </Button>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <MetaSelectField
@@ -83,7 +103,13 @@ export function MetaConnectionFields({
         <MetaSelectField
           label="Instagram account"
           placeholder="Select an Instagram account"
-          emptyHint="Link Instagram to your Facebook Page, then reconnect Facebook if needed."
+          emptyHint={
+            facebookConnected
+              ? selectedPage
+                ? `No Instagram Business account is linked to ${selectedPage.name}. Link one in Meta Business Suite, then refresh.`
+                : 'Select a Facebook Page first, or link Instagram in Meta Business Suite and refresh.'
+              : 'Connect Facebook to load Instagram accounts linked to your Pages.'
+          }
           options={instagramAccounts.map((account) => ({
             value: account.id,
             label: `@${account.username} · ${account.name}`,
@@ -93,14 +119,18 @@ export function MetaConnectionFields({
             onChange({ instagramAccountId: accountId, connectedAt: new Date().toISOString() })
           }
           connected={instagramAccounts.length > 0}
-          onConnect={onConnectFacebook}
-          connectLabel="Connect Facebook"
+          onConnect={facebookConnected ? onRefreshConnections ?? onConnectFacebook : onConnectFacebook}
+          connectLabel={facebookConnected ? 'Refresh connection' : 'Connect Facebook'}
         />
 
         <MetaSelectField
           label="Meta ad account"
           placeholder="Select an ad account"
-          emptyHint="Connect Meta Ads to load your ad accounts."
+          emptyHint={
+            facebookLinked && !metaAdsConnected
+              ? 'Reconnect Facebook (or Connect Meta Ads) to load ad accounts for this workspace.'
+              : 'Connect Facebook or Meta Ads to load your ad accounts.'
+          }
           options={adAccounts.map((account) => ({
             value: account.id,
             label: `${account.name} (${account.id})`,
@@ -108,8 +138,8 @@ export function MetaConnectionFields({
           value={value.adAccountId}
           onChange={(accountId) => onChange({ adAccountId: accountId, connectedAt: new Date().toISOString() })}
           connected={metaAdsConnected}
-          onConnect={onConnectMeta}
-          connectLabel="Connect Meta Ads"
+          onConnect={metaAdsConnected ? onConnectMeta : facebookLinked ? onRefreshConnections ?? onConnectFacebook : onConnectMeta}
+          connectLabel={metaAdsConnected ? 'Connect Meta Ads' : facebookLinked ? 'Refresh connection' : 'Connect Meta Ads'}
         />
       </div>
     </div>

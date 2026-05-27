@@ -7,12 +7,11 @@ import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { APP_PAGE } from '@/lib/app-labels'
 import { isDemoMode } from '@/lib/demo'
+import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
-  defaultFacebookPageId,
-  defaultInstagramAccountId,
-  defaultMetaAdAccountId,
   findFacebookIntegration,
   findMetaAdsIntegration,
+  parseMetaAdAccounts,
 } from '@/lib/meta-integration-options'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
@@ -255,7 +254,7 @@ export function AdsPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     if (params.get('oauth') === 'facebook' && params.get('status') === 'connected') {
-      setMessage('Facebook connected. Select your Page and Instagram account below.')
+      setMessage('Facebook connected. Your Page, Instagram, and ad accounts should appear below.')
       void refreshIntegrations()
       window.history.replaceState({}, '', location.pathname)
     }
@@ -268,35 +267,16 @@ export function AdsPage() {
 
   useEffect(() => {
     if (isDemoMode) return
-
-    const facebookIntegration = findFacebookIntegration(integrations)
-    const metaIntegration = findMetaAdsIntegration(integrations)
-    const nextPageId = defaultFacebookPageId(facebookIntegration)
-    const nextInstagramId = defaultInstagramAccountId(facebookIntegration)
-    const nextAdAccountId = defaultMetaAdAccountId(metaIntegration)
-
-    if (!nextPageId && !nextInstagramId && !nextAdAccountId) return
-
     setProfile((prev) => {
-      const metaConnection = { ...prev.metaConnection }
-      let changed = false
-
-      if (!metaConnection.facebookPageId && nextPageId) {
-        metaConnection.facebookPageId = nextPageId
-        changed = true
+      const synced = syncMetaConnectionFromIntegrations(prev.metaConnection, integrations)
+      if (!synced) return prev
+      return {
+        ...prev,
+        metaConnection: {
+          ...synced,
+          connectedAt: synced.connectedAt ?? prev.metaConnection.connectedAt ?? new Date().toISOString(),
+        },
       }
-      if (!metaConnection.instagramAccountId && nextInstagramId) {
-        metaConnection.instagramAccountId = nextInstagramId
-        changed = true
-      }
-      if (!metaConnection.adAccountId && nextAdAccountId) {
-        metaConnection.adAccountId = nextAdAccountId
-        changed = true
-      }
-
-      if (!changed) return prev
-      metaConnection.connectedAt = metaConnection.connectedAt || new Date().toISOString()
-      return { ...prev, metaConnection }
     })
   }, [integrations])
 
@@ -332,7 +312,10 @@ export function AdsPage() {
 
   const connectMeta = () => {
     if (isDemoMode) return setMessage('Demo mode: Meta connected.')
-    void redirectToEdgeFunction('meta-oauth-start', { workspace_id: currentWorkspaceId })
+    void redirectToEdgeFunction('meta-oauth-start', {
+      workspace_id: currentWorkspaceId,
+      return_to: '/ads?oauth=meta&status=connected',
+    })
   }
 
   const connectFacebook = () => {
@@ -341,6 +324,22 @@ export function AdsPage() {
       workspace_id: currentWorkspaceId,
       return_to: '/ads?oauth=facebook&status=connected',
     })
+  }
+
+  const refreshMetaConnections = () => {
+    if (isDemoMode) {
+      setMessage('Demo mode: connections refreshed.')
+      return
+    }
+    const facebookIntegration = findFacebookIntegration(integrations)
+    const metaIntegration = findMetaAdsIntegration(integrations)
+    if (parseMetaAdAccounts(metaIntegration, facebookIntegration).length > 0) {
+      void refreshIntegrations()
+      setMessage('Meta connections refreshed.')
+      return
+    }
+    setMessage('Reconnecting Facebook to sync Pages, Instagram, and ad accounts…')
+    connectFacebook()
   }
 
   const saveProfile = async () => {
@@ -520,6 +519,7 @@ export function AdsPage() {
                 isDemoMode={isDemoMode}
                 onConnectFacebook={connectFacebook}
                 onConnectMeta={connectMeta}
+                onRefreshConnections={refreshMetaConnections}
               />
             ) : null}
 

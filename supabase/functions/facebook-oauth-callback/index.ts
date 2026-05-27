@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { fetchMetaAdAccounts } from '../_shared/meta-oauth-assets.ts'
 import { appRedirect, decodeOAuthState, getAdminClient, getUserIdFromState, oauthCallbackUri } from '../_shared/oauth.ts'
 
 function redirectWithOAuthError(message: string) {
@@ -108,7 +109,20 @@ serve(async (req) => {
       }
     }
 
+    const userAccessToken = tokenData.access_token as string
+    const adAccounts = await fetchMetaAdAccounts(userAccessToken)
+
     const supabase = getAdminClient()
+    const facebookMetadata = {
+      page_id: primary.id,
+      page_name: primary.name,
+      selected_page_id: primary.id,
+      pages: validPages.map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })),
+      instagram_accounts: instagramAccounts,
+      selected_instagram_account_id: instagramAccounts[0]?.id ?? null,
+      ad_accounts: adAccounts,
+    }
+
     const { error } = await supabase.from('user_integrations').upsert(
       {
         user_id: userId,
@@ -118,14 +132,7 @@ serve(async (req) => {
         token_iv: '',
         refresh_token_encrypted: primary.access_token,
         expires_at: tokenExpiresAt(tokenData.expires_in),
-        metadata: {
-          page_id: primary.id,
-          page_name: primary.name,
-          selected_page_id: primary.id,
-          pages: validPages.map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })),
-          instagram_accounts: instagramAccounts,
-          selected_instagram_account_id: instagramAccounts[0]?.id ?? null,
-        },
+        metadata: facebookMetadata,
       },
       { onConflict: 'user_id,workspace_id,provider' },
     )
@@ -133,6 +140,25 @@ serve(async (req) => {
     if (error) {
       console.error('facebook-oauth-callback db error:', error)
       return redirectWithOAuthError(`Could not save Facebook connection: ${error.message ?? 'database error'}`)
+    }
+
+    if (adAccounts.length > 0) {
+      const { error: metaError } = await supabase.from('user_integrations').upsert(
+        {
+          user_id: userId,
+          workspace_id: workspaceId,
+          provider: 'meta',
+          access_token_encrypted: userAccessToken,
+          token_iv: '',
+          refresh_token_encrypted: userAccessToken,
+          expires_at: tokenExpiresAt(tokenData.expires_in),
+          metadata: { ad_accounts: adAccounts },
+        },
+        { onConflict: 'user_id,workspace_id,provider' },
+      )
+      if (metaError) {
+        console.warn('facebook-oauth-callback meta upsert:', metaError.message)
+      }
     }
 
     const returnTo =

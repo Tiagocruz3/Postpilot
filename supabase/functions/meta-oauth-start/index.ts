@@ -10,7 +10,8 @@ serve(async (req) => {
     return new Response('Missing workspace_id or access_token', { status: 400 })
   }
 
-  const state = encodeOAuthState({ workspace_id: workspaceId, user_id: userId, provider: 'meta' })
+  const returnTo = url.searchParams.get('return_to') || '/ads?oauth=meta&status=connected'
+  const state = encodeOAuthState({ workspace_id: workspaceId, user_id: userId, provider: 'meta', return_to: returnTo })
   const redirectUri = oauthCallbackUri(req, 'meta-oauth-callback')
   const metaUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${Deno.env.get('META_APP_ID')}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=ads_management,ads_read,business_management,pages_show_list&state=${state}&response_type=code`
   return new Response(null, { status: 302, headers: { Location: metaUrl } })

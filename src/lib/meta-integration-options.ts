@@ -57,8 +57,7 @@ export function parseInstagramAccounts(integration?: UserIntegration | null): Me
     .filter((entry): entry is MetaInstagramOption => Boolean(entry))
 }
 
-export function parseMetaAdAccounts(integration?: UserIntegration | null): MetaAdAccountOption[] {
-  const raw = integration?.metadata?.ad_accounts
+function parseMetaAdAccountsFromRaw(raw: unknown): MetaAdAccountOption[] {
   if (!Array.isArray(raw)) return []
 
   return raw
@@ -71,6 +70,17 @@ export function parseMetaAdAccounts(integration?: UserIntegration | null): MetaA
       return { id, name }
     })
     .filter((entry): entry is MetaAdAccountOption => Boolean(entry))
+}
+
+export function parseMetaAdAccounts(
+  metaIntegration?: UserIntegration | null,
+  facebookIntegration?: UserIntegration | null,
+): MetaAdAccountOption[] {
+  const fromMeta = parseMetaAdAccountsFromRaw(metaIntegration?.metadata?.ad_accounts)
+  if (fromMeta.length > 0) {
+    return fromMeta
+  }
+  return parseMetaAdAccountsFromRaw(facebookIntegration?.metadata?.ad_accounts)
 }
 
 export function defaultFacebookPageId(integration?: UserIntegration | null): string {
@@ -87,8 +97,11 @@ export function defaultInstagramAccountId(integration?: UserIntegration | null):
   return parseInstagramAccounts(integration)[0]?.id ?? ''
 }
 
-export function defaultMetaAdAccountId(integration?: UserIntegration | null): string {
-  return parseMetaAdAccounts(integration)[0]?.id ?? ''
+export function defaultMetaAdAccountId(
+  metaIntegration?: UserIntegration | null,
+  facebookIntegration?: UserIntegration | null,
+): string {
+  return parseMetaAdAccounts(metaIntegration, facebookIntegration)[0]?.id ?? ''
 }
 
 export const DEMO_META_PAGES: MetaPageOption[] = [{ id: 'demo-page-1', name: 'Demo Business Page' }]

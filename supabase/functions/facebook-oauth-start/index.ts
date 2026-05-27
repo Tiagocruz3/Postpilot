@@ -13,6 +13,14 @@ serve(async (req) => {
   const returnTo = url.searchParams.get('return_to') || '/settings?oauth=facebook&status=connected'
   const state = encodeOAuthState({ workspace_id: workspaceId, user_id: userId, provider: 'facebook', return_to: returnTo })
   const redirectUri = oauthCallbackUri(req, 'facebook-oauth-callback')
-  const fbUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${Deno.env.get('META_APP_ID')}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_manage_posts,pages_read_engagement&state=${state}&response_type=code`
+  const scopes = [
+    'pages_show_list',
+    'pages_read_engagement',
+    'pages_manage_posts',
+    'ads_read',
+    'ads_management',
+    'business_management',
+  ].join(',')
+  const fbUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${Deno.env.get('META_APP_ID')}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`
   return new Response(null, { status: 302, headers: { Location: fbUrl } })
 })
