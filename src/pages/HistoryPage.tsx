@@ -12,8 +12,10 @@ import {
   Repeat2,
   Send,
   Share2,
+  Trash2,
   XCircle,
 } from 'lucide-react'
+import { PostCommentsPanel } from '@/components/history/PostCommentsPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -89,12 +91,13 @@ function statusFor(post: PublishedPost): 'published' | 'failed' | 'pending' {
 
 export function HistoryPage() {
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
-  const { posts, loading, error, refresh } = usePublishedPosts(currentWorkspaceId)
+  const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId)
   const [platformFilter, setPlatformFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [query, setQuery] = useState('')
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [refreshMessage, setRefreshMessage] = useState<string>('')
 
   const filtered = useMemo(() => {
@@ -164,6 +167,26 @@ export function HistoryPage() {
       setRefreshMessage(err instanceof Error ? err.message : 'Retry failed.')
     } finally {
       setRetryingId(null)
+    }
+  }
+
+  const removePost = async (post: PublishedPost) => {
+    if (isDemoMode) return
+    const label = statusFor(post) === 'published' ? 'published post' : statusFor(post) === 'failed' ? 'failed post' : 'post'
+    const confirmed = window.confirm(
+      `Remove this ${label} from history? This deletes the planner entry locally; it does not delete the live post on ${platformLabel(post.platform)}.`,
+    )
+    if (!confirmed) return
+
+    setDeletingId(post.id)
+    setRefreshMessage('')
+    try {
+      await deletePost(post.planner_task_id)
+      setRefreshMessage('Post removed from history.')
+    } catch (err) {
+      setRefreshMessage(err instanceof Error ? err.message : 'Could not remove post.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -404,6 +427,20 @@ export function HistoryPage() {
                             )}
                             Refresh metrics
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:bg-destructive/10"
+                            disabled={deletingId === post.id}
+                            onClick={() => void removePost(post)}
+                          >
+                            {deletingId === post.id ? (
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            )}
+                            Remove
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -429,6 +466,8 @@ export function HistoryPage() {
                         {post.metrics_error ? ` · ${post.metrics_error}` : ''}
                       </p>
                     ) : null}
+
+                    <PostCommentsPanel post={post} onMessage={setRefreshMessage} />
                   </div>
                 )
               })}

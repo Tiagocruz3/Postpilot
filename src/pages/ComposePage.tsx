@@ -10,12 +10,12 @@ import {
   Link,
   RefreshCw,
   RotateCcw,
-  Search,
   Send,
   Sparkles,
   Video,
-  Wand2,
 } from 'lucide-react'
+import { ComposeAiWriteSection } from '@/components/compose/ComposeAiWriteSection'
+import { ComposeFlowProgressModal } from '@/components/compose/ComposeFlowProgressModal'
 import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
 import { RemixPostModal } from '@/components/compose/RemixPostModal'
 import { StockImagePicker, type StockImageMeta } from '@/components/compose/StockImagePicker'
@@ -144,6 +144,7 @@ export function ComposePage() {
   const [scheduleAt, setScheduleAt] = useState(initialSnapshot?.scheduleAt ?? '')
   const [loading, setLoading] = useState(false)
   const [copyLoading, setCopyLoading] = useState(false)
+  const [copyAction, setCopyAction] = useState<'draft' | 'polish' | null>(null)
   const [imageLoading, setImageLoading] = useState(false)
   const [videoLoading, setVideoLoading] = useState(false)
   const [mediaSource, setMediaSource] = useState<MediaSourceType>('ai-image')
@@ -644,6 +645,7 @@ export function ComposePage() {
       return
     }
 
+    setCopyAction('draft')
     setCopyLoading(true)
     setMessage('Writing your draft with AI...')
     try {
@@ -677,6 +679,7 @@ export function ComposePage() {
       setMessage(error instanceof Error ? error.message : 'Could not draft post copy.')
     } finally {
       setCopyLoading(false)
+      setCopyAction(null)
     }
   }
 
@@ -686,6 +689,7 @@ export function ComposePage() {
       return
     }
 
+    setCopyAction('polish')
     setCopyLoading(true)
     setMessage('Polishing your draft...')
     try {
@@ -707,6 +711,7 @@ export function ComposePage() {
       setMessage(error instanceof Error ? error.message : 'Could not polish post copy.')
     } finally {
       setCopyLoading(false)
+      setCopyAction(null)
     }
   }
 
@@ -883,7 +888,9 @@ export function ComposePage() {
   const isGenerating = copyLoading || imageLoading || videoLoading || loading
   const visibleMessage = isGenerating ? '' : message
   const generationLabel = copyLoading
-    ? 'Writing your draft'
+    ? copyAction === 'polish'
+      ? 'Polishing your draft'
+      : 'Writing your draft'
     : imageLoading
       ? 'Designing your image'
       : videoLoading
@@ -961,17 +968,6 @@ export function ComposePage() {
       {visibleMessage ? (
         <div className="alive-enter mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{visibleMessage}</div>
       ) : null}
-      {isGenerating ? (
-        <div className="alive-enter mb-4 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 text-sm">
-          <div className="alive-shimmer h-0.5 w-full" />
-          <div className="flex items-center gap-2 px-4 py-3">
-            <span className="alive-status-dot" />
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span>{generationLabel}...</span>
-          </div>
-        </div>
-      ) : null}
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <Card className="alive-enter">
         <CardHeader className="flex-row items-center justify-between gap-4">
@@ -1158,102 +1154,19 @@ export function ComposePage() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border bg-muted/20 p-4 space-y-3">
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <div
-                      className={cn(
-                        'rounded-xl border px-3 py-2 transition-all',
-                        activeFlowStep === 'draft' ? 'alive-ring bg-primary/5' : 'bg-background',
-                      )}
-                    >
-                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                        <span>Create post content</span>
-                        {draftReady ? <CheckCircle2 className="h-4 w-4 text-primary" /> : copyLoading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{copyLoading ? 'Writing now...' : draftReady ? 'Draft ready' : 'Waiting for topic'}</p>
-                    </div>
-                    <div
-                      className={cn(
-                        'rounded-xl border px-3 py-2 transition-all',
-                        activeFlowStep === 'visual' ? 'alive-ring bg-primary/5' : 'bg-background',
-                      )}
-                    >
-                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                        <span>Generate image or video</span>
-                        {hasVisual ? (
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
-                        ) : imageLoading || videoLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        ) : mediaSource === 'ai-video' ? (
-                          <Video className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {imageLoading || videoLoading ? 'Generating media...' : hasVisual ? 'Visual ready' : `Using ${mediaSource.replace('-', ' ')}`}
-                      </p>
-                    </div>
-                    <div
-                      className={cn(
-                        'rounded-xl border px-3 py-2 transition-all',
-                        activeFlowStep === 'publish' ? 'alive-ring bg-primary/5' : 'bg-background',
-                      )}
-                    >
-                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                        <span>Preview and publish</span>
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Send className="h-4 w-4 text-muted-foreground" />}
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {loading ? 'Publishing now...' : hasVisual ? 'Ready to preview' : 'Add visual to continue'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 lg:grid-cols-2">
-                    <div className="rounded-xl border bg-background p-3">
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Write</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Input
-                          placeholder="Topic for Write with AI..."
-                          value={draftTopic}
-                          onChange={(event) => setDraftTopic(event.target.value)}
-                          className="min-w-[200px] flex-1"
-                        />
-                        <Button type="button" variant="outline" disabled={copyLoading} onClick={() => void draftWithAi()}>
-                          {copyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                          {copyLoading ? 'Writing...' : 'Write with AI'}
-                        </Button>
-                        <Button type="button" variant="outline" disabled={copyLoading || !content.trim()} onClick={() => void polishWithAi()}>
-                          {copyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                          {copyLoading ? 'Polishing...' : 'Polish'}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border bg-background p-3">
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Research</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" onClick={() => setShowResearch(true)}>
-                          <Search className="mr-2 h-4 w-4" />
-                          Research Topic
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setRemixSeed({ text: content, niche: '' })
-                            setShowRemix(true)
-                          }}
-                        >
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Remix Competitor Post
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Captions are written to stay human, professional, and avoid em dashes.
-                  </p>
-                </div>
+                <ComposeAiWriteSection
+                  draftTopic={draftTopic}
+                  onDraftTopicChange={setDraftTopic}
+                  copyLoading={copyLoading}
+                  canPolish={Boolean(content.trim())}
+                  onWriteWithAi={() => void draftWithAi()}
+                  onPolish={() => void polishWithAi()}
+                  onResearch={() => setShowResearch(true)}
+                  onRemix={() => {
+                    setRemixSeed({ text: content, niche: '' })
+                    setShowRemix(true)
+                  }}
+                />
 
                 <div className="relative">
                   <Textarea
@@ -1492,6 +1405,20 @@ export function ComposePage() {
         </Card>
       </aside>
       </div>
+
+      <ComposeFlowProgressModal
+        open={isGenerating}
+        activeStep={activeFlowStep}
+        label={generationLabel}
+        draftReady={draftReady}
+        hasVisual={hasVisual}
+        copyLoading={copyLoading}
+        copyAction={copyAction}
+        imageLoading={imageLoading}
+        videoLoading={videoLoading}
+        publishing={loading}
+        mediaSourceLabel={mediaSource.replace('-', ' ')}
+      />
 
       <ResearchTopicModal
         open={showResearch}

@@ -116,5 +116,21 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
     }
   }, [workspaceId, load])
 
-  return { posts, loading, error, refresh: load }
+  const deletePost = useCallback(
+    async (plannerTaskId: string) => {
+      if (isDemoMode) {
+        setPosts((prev) => prev.filter((post) => post.planner_task_id !== plannerTaskId))
+        return
+      }
+
+      const { error: deleteError } = await supabase.from('planner_tasks').delete().eq('id', plannerTaskId)
+      if (deleteError) {
+        throw new Error(deleteError.message)
+      }
+      setPosts((prev) => prev.filter((post) => post.planner_task_id !== plannerTaskId))
+    },
+    [],
+  )
+
+  return { posts, loading, error, refresh: load, deletePost }
 }

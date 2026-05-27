@@ -33,6 +33,9 @@ const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 const GRID_START_HOUR = HOURS[0]
 const GRID_END_HOUR = HOURS[HOURS.length - 1] + 1
 const GRID_TOTAL_MINUTES = (GRID_END_HOUR - GRID_START_HOUR) * 60
+/** ~55% taller than the previous ~28px flex-compressed rows */
+const HOUR_SLOT_MIN_PX = 44
+const CALENDAR_GRID_MIN_PX = HOURS.length * HOUR_SLOT_MIN_PX
 const PLATFORM_COLORS: Record<string, string> = {
   facebook: '#1877F2',
   instagram: '#E1306C',
@@ -149,7 +152,7 @@ export function PlannerPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-4">
+    <div className="flex min-h-[calc(100vh-1rem)] flex-col p-4">
       <header className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Planner</h1>
@@ -176,7 +179,7 @@ export function PlannerPage() {
         </div>
       </header>
 
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card className="flex min-h-[calc(100vh-8.5rem)] flex-1 flex-col overflow-hidden">
         <CardContent className="flex min-h-0 flex-1 flex-col gap-2 p-3">
           {plannerMessage ? (
             <div className="shrink-0 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
@@ -211,14 +214,18 @@ export function PlannerPage() {
           {loading ? (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Loading planner…</div>
           ) : (
-            <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border bg-card">
-              <div className="flex w-12 shrink-0 flex-col border-r bg-muted/30">
-                <div className="h-9 shrink-0 border-b" />
-                <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className="flex flex-1 overflow-auto rounded-xl border bg-card"
+              style={{ minHeight: CALENDAR_GRID_MIN_PX + 40 }}
+            >
+              <div className="flex w-14 shrink-0 flex-col border-r bg-muted/30">
+                <div className="h-11 shrink-0 border-b" />
+                <div className="flex flex-col" style={{ minHeight: CALENDAR_GRID_MIN_PX }}>
                   {HOURS.map((hour) => (
                     <div
                       key={hour}
-                      className="flex flex-1 items-start justify-end border-b pr-1.5 pt-0.5 text-right text-[9px] text-muted-foreground"
+                      className="flex shrink-0 items-start justify-end border-b pr-2 pt-1 text-right text-[10px] text-muted-foreground"
+                      style={{ minHeight: HOUR_SLOT_MIN_PX }}
                     >
                       <span>{format(setHours(new Date(), hour), 'ha')}</span>
                     </div>
@@ -231,19 +238,23 @@ export function PlannerPage() {
                   <div key={day.toISOString()} className={cn('flex flex-col border-r last:border-r-0', isSameDay(day, today) && 'bg-primary/5')}>
                     <div
                       className={cn(
-                        'flex h-9 shrink-0 flex-col items-center justify-center border-b px-1',
+                        'flex h-11 shrink-0 flex-col items-center justify-center border-b px-1',
                         isSameDay(day, today) && 'text-primary'
                       )}
                     >
-                      <div className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground">{format(day, 'EEE')}</div>
-                      <div className="text-sm font-semibold leading-none">{format(day, 'd')}</div>
+                      <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{format(day, 'EEE')}</div>
+                      <div className="text-base font-semibold leading-none">{format(day, 'd')}</div>
                     </div>
-                    <div className="relative flex min-h-0 flex-1 flex-col">
+                    <div
+                      className="relative flex flex-col"
+                      style={{ minHeight: CALENDAR_GRID_MIN_PX }}
+                    >
                       {HOURS.map((hour) => (
                         <button
                           key={hour}
                           type="button"
-                          className="w-full flex-1 border-b border-dashed border-border/60 last:border-b-0 hover:bg-accent/40"
+                          className="w-full shrink-0 border-b border-dashed border-border/60 last:border-b-0 hover:bg-accent/40"
+                          style={{ minHeight: HOUR_SLOT_MIN_PX }}
                           onClick={() => openNewTask(day, hour)}
                         />
                       ))}
@@ -275,7 +286,7 @@ export function PlannerPage() {
                             <button
                               key={event.id}
                               type="button"
-                              className="absolute left-0.5 right-0.5 overflow-hidden rounded-md px-1 py-0.5 text-left text-[10px] leading-tight text-white shadow-sm transition hover:brightness-95"
+                              className="absolute left-0.5 right-0.5 overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] leading-snug text-white shadow-sm transition hover:brightness-95"
                               style={{ top: `${safeTop}%`, height: `${safeHeight}%`, backgroundColor: event.color }}
                               onClick={() => {
                                 const task = tasks.find((item) => item.id === event.id)
