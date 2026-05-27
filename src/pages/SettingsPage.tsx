@@ -5,6 +5,7 @@ import {
   Bot,
   Image as ImageIcon,
   Link,
+  Lock,
   MonitorSmartphone,
   Globe2,
   RefreshCcw,
@@ -12,6 +13,7 @@ import {
   Video,
 } from 'lucide-react'
 import { WorkspaceTeamCard } from '@/components/WorkspaceTeamCard'
+import { useWorkspaceTeam } from '@/hooks/useWorkspaceTeam'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,6 +60,8 @@ type SettingsTab =
   | 'image-ai'
   | 'video-ai'
   | 'local-ai'
+
+const AI_TABS = new Set<SettingsTab>(['content-ai', 'image-ai', 'video-ai', 'local-ai'])
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type WorkspaceAiSettingsRow = Database['public']['Tables']['workspace_ai_settings']['Row']
 type WorkspaceAiSettingsInsert = Database['public']['Tables']['workspace_ai_settings']['Insert']
@@ -118,6 +122,9 @@ export function SettingsPage() {
   const location = useLocation()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user, profile } = useAuth()
+  const { canManage: canManageTeam } = useWorkspaceTeam(currentWorkspaceId, user?.id)
+  const isWorkspaceOwner = Boolean(user?.id && currentWorkspace?.owner_id === user.id)
+  const isWorkspaceAdmin = isDemoMode || isWorkspaceOwner || canManageTeam
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
     const tab = (location.state as { tab?: SettingsTab } | null)?.tab
     return tab ?? 'profile'
@@ -146,6 +153,12 @@ export function SettingsPage() {
       setActiveTab(tab)
     }
   }, [location.state])
+
+  useEffect(() => {
+    if (!isWorkspaceAdmin && AI_TABS.has(activeTab)) {
+      setActiveTab('profile')
+    }
+  }, [isWorkspaceAdmin, activeTab])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -520,6 +533,16 @@ export function SettingsPage() {
         </p>
       </div>
 
+      {!isWorkspaceAdmin ? (
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Lock className="mt-0.5 h-4 w-4 flex-none" />
+          <span>
+            AI model settings (Content, Image, Video, Local) are managed by your workspace admin. Ask an owner or admin if you
+            need a change to the models your team uses.
+          </span>
+        </div>
+      ) : null}
+
       <div
         className={`mb-4 min-h-[3.25rem] rounded-2xl border px-4 py-3 text-sm transition-colors ${
           settingsMessage
@@ -545,18 +568,22 @@ export function SettingsPage() {
           <TabsTrigger value="accounts" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
             Accounts
           </TabsTrigger>
-          <TabsTrigger value="content-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
-            Content AI
-          </TabsTrigger>
-          <TabsTrigger value="image-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
-            Image AI
-          </TabsTrigger>
-          <TabsTrigger value="video-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
-            Video AI
-          </TabsTrigger>
-          <TabsTrigger value="local-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
-            Local AI
-          </TabsTrigger>
+          {isWorkspaceAdmin ? (
+            <>
+              <TabsTrigger value="content-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+                Content AI
+              </TabsTrigger>
+              <TabsTrigger value="image-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+                Image AI
+              </TabsTrigger>
+              <TabsTrigger value="video-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+                Video AI
+              </TabsTrigger>
+              <TabsTrigger value="local-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+                Local AI
+              </TabsTrigger>
+            </>
+          ) : null}
         </TabsList>
 
         <TabsContent value="profile" activeValue={activeTab}>
@@ -804,6 +831,8 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
+        {isWorkspaceAdmin ? (
+          <>
         <TabsContent value="content-ai" activeValue={activeTab}>
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
             <Card>
@@ -1205,6 +1234,8 @@ export function SettingsPage() {
             </Card>
           </div>
         </TabsContent>
+          </>
+        ) : null}
       </Tabs>
     </div>
   )
