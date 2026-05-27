@@ -29,7 +29,7 @@ import {
   sanitizeComposeCopy,
   type ComposePlatform,
 } from '@/lib/compose-copy'
-import { saveGeneratedMediaToVault } from '@/lib/ai-library'
+import { appendDemoVaultItem, saveGeneratedMediaToVault } from '@/lib/ai-library'
 import { APP_PAGE } from '@/lib/app-labels'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
@@ -440,10 +440,6 @@ export function ComposePage() {
       return { saved: false as const, reason: 'No workspace or session.' }
     }
 
-    if (input.libraryId) {
-      return { saved: true as const, id: input.libraryId }
-    }
-
     return saveGeneratedMediaToVault({
       workspaceId: currentWorkspaceId,
       userId: user.id,
@@ -711,7 +707,18 @@ export function ComposePage() {
     try {
       if (isDemoMode) {
         const url = `https://placehold.co/800x800?text=${encodeURIComponent(platformLabel(activeTab))}+Image`
+        const demoPrompt = [draftTopic.trim(), imageHint, baseContent].filter(Boolean).join('\n\n')
         upsertMedia({ url, type: 'image', source: 'ai-image' }, regenerate)
+        if (currentWorkspaceId && user?.id) {
+          appendDemoVaultItem(currentWorkspaceId, user.id, {
+            mediaType: 'image',
+            sourceUrl: url,
+            prompt: demoPrompt || baseContent,
+            source: 'compose',
+            metadata: { platform: activeTab, demo: true },
+          })
+        }
+        setMessage(`Image generated. Saved to ${APP_PAGE.aiVault} (demo).`)
         return
       }
 
@@ -779,8 +786,18 @@ export function ComposePage() {
     try {
       if (isDemoMode) {
         const url = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+        const demoPrompt = buildVideoPrompt(activeTab, baseContent, videoHint, regenerate)
         upsertMedia({ url, type: 'video', source: 'ai-video' }, regenerate)
-        setMessage('Demo video added.')
+        if (currentWorkspaceId && user?.id) {
+          appendDemoVaultItem(currentWorkspaceId, user.id, {
+            mediaType: 'video',
+            sourceUrl: url,
+            prompt: demoPrompt,
+            source: 'compose',
+            metadata: { platform: activeTab, demo: true },
+          })
+        }
+        setMessage(`Demo video added. Saved to ${APP_PAGE.aiVault} (demo).`)
         return
       }
 

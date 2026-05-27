@@ -9,61 +9,65 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const body = await req.json().catch(() => ({}))
-  const action: string = body.action || 'comments'
-
-  const userId = await resolveRequestUserId(req, supabase)
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  const scheduledPostId = body.scheduled_post_id as string | undefined
-  if (!scheduledPostId) {
-    return new Response(JSON.stringify({ error: 'scheduled_post_id is required.' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  if (action === 'comments') {
-    const result = await listPostComments(supabase, scheduledPostId)
-    if ('error' in result) {
-      return new Response(JSON.stringify({ error: result.error }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    return new Response(JSON.stringify({ success: true, comments: result.comments }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  if (action === 'reply_comment') {
-    const message = (body.message as string | undefined) ?? ''
-    const commentId = (body.comment_id as string | undefined) || undefined
-    const result = await replyToPostComment(supabase, scheduledPostId, message, commentId)
-    if ('error' in result) {
-      return new Response(JSON.stringify({ error: result.error }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-    return new Response(JSON.stringify({ success: true, reply_id: result.reply_id }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  return new Response(JSON.stringify({ error: 'Unknown action.' }), {
-    status: 400,
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed.' }, 405)
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseUrl || !serviceKey) {
+      return jsonResponse({ error: 'Server configuration error.' }, 500)
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey)
+    const body = await req.json().catch(() => ({}))
+    const action: string = body.action || 'comments'
+
+    const userId = await resolveRequestUserId(req, supabase)
+    if (!userId) {
+      return jsonResponse({ error: 'Unauthorized' }, 401)
+    }
+
+    const scheduledPostId = body.scheduled_post_id as string | undefined
+    if (!scheduledPostId) {
+      return jsonResponse({ error: 'scheduled_post_id is required.' }, 400)
+    }
+
+    if (action === 'comments') {
+      const result = await listPostComments(supabase, scheduledPostId)
+      if ('error' in result) {
+        return jsonResponse({ error: result.error }, 400)
+      }
+      return jsonResponse({ success: true, comments: result.comments })
+    }
+
+    if (action === 'reply_comment') {
+      const message = (body.message as string | undefined) ?? ''
+      const commentId = (body.comment_id as string | undefined) || undefined
+      const result = await replyToPostComment(supabase, scheduledPostId, message, commentId)
+      if ('error' in result) {
+        return jsonResponse({ error: result.error }, 400)
+      }
+      return jsonResponse({ success: true, reply_id: result.reply_id })
+    }
+
+    return jsonResponse({ error: 'Unknown action.' }, 400)
+  } catch (err) {
+    console.error('post-engagement error:', err)
+    const message = err instanceof Error ? err.message : 'Unexpected server error.'
+    return jsonResponse({ error: message }, 500)
+  }
 })

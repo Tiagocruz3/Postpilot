@@ -200,3 +200,9 @@ verify_jwt = false
 
 [functions.scheduler-tick]
 verify_jwt = false
+
+[functions.post-engagement]
+verify_jwt = true
+
+[functions.save-ai-library]
+verify_jwt = true

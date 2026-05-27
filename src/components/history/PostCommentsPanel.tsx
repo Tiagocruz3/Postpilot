@@ -29,6 +29,9 @@ async function readInvokeError(error: unknown): Promise<string> {
       // ignore
     }
   }
+  if (/failed to send a request|fetch/i.test(detailed)) {
+    return 'Comments service is unavailable. Deploy the post-engagement edge function in Supabase (Dashboard → Edge Functions, or run npm run supabase:deploy:functions).'
+  }
   return detailed
 }
 
