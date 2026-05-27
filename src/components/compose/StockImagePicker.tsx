@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Search } from 'lucide-react'
+import { ImageIcon, Loader2, Search } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 
 export type StockImageMeta = {
   provider: 'pixabay'
@@ -32,12 +33,25 @@ interface StockImagePickerProps {
   onSelect: (imageUrl: string, meta: StockImageMeta) => void
 }
 
-const CATEGORIES = ['all', 'backgrounds', 'fashion', 'nature', 'science', 'education', 'feelings', 'health', 'people', 'food', 'travel', 'buildings', 'business']
+const CATEGORIES = [
+  'all',
+  'backgrounds',
+  'fashion',
+  'nature',
+  'science',
+  'education',
+  'feelings',
+  'health',
+  'people',
+  'food',
+  'travel',
+  'buildings',
+  'business',
+]
 const IMAGE_TYPES = ['photo', 'illustration', 'vector']
 const ORIENTATIONS = ['all', 'horizontal', 'vertical']
 
 export function StockImagePicker({ open, onOpenChange, onSelect }: StockImagePickerProps) {
-  const [activeTab, setActiveTab] = useState('stock')
   const [query, setQuery] = useState('business')
   const [category, setCategory] = useState('all')
   const [imageType, setImageType] = useState('photo')
@@ -70,7 +84,7 @@ export function StockImagePicker({ open, onOpenChange, onSelect }: StockImagePic
         key: pixabayApiKey || '',
         q: query.trim() || 'business',
         safesearch: 'true',
-        per_page: '48',
+        per_page: '60',
         image_type: imageType,
       })
       if (category !== 'all') params.set('category', category)
@@ -104,96 +118,137 @@ export function StockImagePicker({ open, onOpenChange, onSelect }: StockImagePic
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto" onClick={(event) => event.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle>Stock Image Picker</DialogTitle>
-          <DialogDescription>Select free stock images from Pixabay for your post.</DialogDescription>
-        </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange} panelClassName="max-w-6xl p-0">
+      <DialogHeader className="border-b px-6 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Stock images
+            </DialogTitle>
+            <DialogDescription className="mt-1.5 max-w-2xl">
+              Search free Pixabay photos and click one to attach it to your post.
+            </DialogDescription>
+          </div>
+          {results.length > 0 ? (
+            <Badge variant="secondary" className="shrink-0">
+              {results.length} result{results.length === 1 ? '' : 's'}
+            </Badge>
+          ) : null}
+        </div>
+      </DialogHeader>
 
-        <Tabs>
-          <TabsList className="mt-4">
-            <TabsTrigger value="stock" activeValue={activeTab} onClick={() => setActiveTab('stock')}>
-              Stock
-            </TabsTrigger>
-            <TabsTrigger value="pixabay" activeValue={activeTab} onClick={() => setActiveTab('pixabay')}>
-              Pixabay
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="stock" activeValue={activeTab}>
-            <div className="mt-4 space-y-3">
-              <p className="text-sm text-muted-foreground">Use Pixabay search below to find free stock images and insert one into your composer.</p>
-              <Button variant="outline" onClick={() => setActiveTab('pixabay')}>
-                Open Pixabay Search
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="pixabay" activeValue={activeTab}>
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-3 md:grid-cols-5">
-                <div className="md:col-span-2">
-                  <Label>Search</Label>
-                  <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="e.g. social media marketing" />
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Select value={category} onChange={(event) => setCategory(event.target.value)}>
-                    {CATEGORIES.map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label>Image type</Label>
-                  <Select value={imageType} onChange={(event) => setImageType(event.target.value)}>
-                    {IMAGE_TYPES.map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label>Orientation</Label>
-                  <Select value={orientation} onChange={(event) => setOrientation(event.target.value)}>
-                    {ORIENTATIONS.map((item) => (
-                      <option key={item} value={item}>{item}</option>
-                    ))}
-                  </Select>
-                </div>
-              </div>
-
-              <Button type="button" onClick={() => void runSearch()} disabled={loading}>
+      <div className="space-y-4 border-b bg-muted/20 px-6 py-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label htmlFor="stock-search">Search</Label>
+            <div className="flex gap-2">
+              <Input
+                id="stock-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="e.g. social media marketing, team, product launch"
+                className="h-10"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void runSearch()
+                  }
+                }}
+              />
+              <Button type="button" className="h-10 shrink-0 px-5" onClick={() => void runSearch()} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
                 Search
               </Button>
-
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {results.map((hit) => (
-                  <button
-                    key={hit.id}
-                    type="button"
-                    onClick={() => handleSelect(hit)}
-                    className="overflow-hidden rounded-xl border text-left transition hover:border-primary"
-                  >
-                    <img src={hit.previewURL} alt={hit.tags} className="h-32 w-full object-cover" loading="lazy" />
-                    <div className="space-y-1 p-2">
-                      <p className="line-clamp-2 text-xs text-muted-foreground">{hit.tags}</p>
-                      <p className="text-[11px] text-muted-foreground">{hit.user || 'Pixabay'}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
+          <div className="grid w-full gap-3 sm:grid-cols-3 xl:w-auto xl:min-w-[420px]">
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={category} onChange={(event) => setCategory(event.target.value)}>
+                {CATEGORIES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Image type</Label>
+              <Select value={imageType} onChange={(event) => setImageType(event.target.value)}>
+                {IMAGE_TYPES.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Orientation</Label>
+              <Select value={orientation} onChange={(event) => setOrientation(event.target.value)}>
+                {ORIENTATIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
+
+      <div className="min-h-[320px] flex-1 overflow-y-auto px-6 py-5">
+        {loading ? (
+          <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            Searching Pixabay...
+          </div>
+        ) : results.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {results.map((hit) => (
+              <button
+                key={hit.id}
+                type="button"
+                onClick={() => handleSelect(hit)}
+                className={cn(
+                  'group overflow-hidden rounded-2xl border bg-background text-left shadow-sm transition-all duration-200',
+                  'hover:-translate-y-0.5 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                )}
+              >
+                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                  <img
+                    src={hit.previewURL}
+                    alt={hit.tags}
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <p className="text-xs font-medium text-white">Use this image</p>
+                  </div>
+                </div>
+                <div className="space-y-1 p-3">
+                  <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{hit.tags}</p>
+                  <p className="truncate text-[11px] font-medium text-foreground/70">{hit.user || 'Pixabay'}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-[280px] flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+            <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
+            <p>Search for a topic to browse stock images.</p>
+          </div>
+        )}
+      </div>
+
+      <DialogFooter className="border-t bg-muted/20 px-6 py-4">
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          Close
+        </Button>
+      </DialogFooter>
     </Dialog>
   )
 }
