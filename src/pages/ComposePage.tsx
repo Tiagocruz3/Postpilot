@@ -18,8 +18,9 @@ import {
 import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
 import { RemixPostModal } from '@/components/compose/RemixPostModal'
 import { StockImagePicker, type StockImageMeta } from '@/components/compose/StockImagePicker'
-import type { UserIntegration, Workspace } from '@/types'
+import type { Workspace } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
+import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { isDemoMode } from '@/lib/demo'
 import {
   buildVideoPrompt,
@@ -148,7 +149,7 @@ export function ComposePage() {
   const [showDraftRequired, setShowDraftRequired] = useState(false)
   const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
   const [showCompletedPost, setShowCompletedPost] = useState(false)
-  const [integrations, setIntegrations] = useState<UserIntegration[]>([])
+  const { isConnected } = useWorkspaceIntegrations(currentWorkspaceId)
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
@@ -219,56 +220,8 @@ export function ComposePage() {
     firstDraftCreated,
   ])
 
-  useEffect(() => {
-    if (isDemoMode) {
-      setIntegrations([])
-      return
-    }
-    if (!currentWorkspaceId) {
-      setIntegrations([])
-      return
-    }
-    let active = true
-    const loadIntegrations = async () => {
-      const { data } = await supabase
-        .from('user_integrations')
-        .select('*')
-        .eq('workspace_id', currentWorkspaceId)
-      if (active) {
-        setIntegrations((data as UserIntegration[]) ?? [])
-      }
-    }
-    void loadIntegrations()
-
-    const channel = supabase
-      .channel(`user_integrations_compose_${currentWorkspaceId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_integrations',
-          filter: `workspace_id=eq.${currentWorkspaceId}`,
-        },
-        () => {
-          void loadIntegrations()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      active = false
-      void supabase.removeChannel(channel)
-    }
-  }, [currentWorkspaceId])
-
-  const isPlatformConnected = (platform: ComposePlatform) => {
-    if (isDemoMode) return true
-    if (platform === 'facebook') {
-      return integrations.some((integration) => integration.provider === 'facebook' || integration.provider === 'meta')
-    }
-    return integrations.some((integration) => integration.provider === platform)
-  }
+  const isPlatformConnected = (platform: ComposePlatform) =>
+    platform === 'facebook' ? isConnected('meta_or_facebook') : isConnected(platform)
 
   useEffect(() => {
     const state = location.state as ComposeLocationState | null

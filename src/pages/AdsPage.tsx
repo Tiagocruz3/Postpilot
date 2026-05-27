@@ -1016,7 +1016,7 @@ export function AdsPage() {
   const [loadingGenerate, setLoadingGenerate] = useState(false)
   const [loadingLaunch, setLoadingLaunch] = useState(false)
   const [message, setMessage] = useState('')
-  const [integrations, setIntegrations] = useState<Array<{ provider: string; metadata: Record<string, unknown> | null }>>([])
+  const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
 
   const profileCompletion = useMemo(() => {
     const filled = PROFILE_KEYS.filter((k) => String(profile[k]).trim()).length
@@ -1035,7 +1035,7 @@ export function AdsPage() {
     metaIntegration?.metadata?.ad_account_id ||
       (Array.isArray(metaIntegration?.metadata?.ad_accounts) && metaIntegration?.metadata?.ad_accounts.length > 0),
   )
-  const metaConnected = Boolean(metaIntegration)
+  const metaConnected = Boolean(metaIntegration || facebookIntegration)
   const adsMedia = mediaItems.filter((m) => m.source === 'ads' || m.source === 'other')
 
   useEffect(() => {
@@ -1066,12 +1066,12 @@ export function AdsPage() {
     let active = true
     async function loadData() {
       const workspaceId = currentWorkspaceId
-      const [integrationRes, profileRes] = await Promise.all([
-        supabase.from('user_integrations').select('provider,metadata').eq('workspace_id', workspaceId),
-        supabase.from('meta_ads_onboarding').select('answers').eq('workspace_id', workspaceId).maybeSingle(),
-      ])
+      const profileRes = await supabase
+        .from('meta_ads_onboarding')
+        .select('answers')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
       if (!active) return
-      setIntegrations((integrationRes.data as Array<{ provider: string; metadata: Record<string, unknown> | null }>) ?? [])
       const answers = ((profileRes.data as { answers?: Record<string, unknown> } | null)?.answers ?? {}) as Record<
         string,
         unknown
@@ -1894,7 +1894,7 @@ export function AdsPage() {
   const [loadingGenerate, setLoadingGenerate] = useState(false)
   const [loadingLaunch, setLoadingLaunch] = useState(false)
   const [message, setMessage] = useState('')
-  const [integrations, setIntegrations] = useState<Array<{ provider: string; metadata: Record<string, unknown> | null }>>([])
+  const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
 
   const profileCompletion = useMemo(() => {
     const filled = PROFILE_KEYS.filter((key) => String(profile[key]).trim()).length
@@ -1915,7 +1915,7 @@ export function AdsPage() {
     metaIntegration?.metadata?.ad_account_id ||
       (Array.isArray(metaIntegration?.metadata?.ad_accounts) && metaIntegration?.metadata?.ad_accounts.length > 0),
   )
-  const metaConnected = Boolean(metaIntegration)
+  const metaConnected = Boolean(metaIntegration || facebookIntegration)
   const adsMedia = mediaItems.filter((item) => item.source === 'ads' || item.source === 'other')
 
   useEffect(() => {
@@ -1956,13 +1956,12 @@ export function AdsPage() {
 
     async function loadInitialData() {
       const workspaceId = currentWorkspaceId
-      const [integrationRes, profileRes] = await Promise.all([
-        supabase.from('user_integrations').select('provider,metadata').eq('workspace_id', workspaceId),
-        supabase.from('meta_ads_onboarding').select('answers').eq('workspace_id', workspaceId).maybeSingle(),
-      ])
+      const profileRes = await supabase
+        .from('meta_ads_onboarding')
+        .select('answers')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
       if (!active) return
-
-      setIntegrations((integrationRes.data as Array<{ provider: string; metadata: Record<string, unknown> | null }>) ?? [])
 
       const answers = ((profileRes.data as { answers?: Record<string, unknown> } | null)?.answers ?? {}) as Record<
         string,
@@ -2715,6 +2714,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   BarChart3,
+  Check,
   ImageIcon,
   Link,
   Megaphone,
@@ -2724,6 +2724,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
+import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { isDemoMode } from '@/lib/demo'
 import { Button } from '@/components/ui/button'
@@ -2925,7 +2926,7 @@ export function AdsPage() {
   const [message, setMessage] = useState('')
   const [loadingGenerate, setLoadingGenerate] = useState(false)
   const [loadingLaunch, setLoadingLaunch] = useState(false)
-  const [integrations, setIntegrations] = useState<Array<{ provider: string; metadata: Record<string, unknown> | null }>>([])
+  const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
 
   const profileCompletion = useMemo(() => {
     const filled = PROFILE_REQUIRED_KEYS.filter((key) => String(profile[key]).trim()).length
@@ -2946,7 +2947,7 @@ export function AdsPage() {
     metaIntegration?.metadata?.ad_account_id ||
       (Array.isArray(metaIntegration?.metadata?.ad_accounts) && metaIntegration?.metadata?.ad_accounts.length > 0),
   )
-  const metaConnected = Boolean(metaIntegration)
+  const metaConnected = Boolean(metaIntegration || facebookIntegration)
   const adsMedia = mediaItems.filter((item) => item.source === 'ads' || item.source === 'other')
 
   useEffect(() => {
@@ -2979,13 +2980,13 @@ export function AdsPage() {
       if (isDemoMode) return
       const workspaceId = currentWorkspaceId
       if (!workspaceId) return
-      const [integrationsRes, profileRes] = await Promise.all([
-        supabase.from('user_integrations').select('provider,metadata').eq('workspace_id', workspaceId),
-        supabase.from('meta_ads_onboarding').select('answers').eq('workspace_id', workspaceId).maybeSingle(),
-      ])
+      const profileRes = await supabase
+        .from('meta_ads_onboarding')
+        .select('answers')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle()
 
       if (!active) return
-      setIntegrations((integrationsRes.data as Array<{ provider: string; metadata: Record<string, unknown> | null }>) ?? [])
       const answers = ((profileRes.data as { answers?: Record<string, unknown> } | null)?.answers ?? {}) as Record<
         string,
         unknown
@@ -3308,10 +3309,17 @@ export function AdsPage() {
             <PencilLine className="mr-2 h-4 w-4" />
             Edit AI Profile
           </Button>
-          <Button variant={metaConnected ? 'secondary' : 'outline'} onClick={connectMeta}>
-            <Link className="mr-2 h-4 w-4" />
-            {metaConnected ? 'Meta Connected' : 'Connect Meta'}
-          </Button>
+          {metaConnected ? (
+            <Button variant="outline" disabled className="cursor-default opacity-90">
+              <Check className="mr-2 h-4 w-4 text-emerald-500" />
+              Meta connected
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={connectMeta}>
+              <Link className="mr-2 h-4 w-4" />
+              Connect Meta
+            </Button>
+          )}
         </div>
       </div>
 
