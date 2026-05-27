@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 
 const Dialog = ({
   open,
+  forceMount,
   onOpenChange,
   children,
   panelClassName,
@@ -11,22 +12,29 @@ const Dialog = ({
   overlayClassName,
 }: {
   open?: boolean
+  forceMount?: boolean
   onOpenChange?: (v: boolean) => void
   children: React.ReactNode
   panelClassName?: string
   panelStyle?: React.CSSProperties
   overlayClassName?: string
 }) => {
-  if (!open) return null
+  if (!open && !forceMount) return null
 
   return createPortal(
     <div
-      className={cn('fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-2 sm:p-3', overlayClassName)}
+      className={cn(
+        'fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-2 sm:p-3 transition-opacity duration-200',
+        !open && 'pointer-events-none opacity-0',
+        overlayClassName,
+      )}
       onClick={() => onOpenChange?.(false)}
+      aria-hidden={!open}
     >
       <div
         className={cn(
-          'relative z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-2xl border bg-card shadow-lg',
+          'relative z-50 flex max-h-[92vh] flex-col overflow-hidden rounded-2xl border bg-card shadow-lg transition-opacity duration-200',
+          !open && 'scale-[0.98] opacity-0',
           panelClassName ?? 'w-full max-w-lg p-6',
         )}
         style={panelStyle}

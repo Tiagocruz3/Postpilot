@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, ImageIcon, Loader2, Send } from 'lucide-react'
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -61,6 +62,25 @@ export function ComposeFlowProgressModal({
   publishing,
   mediaSourceLabel,
 }: ComposeFlowProgressModalProps) {
+  const [mounted, setMounted] = useState(open)
+  const hasEnteredRef = useRef(false)
+  const visualInProgress = imageLoading || videoLoading
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      return
+    }
+    const unmountTimer = window.setTimeout(() => setMounted(false), 220)
+    return () => window.clearTimeout(unmountTimer)
+  }, [open])
+
+  useEffect(() => {
+    if (open) {
+      hasEnteredRef.current = true
+    }
+  }, [open])
+
   const stepStatus = (step: ComposeFlowStep): 'done' | 'active' | 'waiting' => {
     if (step === 'draft') {
       if (copyLoading) return 'active'
@@ -85,6 +105,8 @@ export function ComposeFlowProgressModal({
     if (status === 'active') {
       if (step === 'draft' && copyAction === 'polish') return 'Polishing your caption…'
       if (step === 'draft') return 'Writing your caption…'
+      if (step === 'visual' && imageLoading) return 'Designing your image…'
+      if (step === 'visual' && videoLoading) return 'Rendering your video…'
       return meta.active
     }
     if (status === 'done') {
@@ -96,32 +118,47 @@ export function ComposeFlowProgressModal({
     return meta.waiting
   }
 
+  if (!mounted) {
+    return null
+  }
+
   return (
-    <Dialog open={open} panelClassName="w-full max-w-lg p-0" overlayClassName="bg-black/60 backdrop-blur-[2px]">
-      <div className="alive-enter overflow-hidden">
+    <Dialog
+      open={open}
+      forceMount
+      panelClassName="w-full max-w-lg p-0"
+      overlayClassName="bg-black/60 backdrop-blur-[2px]"
+    >
+      <div className={cn('overflow-hidden', !hasEnteredRef.current && 'compose-flow-modal')}>
         <div className="alive-shimmer h-1 w-full" />
         <DialogHeader className="border-b px-6 py-5 text-left">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <span className="alive-status-dot" />
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            {label}
+          <DialogTitle className="flex min-h-7 items-center gap-2 text-lg">
+            <span className="alive-status-dot shrink-0" />
+            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+            <span className="min-w-0 truncate transition-opacity duration-200">{label}</span>
           </DialogTitle>
           <DialogDescription>Post Intelligence is working through your compose flow.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 px-6 py-5">
-          {STEPS.map((step, index) => {
+          {STEPS.map((step) => {
             const status = stepStatus(step.id)
             const isActive = activeStep === step.id || status === 'active'
             return (
               <div
                 key={step.id}
                 className={cn(
-                  'alive-enter rounded-2xl border px-4 py-3 transition-all',
+                  'rounded-2xl border px-4 py-3 transition-[background-color,border-color,box-shadow] duration-300 ease-out',
                   isActive ? 'alive-ring border-primary/30 bg-primary/5' : 'bg-muted/30',
-                  status === 'done' && !isActive && 'border-emerald-500/20 bg-emerald-500/5',
+                  status === 'done' &&
+                    !isActive &&
+                    !visualInProgress &&
+                    'border-emerald-500/20 bg-emerald-500/5',
+                  status === 'done' &&
+                    !isActive &&
+                    visualInProgress &&
+                    'border-border/70 bg-muted/25',
                 )}
-                style={{ animationDelay: `${index * 60}ms` }}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-medium">{step.title}</span>

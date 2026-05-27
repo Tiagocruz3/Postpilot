@@ -637,7 +637,7 @@ export function ComposePage() {
         if (!firstDraftCreated) {
           setFirstDraftCreated(true)
         }
-        requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
+        autoRunSelectedMediaForDraft(nextContent)
         return
       }
 
@@ -653,13 +653,15 @@ export function ComposePage() {
         if (!firstDraftCreated) {
           setFirstDraftCreated(true)
         }
-        requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
+        autoRunSelectedMediaForDraft(nextContent)
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not draft post copy.')
     } finally {
-      setCopyLoading(false)
       setCopyAction(null)
+      if (mediaSource !== 'ai-image' && mediaSource !== 'ai-video') {
+        setCopyLoading(false)
+      }
     }
   }
 
@@ -698,10 +700,12 @@ export function ComposePage() {
   const generateImage = async (regenerate: boolean, contentOverride?: string) => {
     const baseContent = sanitizeComposeCopy(contentOverride ?? content)
     if (!baseContent.trim() && !imageHint.trim()) {
+      setCopyLoading(false)
       setMessage('Add post text or an image direction before generating.')
       return
     }
 
+    setCopyLoading(false)
     setImageLoading(true)
     setMessage(regenerate ? 'Regenerating image...' : 'Generating image...')
     try {
@@ -777,10 +781,12 @@ export function ComposePage() {
   const generateVideo = async (regenerate: boolean, contentOverride?: string) => {
     const baseContent = sanitizeComposeCopy(contentOverride ?? content)
     if (!baseContent.trim() && !videoHint.trim()) {
+      setCopyLoading(false)
       setMessage('Add post text or a video direction before generating.')
       return
     }
 
+    setCopyLoading(false)
     setVideoLoading(true)
     setMessage(regenerate ? 'Regenerating video (this can take a minute)...' : 'Generating video (this can take a minute)...')
     try {
@@ -889,6 +895,17 @@ export function ComposePage() {
   const hasVisual = media.length > 0
   const draftReady = firstDraftCreated || Boolean(content.trim())
   const isGenerating = copyLoading || imageLoading || videoLoading || loading
+  const [flowModalOpen, setFlowModalOpen] = useState(false)
+
+  useEffect(() => {
+    if (isGenerating) {
+      setFlowModalOpen(true)
+      return
+    }
+    const closeTimer = window.setTimeout(() => setFlowModalOpen(false), 150)
+    return () => window.clearTimeout(closeTimer)
+  }, [isGenerating])
+
   const visibleMessage = isGenerating ? '' : message
   const generationLabel = copyLoading
     ? copyAction === 'polish'
@@ -1430,7 +1447,7 @@ export function ComposePage() {
       </div>
 
       <ComposeFlowProgressModal
-        open={isGenerating}
+        open={flowModalOpen}
         activeStep={activeFlowStep}
         label={generationLabel}
         draftReady={draftReady}
@@ -1455,7 +1472,7 @@ export function ComposePage() {
           setContent(nextContent)
           setImageHint(visualIdea)
           setMessage('Research caption applied.')
-          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
+          autoRunSelectedMediaForDraft(nextContent)
         }}
         onGenerateVisual={(visualIdea) => {
           setImageHint(visualIdea)
@@ -1465,7 +1482,7 @@ export function ComposePage() {
           const nextContent = sanitizeComposeCopy(caption)
           setContent(nextContent)
           setMessage(`Caption applied. Pick a date below. Suggested: ${suggestedTime}`)
-          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
+          autoRunSelectedMediaForDraft(nextContent)
         }}
       />
 
@@ -1482,7 +1499,7 @@ export function ComposePage() {
           setContent(nextContent)
           setImageHint(visualIdea)
           setMessage(`Brand-safe version ready. Schedule hint: ${scheduleHint}`)
-          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
+          autoRunSelectedMediaForDraft(nextContent)
         }}
         onGenerateVisual={(visualIdea) => {
           setImageHint(visualIdea)
@@ -1493,7 +1510,7 @@ export function ComposePage() {
           setContent(nextContent)
           setImageHint(visualIdea)
           setMessage(`Schedule inspired post. Suggested timing: ${scheduleHint}. Set date/time below, then Schedule Post.`)
-          requestAnimationFrame(() => autoRunSelectedMediaForDraft(nextContent))
+          autoRunSelectedMediaForDraft(nextContent)
         }}
       />
 

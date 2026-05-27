@@ -73,6 +73,14 @@
     animation: alive-fade-up 220ms ease-out;
   }
 
+  .compose-flow-modal {
+    animation: alive-fade-up 220ms ease-out;
+  }
+
+  .compose-flow-modal .rounded-2xl.border {
+    animation: none;
+  }
+
   .alive-soft-pulse {
     animation: alive-pulse-soft 1.6s ease-in-out infinite;
   }
@@ -106,6 +114,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .alive-enter,
+    .compose-flow-modal,
     .alive-soft-pulse,
     .alive-shimmer,
     .alive-status-dot {
