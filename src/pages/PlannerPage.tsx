@@ -30,17 +30,31 @@ interface OutletContext {
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
-const ROW_HEIGHT_PX = 80
+const ROW_HEIGHT_PX = 52
 const GRID_START_HOUR = HOURS[0]
 const GRID_END_HOUR = HOURS[HOURS.length - 1] + 1
 const GRID_HEIGHT_PX = HOURS.length * ROW_HEIGHT_PX
 const PLATFORM_COLORS: Record<string, string> = {
   facebook: '#1877F2',
+  instagram: '#E1306C',
   linkedin: '#0A66C2',
-  x: '#000000',
+  x: '#0F1419',
   meta_ads: '#F02849',
   google: '#EA4335',
 }
+const PLATFORM_LABELS: Record<string, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
+  x: 'X',
+  meta_ads: 'Meta Ads',
+  google: 'Google',
+}
+const KIND_BADGES: Array<{ id: 'post' | 'ad' | 'event'; label: string; symbol: string; className: string }> = [
+  { id: 'post', label: 'Post', symbol: '●', className: 'text-foreground' },
+  { id: 'ad', label: 'Ad', symbol: '▲', className: 'text-foreground' },
+  { id: 'event', label: 'Event', symbol: '◆', className: 'text-foreground' },
+]
 
 export function PlannerPage() {
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
@@ -174,15 +188,44 @@ export function PlannerPage() {
               {plannerMessage}
             </div>
           ) : null}
+
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium uppercase tracking-wide text-foreground">Legend</span>
+            <div className="flex flex-wrap items-center gap-3">
+              {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
+                <span key={key} className="inline-flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: PLATFORM_COLORS[key] }}
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
+            <span className="hidden h-4 w-px bg-border sm:block" />
+            <div className="flex flex-wrap items-center gap-3">
+              {KIND_BADGES.map((badge) => (
+                <span key={badge.id} className="inline-flex items-center gap-1.5">
+                  <span className={cn('text-[14px] leading-none', badge.className)}>{badge.symbol}</span>
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading planner…</div>
           ) : (
             <div className="h-full overflow-auto">
-              <div className="flex min-w-[980px] rounded-3xl border bg-card">
-                <div className="w-20 shrink-0 border-r bg-muted/30">
-                  <div className="h-14 border-b" />
+              <div className="flex min-w-[860px] rounded-2xl border bg-card">
+                <div className="w-14 shrink-0 border-r bg-muted/30">
+                  <div className="h-11 border-b" />
                   {HOURS.map((hour) => (
-                    <div key={hour} className="flex h-20 items-start justify-end border-b pr-3 pt-1 text-right text-xs text-muted-foreground">
+                    <div
+                      key={hour}
+                      className="flex items-start justify-end border-b pr-2 pt-1 text-right text-[10px] text-muted-foreground"
+                      style={{ height: ROW_HEIGHT_PX }}
+                    >
                       <span>{format(setHours(new Date(), hour), 'ha')}</span>
                     </div>
                   ))}
@@ -193,19 +236,20 @@ export function PlannerPage() {
                     <div key={day.toISOString()} className={cn('border-r', isSameDay(day, today) && 'bg-primary/5')}>
                       <div
                         className={cn(
-                          'h-14 border-b px-3 py-2 text-center',
+                          'h-11 border-b px-2 py-1.5 text-center',
                           isSameDay(day, today) && 'text-primary'
                         )}
                       >
-                        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{format(day, 'EEE')}</div>
-                        <div className="mt-1 text-lg font-semibold">{format(day, 'd')}</div>
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{format(day, 'EEE')}</div>
+                        <div className="text-sm font-semibold leading-tight">{format(day, 'd')}</div>
                       </div>
                       <div className="relative">
                         {HOURS.map((hour) => (
                           <button
                             key={hour}
                             type="button"
-                            className="h-20 w-full border-b border-dashed border-border/60 hover:bg-accent/40"
+                            className="w-full border-b border-dashed border-border/60 hover:bg-accent/40"
+                            style={{ height: ROW_HEIGHT_PX }}
                             onClick={() => openNewTask(day, hour)}
                           />
                         ))}
@@ -228,15 +272,17 @@ export function PlannerPage() {
                             }
 
                             const top = ((boundedStart - gridStartMinutes) / 60) * ROW_HEIGHT_PX
-                            const height = Math.max((visibleMinutes / 60) * ROW_HEIGHT_PX, 34)
-                            const safeTop = Math.max(0, Math.min(top, GRID_HEIGHT_PX - 34))
-                            const safeHeight = Math.max(34, Math.min(height, GRID_HEIGHT_PX - safeTop))
+                            const minHeight = 26
+                            const height = Math.max((visibleMinutes / 60) * ROW_HEIGHT_PX, minHeight)
+                            const safeTop = Math.max(0, Math.min(top, GRID_HEIGHT_PX - minHeight))
+                            const safeHeight = Math.max(minHeight, Math.min(height, GRID_HEIGHT_PX - safeTop))
+                            const kindBadge = KIND_BADGES.find((entry) => entry.id === event.kind)
 
                             return (
                               <button
                                 key={event.id}
                                 type="button"
-                                className="absolute left-1.5 right-1.5 overflow-hidden rounded-xl px-2.5 py-1.5 text-left text-xs text-white shadow-sm transition hover:brightness-95"
+                                className="absolute left-1 right-1 overflow-hidden rounded-lg px-1.5 py-1 text-left text-[11px] leading-tight text-white shadow-sm transition hover:brightness-95"
                                 style={{ top: safeTop, height: safeHeight, backgroundColor: event.color }}
                                 onClick={() => {
                                   const task = tasks.find((item) => item.id === event.id)
@@ -249,9 +295,11 @@ export function PlannerPage() {
                                   }
                                 }}
                               >
-                                <div className="truncate font-semibold">{event.title}</div>
+                                <div className="flex items-center gap-1 truncate font-semibold">
+                                  {kindBadge ? <span aria-hidden>{kindBadge.symbol}</span> : null}
+                                  <span className="truncate">{event.title}</span>
+                                </div>
                                 <div className="mt-0.5 flex items-center gap-1.5 truncate opacity-90">
-                                  {event.platform ? <span className="capitalize">{event.platform.replace('_', ' ')}</span> : null}
                                   <span>{format(event.start, 'h:mm a')}</span>
                                 </div>
                               </button>
