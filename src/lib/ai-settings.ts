@@ -27,7 +27,7 @@ export const AI_SETTINGS_STORAGE_KEY = 'postpilot.ai-settings'
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   contentProvider: 'openrouter',
   openRouterContentModel: '',
-  openRouterImageModel: 'google/gemini-3.1-flash-image-preview',
+  openRouterImageModel: 'google/gemini-2.5-flash-image-preview',
   falVideoModel: 'fal-ai/kling-video/v2.1/master/text-to-video',
   lmStudioBaseUrl: 'http://127.0.0.1:1234/v1',
   lmStudioContentModel: '',

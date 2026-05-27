@@ -55,7 +55,7 @@ export function getOpenRouterImageModel(workspaceSettings?: WorkspaceAiSettings 
   return (
     workspaceSettings?.openrouter_image_model?.trim() ||
     Deno.env.get('OPENROUTER_IMAGE_MODEL')?.trim() ||
-    'google/gemini-3.1-flash-image-preview'
+    'google/gemini-2.5-flash-image-preview'
   )
 }
 

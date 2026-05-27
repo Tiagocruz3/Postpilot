@@ -182,10 +182,29 @@ serve(async (req) => {
     const sourceUrl = extractImageUrl(aiData)
     if (!sourceUrl) {
       const model = getOpenRouterImageModel(workspaceSettings)
-      return new Response(JSON.stringify({ error: `No image URL returned from model "${model}". Try another image model in Settings.` }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      const choice = (
+        aiData as { choices?: Array<{ message?: { content?: unknown }; finish_reason?: string }> }
+      ).choices?.[0]
+      const refusal =
+        typeof choice?.message?.content === 'string' && choice.message.content.trim()
+          ? choice.message.content.trim()
+          : null
+      const finishReason = choice?.finish_reason || null
+      const hint = refusal
+        ? `Model "${model}" replied without an image (${finishReason ?? 'no finish reason'}): ${refusal.slice(0, 240)}`
+        : `Model "${model}" returned no image. It may not support image generation on OpenRouter — pick a different image model in Settings (e.g. google/gemini-2.5-flash-image-preview).`
+      return new Response(
+        JSON.stringify({
+          error: hint,
+          model,
+          finish_reason: finishReason,
+          raw_preview: JSON.stringify(aiData).slice(0, 1200),
+        }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     let url = sourceUrl
