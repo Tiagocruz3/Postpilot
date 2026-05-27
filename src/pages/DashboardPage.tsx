@@ -256,11 +256,7 @@ export function DashboardPage() {
                         {task.platform?.replace('_', ' ') || (task.kind === 'ad' ? 'Meta Ads' : '—')}
                       </td>
                       <td className="py-3.5 pr-4 text-muted-foreground">
-                        {formatScheduledLabel(
-                          task.scheduled_at,
-                          userPreferences.locale,
-                          userPreferences.timeZone,
-                        )}
+                        {formatScheduledLabel(task.scheduled_at)}
                       </td>
                       <td className="py-3.5">
                         <Badge variant={statusVariant(task.status)} className="capitalize">

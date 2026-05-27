@@ -53,7 +53,7 @@ export function useDashboardData(workspaceId: string | null | undefined) {
       },
       metrics,
       activity: buildActivityFeed(tasks, posts),
-      suggestions: buildAiSuggestions(tasks, posts, metrics),
+      suggestions: buildAiSuggestions(tasks, posts),
       upcomingScheduled,
       topPosts: buildTopPosts(posts),
       ads: buildAdsSnapshot(tasks),

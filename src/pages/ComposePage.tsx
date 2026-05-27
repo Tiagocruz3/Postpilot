@@ -5,14 +5,12 @@ import {
   Check,
   CheckCircle2,
   Eye,
-  Image as ImageIcon,
   Loader2,
   Link,
   RefreshCw,
   RotateCcw,
   Send,
   Sparkles,
-  Video,
 } from 'lucide-react'
 import { ComposeAiWriteSection } from '@/components/compose/ComposeAiWriteSection'
 import { ComposeFlowProgressModal } from '@/components/compose/ComposeFlowProgressModal'
@@ -32,7 +30,6 @@ import {
   type ComposePlatform,
 } from '@/lib/compose-copy'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

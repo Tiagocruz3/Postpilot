@@ -86,7 +86,7 @@ export function engagementRateForPost(post: PublishedPost): number {
   return Math.min(100, (interactions / reach) * 100)
 }
 
-export function formatScheduledLabel(iso: string, locale: string, timeZone: string): string {
+export function formatScheduledLabel(iso: string): string {
   const date = parseISO(iso)
   const time = format(date, 'h:mm a')
   if (isToday(date)) return `Today ${time}`
@@ -156,11 +156,7 @@ export function buildActivityFeed(tasks: PlannerTask[], posts: PublishedPost[]):
   return items.slice(0, 4)
 }
 
-export function buildAiSuggestions(
-  tasks: PlannerTask[],
-  posts: PublishedPost[],
-  metrics: DashboardMetrics,
-): DashboardSuggestion[] {
+export function buildAiSuggestions(tasks: PlannerTask[], posts: PublishedPost[]): DashboardSuggestion[] {
   const suggestions: DashboardSuggestion[] = []
 
   const upcoming = tasks
