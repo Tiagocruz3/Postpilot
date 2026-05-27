@@ -2,8 +2,15 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { appRedirect, decodeOAuthState, getAdminClient, getUserIdFromState, oauthCallbackUri } from '../_shared/oauth.ts'
 
 function redirectWithOAuthError(message: string) {
-  const location = `${appRedirect('/settings')}?oauth_error=${encodeURIComponent(message)}`
-  return new Response(null, { status: 302, headers: { Location: location } })
+  try {
+    const location = `${appRedirect('/settings')}?oauth_error=${encodeURIComponent(message)}`
+    return new Response(null, { status: 302, headers: { Location: location } })
+  } catch (_err) {
+    return new Response(`Facebook OAuth error: ${message}`, {
+      status: 400,
+      headers: { 'Content-Type': 'text/plain' },
+    })
+  }
 }
 
 function tokenExpiresAt(expiresIn: unknown) {
@@ -15,7 +22,18 @@ serve(async (req) => {
   try {
     const url = new URL(req.url)
     const code = url.searchParams.get('code')
-    const state = decodeOAuthState(url.searchParams.get('state'))
+    const oauthError = url.searchParams.get('error')
+    const oauthErrorDescription = url.searchParams.get('error_description')
+    if (oauthError) {
+      return redirectWithOAuthError(oauthErrorDescription || oauthError)
+    }
+
+    let state: Record<string, unknown>
+    try {
+      state = decodeOAuthState(url.searchParams.get('state'))
+    } catch (_err) {
+      return redirectWithOAuthError('Could not decode OAuth state. Start the connect flow again.')
+    }
     const workspaceId = state.workspace_id as string | undefined
     const userId = getUserIdFromState(state)
     const redirectUri = oauthCallbackUri(req, 'facebook-oauth-callback')
@@ -77,7 +95,7 @@ serve(async (req) => {
 
     if (error) {
       console.error('facebook-oauth-callback db error:', error)
-      return redirectWithOAuthError('Could not save Facebook connection.')
+      return redirectWithOAuthError(`Could not save Facebook connection: ${error.message ?? 'database error'}`)
     }
 
     return new Response(null, {
