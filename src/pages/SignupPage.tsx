@@ -45,7 +45,7 @@ export function SignupPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>Get started with PostPilot</CardDescription>
+          <CardDescription>Get started with Ad Guru</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>

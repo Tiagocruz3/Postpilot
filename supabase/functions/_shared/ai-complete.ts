@@ -84,8 +84,8 @@ export async function completeChat(options: {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': Deno.env.get('APP_URL') || 'https://postpilot.app',
-        'X-Title': 'PostPilot',
+        'HTTP-Referer': Deno.env.get('APP_URL') || 'https://adguru.app',
+        'X-Title': 'Ad Guru',
       },
       body: JSON.stringify(body),
     })

@@ -604,7 +604,7 @@ export function SettingsPage() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="profile-email">Email</Label>
-                  <Input id="profile-email" value={user?.email ?? 'demo@postpilot.app'} disabled />
+                  <Input id="profile-email" value={user?.email ?? 'demo@adguru.app'} disabled />
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -640,7 +640,7 @@ export function SettingsPage() {
                   </Avatar>
                   <div>
                     <p className="text-sm font-medium text-foreground">{displayName}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email ?? 'demo@postpilot.app'}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email ?? 'demo@adguru.app'}</p>
                   </div>
                 </div>
               </CardContent>

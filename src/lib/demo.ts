@@ -5,7 +5,7 @@ export const isDemoMode = import.meta.env.VITE_ENABLE_DEMO === 'true'
 
 export const demoUser = {
   id: 'demo-user-id',
-  email: 'demo@postpilot.app',
+  email: 'demo@adguru.app',
 } as User
 
 export const demoProfile: Profile = {

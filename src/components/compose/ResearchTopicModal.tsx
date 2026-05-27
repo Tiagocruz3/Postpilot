@@ -33,7 +33,7 @@ const DEMO_REPORT: ResearchReport = {
   hashtags: ['RealEstate', 'PropTech', 'AIForAgents'],
   visual_idea: 'Split-screen: stressed agent at laptop vs calm agent reviewing leads on phone.',
   suggested_posting_time: 'Tuesday or Thursday, 9:00–11:00 AM local time',
-  sources: [{ title: 'Demo trend research', url: 'https://postpilot.app' }],
+  sources: [{ title: 'Demo trend research', url: 'https://adguru.app' }],
 }
 
 interface ResearchTopicModalProps {

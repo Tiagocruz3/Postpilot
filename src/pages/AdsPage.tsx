@@ -601,7 +601,7 @@ export function AdsPage() {
               <Card className="border-primary/40 bg-primary/5">
                 <CardHeader>
                   <CardTitle>Your Ads Studio AI Profile is ready</CardTitle>
-                  <CardDescription>Post Pilot can now generate smarter Meta campaigns using your business, audience, offer, and creative style.</CardDescription>
+                  <CardDescription>Ad Guru can now generate smarter Meta campaigns using your business, audience, offer, and creative style.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm font-medium">Ads Studio Profile: {completion}% Complete</p>

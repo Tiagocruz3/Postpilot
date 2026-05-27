@@ -91,7 +91,7 @@ export function Layout() {
           <div className="mb-5 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             Workspace bootstrap
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Create your first PostPilot workspace</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Create your first Ad Guru workspace</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             Workspaces keep collaborators, social connections, ad accounts, planner tasks, and calendar sync isolated per team.
           </p>
@@ -132,7 +132,7 @@ export function Layout() {
         <div className="flex items-center justify-between px-4 py-5">
           <div className="flex min-w-0 items-center gap-3 overflow-hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-lg font-bold text-primary-foreground shadow-sm">
-              P
+              A
             </div>
             <div
               className={cn(
@@ -141,7 +141,7 @@ export function Layout() {
               )}
             >
               <div>
-                <span className="block text-lg font-bold tracking-tight text-navy-900">PostPilot</span>
+                <span className="block text-lg font-bold tracking-tight text-navy-900">Ad Guru</span>
                 <span className="text-xs text-muted-foreground">Social + ads scheduler</span>
               </div>
             </div>
@@ -306,7 +306,7 @@ export function Layout() {
                 </Avatar>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{displayName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'demo@postpilot.app'}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'demo@adguru.app'}</p>
                   {currentWorkspace ? (
                     <p className="truncate text-xs text-muted-foreground">{currentWorkspace.name}</p>
                   ) : null}

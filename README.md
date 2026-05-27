@@ -1,4 +1,4 @@
-# PostPilot
+# Ad Guru
 
 A social media + ads scheduling app built with React, Vite, TypeScript, Tailwind CSS, shadcn/ui, and Supabase.
 

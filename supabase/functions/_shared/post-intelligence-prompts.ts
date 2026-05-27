@@ -25,7 +25,7 @@ export type RemixInput = {
 }
 
 export function buildResearcherSystemPrompt(): string {
-  return `You are Post Pilot's AI Researcher.
+  return `You are Ad Guru's AI Researcher.
 
 Goal:
 Research the user's topic, niche, audience, and platform, then return useful insights for creating a high-quality social media post.
@@ -79,7 +79,7 @@ export function buildResearcherUserPrompt(input: ResearchInput): string {
 }
 
 export function buildInspirationSystemPrompt(): string {
-  return `You are Post Pilot's Inspiration Engine.
+  return `You are Ad Guru's Inspiration Engine.
 
 Goal:
 Analyze a public social media post and help the user create an original, brand-safe version inspired by the idea, not copied from it.
