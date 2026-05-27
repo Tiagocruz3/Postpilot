@@ -1,7 +1,8 @@
-export type ComposePlatform = 'facebook' | 'linkedin' | 'x'
+export type ComposePlatform = 'facebook' | 'instagram' | 'linkedin' | 'x'
 
 const PLATFORM_LIMITS: Record<ComposePlatform, number> = {
   facebook: 63206,
+  instagram: 2200,
   linkedin: 3000,
   x: 280,
 }
@@ -9,6 +10,8 @@ const PLATFORM_LIMITS: Record<ComposePlatform, number> = {
 const PLATFORM_GUIDE: Record<ComposePlatform, string> = {
   facebook:
     'Write for a Facebook Page feed post: approachable, clear, and engaging. Line breaks are fine when they help readability.',
+  instagram:
+    'Write for Instagram: concise caption with a strong hook in the first line. Conversational, visual-friendly, and authentic.',
   linkedin:
     'Write for LinkedIn: professional, credible, and human. Short paragraphs work well. Lead with insight, not hype.',
   x: 'Write for X (Twitter): one post only, maximum 280 characters. Direct, specific, and easy to scan.',

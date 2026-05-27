@@ -12,6 +12,7 @@ serve(async (req) => {
 
   const state = encodeOAuthState({ workspace_id: workspaceId, user_id: userId, provider: 'linkedin' })
   const redirectUri = oauthCallbackUri(req, 'linkedin-oauth-callback')
-  const linkedinUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${Deno.env.get('LINKEDIN_CLIENT_ID')}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=w_member_social%20r_liteprofile&state=${state}`
+  const scope = encodeURIComponent('w_member_social w_organization_social r_liteprofile r_organization_admin')
+  const linkedinUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${Deno.env.get('LINKEDIN_CLIENT_ID')}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&state=${state}`
   return new Response(null, { status: 302, headers: { Location: linkedinUrl } })
 })

@@ -231,6 +231,7 @@ export function InspirationPage() {
 
 function mapToComposePlatform(platform: InspirationPost['platform']): ComposePlatform {
   if (platform === 'facebook') return 'facebook'
+  if (platform === 'instagram') return 'instagram'
   if (platform === 'x') return 'x'
   return 'linkedin'
 }

@@ -1,13 +1,15 @@
-export type ComposePlatform = 'facebook' | 'linkedin' | 'x'
+export type ComposePlatform = 'facebook' | 'instagram' | 'linkedin' | 'x'
 
 export const COMPOSE_PLATFORM_LABELS: Record<ComposePlatform, string> = {
   facebook: 'Facebook',
+  instagram: 'Instagram',
   linkedin: 'LinkedIn',
   x: 'X',
 }
 
 export const COMPOSE_CHAR_LIMITS: Record<ComposePlatform, number> = {
   facebook: 63206,
+  instagram: 2200,
   linkedin: 3000,
   x: 280,
 }

@@ -20,11 +20,27 @@ serve(async (req) => {
 
   if (!integration) return new Response('No LinkedIn integration', { status: 400 })
 
-  const token = integration.access_token_encrypted
-  const personUrn = integration.metadata?.linkedin_id
+  const meta = (integration.metadata ?? {}) as {
+    linkedin_id?: string
+    selected_profile_id?: string
+    profiles?: Array<{ id?: string; author_urn?: string; type?: string; name?: string }>
+  }
+  const selectedProfileId = meta.selected_profile_id || meta.linkedin_id
+  const profileEntry = Array.isArray(meta.profiles)
+    ? meta.profiles.find((entry) => entry?.id && entry.id === selectedProfileId)
+    : undefined
+  const author =
+    profileEntry?.author_urn ||
+    (meta.linkedin_id ? `urn:li:person:${meta.linkedin_id}` : null)
 
-  const payload: any = {
-    author: `urn:li:person:${personUrn}`,
+  if (!author) {
+    return new Response('LinkedIn integration is missing profile information. Reconnect LinkedIn in Settings.', {
+      status: 400,
+    })
+  }
+
+  const payload: Record<string, unknown> = {
+    author,
     lifecycleState: 'PUBLISHED',
     specificContent: {
       'com.linkedin.ugc.ShareContent': {
@@ -37,7 +53,7 @@ serve(async (req) => {
 
   const res = await fetch('https://api.linkedin.com/v2/ugcPosts', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0' },
+    headers: { Authorization: `Bearer ${integration.access_token_encrypted}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0' },
     body: JSON.stringify(payload),
   })
 

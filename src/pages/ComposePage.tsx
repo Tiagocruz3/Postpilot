@@ -38,7 +38,6 @@ import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } fr
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { Database } from '@/types/database'
 
@@ -52,7 +51,7 @@ type MediaItem = { url: string; type: 'image' | 'video'; source: MediaSourceType
 type PlannerTaskInsert = Database['public']['Tables']['planner_tasks']['Insert']
 type ScheduledPostInsert = Database['public']['Tables']['scheduled_posts']['Insert']
 
-const PLATFORMS: ComposePlatform[] = ['facebook', 'linkedin', 'x']
+const PLATFORMS: ComposePlatform[] = ['facebook', 'instagram', 'linkedin', 'x']
 
 type ComposeLocationState = {
   libraryUrl?: string
@@ -153,11 +152,13 @@ export function ComposePage() {
   const [showCompletedPost, setShowCompletedPost] = useState(false)
   const { integrations, isConnected, refresh: refreshIntegrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
-  const [updatingPage, setUpdatingPage] = useState(false)
+  const [updatingTarget, setUpdatingTarget] = useState(false)
 
   const facebookIntegration = integrations.find(
     (row) => row.provider === 'facebook' || row.provider === 'meta',
   )
+  const linkedinIntegration = integrations.find((row) => row.provider === 'linkedin')
+
   const facebookPages = (() => {
     const raw = facebookIntegration?.metadata?.pages
     if (!Array.isArray(raw)) return []
@@ -171,36 +172,126 @@ export function ComposePage() {
       })
       .filter((entry): entry is { id: string; name: string } => Boolean(entry))
   })()
+
+  const instagramAccounts = (() => {
+    const raw = facebookIntegration?.metadata?.instagram_accounts
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null
+        const record = entry as Record<string, unknown>
+        const id = typeof record.id === 'string' ? record.id : null
+        const username = typeof record.username === 'string' ? record.username : id
+        const name = typeof record.name === 'string' ? record.name : username
+        return id ? { id, username: username || id, name: name || username || id } : null
+      })
+      .filter((entry): entry is { id: string; username: string; name: string } => Boolean(entry))
+  })()
+
+  const linkedinProfiles = (() => {
+    const raw = linkedinIntegration?.metadata?.profiles
+    if (Array.isArray(raw) && raw.length > 0) {
+      return raw
+        .map((entry) => {
+          if (!entry || typeof entry !== 'object') return null
+          const record = entry as Record<string, unknown>
+          const id = typeof record.id === 'string' ? record.id : null
+          const name = typeof record.name === 'string' ? record.name : id
+          const type = record.type === 'organization' ? 'organization' : 'person'
+          return id ? { id, name: name || id, type } : null
+        })
+        .filter((entry): entry is { id: string; name: string; type: 'person' | 'organization' } => Boolean(entry))
+    }
+    const linkedinId = linkedinIntegration?.metadata?.linkedin_id
+    if (typeof linkedinId === 'string') {
+      const name =
+        (typeof linkedinIntegration.metadata?.linkedin_name === 'string' &&
+          linkedinIntegration.metadata.linkedin_name) ||
+        'Personal profile'
+      return [{ id: linkedinId, name, type: 'person' as const }]
+    }
+    return []
+  })()
+
   const selectedFacebookPageId =
     (facebookIntegration?.metadata as { selected_page_id?: string } | undefined)?.selected_page_id ||
     (facebookIntegration?.metadata as { page_id?: string } | undefined)?.page_id ||
     facebookPages[0]?.id ||
     ''
 
+  const selectedInstagramAccountId =
+    (facebookIntegration?.metadata as { selected_instagram_account_id?: string | null } | undefined)
+      ?.selected_instagram_account_id ||
+    instagramAccounts[0]?.id ||
+    ''
+
+  const selectedLinkedInProfileId =
+    (linkedinIntegration?.metadata as { selected_profile_id?: string } | undefined)?.selected_profile_id ||
+    (linkedinIntegration?.metadata as { linkedin_id?: string } | undefined)?.linkedin_id ||
+    linkedinProfiles[0]?.id ||
+    ''
+
+  const updateIntegrationMetadata = async (
+    integrationId: string,
+    nextMetadata: Record<string, unknown>,
+    successMessage: string,
+  ) => {
+    setUpdatingTarget(true)
+    try {
+      const { error } = await supabase
+        .from('user_integrations')
+        .update({ metadata: nextMetadata } as never)
+        .eq('id', integrationId)
+      if (error) {
+        setMessage(`Could not update posting target: ${error.message}`)
+      } else {
+        setMessage(successMessage)
+        void refreshIntegrations()
+      }
+    } finally {
+      setUpdatingTarget(false)
+    }
+  }
+
   const updateFacebookPage = async (pageId: string) => {
     if (!facebookIntegration || pageId === selectedFacebookPageId) return
-    setUpdatingPage(true)
-    try {
-      const nextPage = facebookPages.find((p) => p.id === pageId)
-      const nextMetadata = {
+    const nextPage = facebookPages.find((page) => page.id === pageId)
+    await updateIntegrationMetadata(
+      facebookIntegration.id,
+      {
         ...(facebookIntegration.metadata ?? {}),
         selected_page_id: pageId,
         page_id: pageId,
         page_name: nextPage?.name ?? pageId,
-      }
-      const { error } = await supabase
-        .from('user_integrations')
-        .update({ metadata: nextMetadata } as never)
-        .eq('id', facebookIntegration.id)
-      if (error) {
-        setMessage(`Could not update Facebook Page: ${error.message}`)
-      } else {
-        setMessage(`Posting to ${nextPage?.name ?? pageId} on Facebook.`)
-        void refreshIntegrations()
-      }
-    } finally {
-      setUpdatingPage(false)
-    }
+      },
+      `Posting to ${nextPage?.name ?? pageId} on Facebook.`,
+    )
+  }
+
+  const updateInstagramAccount = async (accountId: string) => {
+    if (!facebookIntegration || accountId === selectedInstagramAccountId) return
+    const nextAccount = instagramAccounts.find((account) => account.id === accountId)
+    await updateIntegrationMetadata(
+      facebookIntegration.id,
+      {
+        ...(facebookIntegration.metadata ?? {}),
+        selected_instagram_account_id: accountId,
+      },
+      `Posting to @${nextAccount?.username ?? accountId} on Instagram.`,
+    )
+  }
+
+  const updateLinkedInProfile = async (profileId: string) => {
+    if (!linkedinIntegration || profileId === selectedLinkedInProfileId) return
+    const nextProfile = linkedinProfiles.find((profile) => profile.id === profileId)
+    await updateIntegrationMetadata(
+      linkedinIntegration.id,
+      {
+        ...(linkedinIntegration.metadata ?? {}),
+        selected_profile_id: profileId,
+      },
+      `Posting as ${nextProfile?.name ?? profileId} on LinkedIn.`,
+    )
   }
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
@@ -271,8 +362,22 @@ export function ComposePage() {
     firstDraftCreated,
   ])
 
-  const isPlatformConnected = (platform: ComposePlatform) =>
-    platform === 'facebook' ? isConnected('meta_or_facebook') : isConnected(platform)
+  const isPlatformConnected = (platform: ComposePlatform) => {
+    if (platform === 'facebook') {
+      return isConnected('meta_or_facebook') && facebookPages.length > 0
+    }
+    if (platform === 'instagram') {
+      return isConnected('meta_or_facebook') && instagramAccounts.length > 0
+    }
+    return isConnected(platform)
+  }
+
+  const connectProviderForPlatform = (platform: ComposePlatform) => {
+    if (platform === 'instagram' || platform === 'facebook') {
+      return 'facebook'
+    }
+    return platform
+  }
 
   useEffect(() => {
     const state = location.state as ComposeLocationState | null
@@ -338,13 +443,15 @@ export function ComposePage() {
     }
   }
 
-  const connect = (provider: ComposePlatform) => {
+  const connect = (platform: ComposePlatform) => {
     if (isDemoMode) {
-      setMessage(`Demo mode: ${platformLabel(provider)} connected.`)
+      setMessage(`Demo mode: ${platformLabel(platform)} connected.`)
       return
     }
 
-    void redirectToEdgeFunction(`${provider}-oauth-start`, { workspace_id: currentWorkspaceId })
+    void redirectToEdgeFunction(`${connectProviderForPlatform(platform)}-oauth-start`, {
+      workspace_id: currentWorkspaceId,
+    })
   }
 
   const publish = async (action: 'now' | 'schedule') => {
@@ -771,64 +878,119 @@ export function ComposePage() {
         </div>
       ) : null}
 
-      <Tabs>
-        <TabsList className="mb-4">
-          {PLATFORMS.map((platform) => (
-            <TabsTrigger
-              key={platform}
-              value={platform}
-              activeValue={activeTab}
-              onClick={(value) => setActiveTab(value as ComposePlatform)}
-            >
-              {platformLabel(platform)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <Card className="alive-enter">
+        <CardHeader className="flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-base">Compose post</CardTitle>
+            <CardDescription className="mt-1">One draft for every channel. Pick the platform and posting profile below.</CardDescription>
+          </div>
+          {isPlatformConnected(activeTab) ? (
+            <Button size="sm" variant="outline" disabled className="cursor-default opacity-90">
+              <Check className="mr-2 h-4 w-4 text-emerald-500" />
+              {platformLabel(activeTab)} connected
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => connect(activeTab)}>
+              Connect {platformLabel(activeTab)}
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2 rounded-2xl border bg-muted/20 p-3">
+              <Label htmlFor="compose-platform-select" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Publish to
+              </Label>
+              <Select
+                id="compose-platform-select"
+                value={activeTab}
+                onChange={(event) => setActiveTab(event.target.value as ComposePlatform)}
+              >
+                {PLATFORMS.map((platform) => (
+                  <option key={platform} value={platform}>
+                    {platformLabel(platform)}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-        {PLATFORMS.map((platform) => (
-          <TabsContent key={platform} value={platform} activeValue={activeTab}>
-            <Card className="alive-enter">
-              <CardHeader className="flex-row items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-base">{platformLabel(platform)} composer</CardTitle>
-                  <CardDescription className="mt-1">Write, research, and publish with media in one simple flow.</CardDescription>
-                </div>
-                {isPlatformConnected(platform) ? (
-                  <Button size="sm" variant="outline" disabled className="cursor-default opacity-90">
-                    <Check className="mr-2 h-4 w-4 text-emerald-500" />
-                    {platformLabel(platform)} connected
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => connect(platform)}>
-                    Connect {platformLabel(platform)}
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-5">
-                {platform === 'facebook' && isPlatformConnected('facebook') && facebookPages.length > 0 ? (
-                  <div className="rounded-2xl border bg-muted/20 p-3">
-                    <Label htmlFor="facebook-page-select" className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Posting to Facebook Page
-                    </Label>
-                    <Select
-                      id="facebook-page-select"
-                      value={selectedFacebookPageId}
-                      onChange={(event) => void updateFacebookPage(event.target.value)}
-                      disabled={updatingPage || facebookPages.length === 1}
-                    >
-                      {facebookPages.map((page) => (
-                        <option key={page.id} value={page.id}>
-                          {page.name}
-                        </option>
-                      ))}
-                    </Select>
-                    {facebookPages.length === 1 ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Only one Page is connected. Reconnect Facebook from Settings to grant access to more Pages.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
+            {activeTab === 'facebook' && isPlatformConnected('facebook') && facebookPages.length > 0 ? (
+              <div className="space-y-2 rounded-2xl border bg-muted/20 p-3">
+                <Label htmlFor="facebook-page-select" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Facebook Page
+                </Label>
+                <Select
+                  id="facebook-page-select"
+                  value={selectedFacebookPageId}
+                  onChange={(event) => void updateFacebookPage(event.target.value)}
+                  disabled={updatingTarget || facebookPages.length === 1}
+                >
+                  {facebookPages.map((page) => (
+                    <option key={page.id} value={page.id}>
+                      {page.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : activeTab === 'instagram' && isPlatformConnected('instagram') && instagramAccounts.length > 0 ? (
+              <div className="space-y-2 rounded-2xl border bg-muted/20 p-3">
+                <Label htmlFor="instagram-account-select" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Instagram account
+                </Label>
+                <Select
+                  id="instagram-account-select"
+                  value={selectedInstagramAccountId}
+                  onChange={(event) => void updateInstagramAccount(event.target.value)}
+                  disabled={updatingTarget || instagramAccounts.length === 1}
+                >
+                  {instagramAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      @{account.username} · {account.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : activeTab === 'linkedin' && isPlatformConnected('linkedin') && linkedinProfiles.length > 0 ? (
+              <div className="space-y-2 rounded-2xl border bg-muted/20 p-3">
+                <Label htmlFor="linkedin-profile-select" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  LinkedIn profile
+                </Label>
+                <Select
+                  id="linkedin-profile-select"
+                  value={selectedLinkedInProfileId}
+                  onChange={(event) => void updateLinkedInProfile(event.target.value)}
+                  disabled={updatingTarget || linkedinProfiles.length === 1}
+                >
+                  {linkedinProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.name} {profile.type === 'organization' ? '(Page)' : '(Personal)'}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : (
+              <div className="rounded-2xl border bg-muted/20 p-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Posting as</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {activeTab === 'x'
+                    ? 'Posts publish to your connected X account.'
+                    : isPlatformConnected(activeTab)
+                      ? 'Using your default account for this platform.'
+                      : `Connect ${platformLabel(activeTab)} to choose where posts land.`}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {(activeTab === 'facebook' || activeTab === 'instagram') &&
+          isPlatformConnected(activeTab) &&
+          ((activeTab === 'facebook' && facebookPages.length === 1) ||
+            (activeTab === 'instagram' && instagramAccounts.length === 1)) ? (
+            <p className="text-xs text-muted-foreground">
+              Only one {activeTab === 'facebook' ? 'Page' : 'Instagram account'} is connected. Reconnect Facebook in Settings
+              to grant access to more.
+            </p>
+          ) : null}
 
                 <div className="rounded-2xl border bg-muted/20 p-3">
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Media Source</p>
@@ -1173,11 +1335,8 @@ export function ComposePage() {
                     {loading ? 'Publishing...' : 'Publish Now'}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
+        </CardContent>
+      </Card>
 
       <ResearchTopicModal
         open={showResearch}

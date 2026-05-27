@@ -1,6 +1,13 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { appRedirect, decodeOAuthState, getAdminClient, getUserIdFromState, oauthCallbackUri } from '../_shared/oauth.ts'
 
+type LinkedInProfileOption = {
+  id: string
+  name: string
+  type: 'person' | 'organization'
+  author_urn: string
+}
+
 serve(async (req) => {
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
@@ -25,23 +32,85 @@ serve(async (req) => {
     }),
   })
   const tokenData = await tokenRes.json()
+  if (!tokenData.access_token) {
+    return new Response('LinkedIn token exchange failed', { status: 400 })
+  }
 
-  const profileRes = await fetch('https://api.linkedin.com/v2/me', {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  })
+  const accessToken = tokenData.access_token as string
+
+  const profileRes = await fetch(
+    'https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)',
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
   const profileData = await profileRes.json()
+  const personId = profileData.id as string | undefined
+  if (!personId) {
+    return new Response('Could not load LinkedIn profile', { status: 400 })
+  }
+
+  const personName =
+    [profileData.localizedFirstName, profileData.localizedLastName].filter(Boolean).join(' ').trim() ||
+    'Personal profile'
+
+  const profiles: LinkedInProfileOption[] = [
+    {
+      id: personId,
+      name: personName,
+      type: 'person',
+      author_urn: `urn:li:person:${personId}`,
+    },
+  ]
+
+  try {
+    const orgRes = await fetch(
+      'https://api.linkedin.com/v2/organizationalEntityAcls?q=roleAssignee&role=ADMINISTRATOR&projection=(elements*(organizationalTarget~(localizedName,id)))',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+      },
+    )
+    if (orgRes.ok) {
+      const orgData = await orgRes.json()
+      const elements = (orgData.elements ?? []) as Array<{
+        organizationalTarget?: { id?: number | string; localizedName?: string }
+      }>
+      for (const element of elements) {
+        const orgId = element.organizationalTarget?.id
+        if (!orgId) continue
+        const orgIdStr = String(orgId)
+        profiles.push({
+          id: orgIdStr,
+          name: element.organizationalTarget?.localizedName || `Organization ${orgIdStr}`,
+          type: 'organization',
+          author_urn: `urn:li:organization:${orgIdStr}`,
+        })
+      }
+    }
+  } catch (err) {
+    console.warn('linkedin-oauth-callback org fetch skipped:', err)
+  }
 
   const supabase = getAdminClient()
-  await supabase.from('user_integrations').upsert({
-    user_id: userId,
-    workspace_id: workspaceId,
-    provider: 'linkedin',
-    access_token_encrypted: tokenData.access_token,
-    token_iv: '',
-    refresh_token_encrypted: tokenData.refresh_token || null,
-    expires_at: tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null,
-    metadata: { linkedin_id: profileData.id },
-  }, { onConflict: 'user_id,workspace_id,provider' })
+  await supabase.from('user_integrations').upsert(
+    {
+      user_id: userId,
+      workspace_id: workspaceId,
+      provider: 'linkedin',
+      access_token_encrypted: accessToken,
+      token_iv: '',
+      refresh_token_encrypted: tokenData.refresh_token || null,
+      expires_at: tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null,
+      metadata: {
+        linkedin_id: personId,
+        linkedin_name: personName,
+        selected_profile_id: personId,
+        profiles,
+      },
+    },
+    { onConflict: 'user_id,workspace_id,provider' },
+  )
 
   return new Response(null, { status: 302, headers: { Location: appRedirect('/settings') } })
 })

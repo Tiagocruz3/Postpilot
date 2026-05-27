@@ -83,6 +83,31 @@ serve(async (req) => {
     }
 
     const primary = validPages[0]
+    const instagramAccounts: Array<{ id: string; username: string; name: string; page_id: string; access_token: string }> = []
+
+    for (const page of validPages) {
+      try {
+        const igRes = await fetch(
+          `https://graph.facebook.com/v18.0/${page.id}?fields=instagram_business_account{id,username,name}&access_token=${encodeURIComponent(page.access_token)}`,
+        )
+        const igData = await igRes.json()
+        const igAccount = igData.instagram_business_account as
+          | { id?: string; username?: string; name?: string }
+          | undefined
+        if (igAccount?.id) {
+          instagramAccounts.push({
+            id: igAccount.id,
+            username: igAccount.username || igAccount.id,
+            name: igAccount.name || igAccount.username || 'Instagram account',
+            page_id: page.id,
+            access_token: page.access_token,
+          })
+        }
+      } catch (err) {
+        console.warn('facebook-oauth-callback instagram fetch skipped for page', page.id, err)
+      }
+    }
+
     const supabase = getAdminClient()
     const { error } = await supabase.from('user_integrations').upsert(
       {
@@ -98,6 +123,8 @@ serve(async (req) => {
           page_name: primary.name,
           selected_page_id: primary.id,
           pages: validPages.map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })),
+          instagram_accounts: instagramAccounts,
+          selected_instagram_account_id: instagramAccounts[0]?.id ?? null,
         },
       },
       { onConflict: 'user_id,workspace_id,provider' },
