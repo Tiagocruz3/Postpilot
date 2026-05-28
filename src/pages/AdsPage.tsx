@@ -32,12 +32,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { Json } from '@/types/database'
 import { PublishedAdsPanel } from '@/components/ads/PublishedAdsPanel'
+import { AdLibraryPanel } from '@/components/ads/AdLibraryPanel'
+import {
+  insertAdCreatives,
+  updateAdCreative,
+  type AdCreativeAudience,
+  type AdCreativeBudget,
+  type AdCreativeInsert,
+  type AdCreativeUpdate,
+} from '@/lib/ads-creatives'
 
 interface OutletContext {
   currentWorkspaceId: string | null
 }
 
-type AdsTab = 'studio' | 'media' | 'analytics'
+type AdsTab = 'studio' | 'library' | 'media' | 'analytics'
 type Goal = 'Get leads' | 'Send traffic to website' | 'Get messages' | 'Increase sales' | 'Boost engagement' | 'Build awareness'
 type AdType = 'Single Image Ad' | 'Video Ad' | 'Carousel Ad' | 'Story / Reel Ad' | 'Lead Form Ad' | 'Website Conversion Ad' | 'Engagement Ad'
 
@@ -218,6 +227,10 @@ export function AdsPage() {
   const [resumedDraft, setResumedDraft] = useState(false)
   const [targetingSuggestions, setTargetingSuggestions] = useState<AdsTargetingSuggestion[]>([])
   const [variantRecommendation, setVariantRecommendation] = useState<AdRecommendation>(null)
+  /** Map ad-option-id → ad_creatives.id so subsequent edits/regens update the same row. */
+  const creativeIdByOption = useRef<Record<string, string>>({})
+  const currentGenerationId = useRef<string | null>(null)
+  const editDebounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const draftHydrated = useRef(false)
   /** Parsed targeting suggestion payload (raw values to apply when the user accepts a card). */
   const pendingApply = useRef<{
@@ -883,14 +896,111 @@ export function AdsPage() {
     setOptions(next)
     setSelectedId(next[0]?.id ?? null)
     const rec = data?.recommendation as { preferred_variant?: string; reason?: string } | undefined
-    if (rec?.preferred_variant) {
-      setVariantRecommendation({
-        preferredVariant: String(rec.preferred_variant),
-        reason: String(rec.reason || ''),
-      })
-    } else {
-      setVariantRecommendation(null)
+    const recommendation: AdRecommendation = rec?.preferred_variant
+      ? { preferredVariant: String(rec.preferred_variant), reason: String(rec.reason || '') }
+      : null
+    setVariantRecommendation(recommendation)
+
+    if (currentWorkspaceId && user?.id) {
+      try {
+        const generationId = crypto.randomUUID()
+        currentGenerationId.current = generationId
+        const rows: AdCreativeInsert[] = next.map((option, idx) => ({
+          ...buildCreativePayload(option),
+          workspace_id: currentWorkspaceId,
+          user_id: user.id,
+          generation_id: generationId,
+          variant_label: option.name,
+          is_selected_variant: idx === 0,
+          status: 'ai_draft',
+          source: 'ai',
+          ai_recommendation: recommendation
+            ? { preferred_variant: recommendation.preferredVariant, reason: recommendation.reason }
+            : {},
+        }))
+        const inserted = await insertAdCreatives(rows)
+        creativeIdByOption.current = {}
+        inserted.forEach((row, idx) => {
+          const localId = next[idx]?.id
+          if (localId) creativeIdByOption.current[localId] = row.id
+        })
+      } catch (err) {
+        console.warn('[AdsPage] failed to persist variants to ad_creatives', err)
+      }
     }
+  }
+
+  /** Snapshot of the current draft + a variant into an ad_creatives column shape. */
+  const buildCreativePayload = (option: AdOption): AdCreativeUpdate => {
+    const audience: AdCreativeAudience = {
+      location: draft.location || null,
+      age_min: draft.ageMin,
+      age_max: draft.ageMax,
+      genders: draft.genders ?? [],
+      interests: profile.audienceProfile.interests?.split(',').map((s) => s.trim()).filter(Boolean) ?? [],
+      behaviours: draft.behaviours ?? [],
+      audience_size: draft.audienceSize,
+    }
+    const budget: AdCreativeBudget = {
+      type: draft.budgetType,
+      daily: draft.budgetType === 'daily' ? Number(draft.dailyBudget) || null : null,
+      lifetime: draft.budgetType === 'lifetime' ? Number(draft.lifetimeBudget) || null : null,
+      duration_days:
+        draft.scheduleStart && draft.scheduleEnd
+          ? Math.max(
+              1,
+              Math.round(
+                (new Date(draft.scheduleEnd).getTime() - new Date(draft.scheduleStart).getTime()) /
+                  86400000,
+              ) + 1,
+            )
+          : null,
+    }
+    return {
+      campaign_name: draft.campaignName || null,
+      angle: option.angle ?? null,
+      primary_text: option.primaryText,
+      headline: option.headline,
+      description: option.description ?? null,
+      cta: option.cta,
+      media_url: option.previewUrl ?? null,
+      media_type: option.previewType,
+      image_prompt: option.imagePrompt ?? null,
+      creative_direction: option.creativeDirection ?? null,
+      targeting_angle: option.targetingAngle ?? null,
+      destination_url: draft.destinationUrl || null,
+      destination_type: profile.leadDestination.type ?? null,
+      goal: draft.goal ?? null,
+      placements: Array.isArray(draft.placements) ? draft.placements : [],
+      ad_format: draft.adType ?? null,
+      audience,
+      budget,
+      schedule_start: draft.scheduleStart || null,
+      schedule_end: draft.scheduleEnd || null,
+    }
+  }
+
+  /** Update the row that backs the given AdOption (debounced for inline edits). */
+  const persistOptionPatch = (optionId: string, debounceMs = 0) => {
+    const creativeId = creativeIdByOption.current[optionId]
+    if (!creativeId) return
+    if (editDebounceTimers.current[optionId]) {
+      clearTimeout(editDebounceTimers.current[optionId])
+    }
+    const run = async () => {
+      const option = options.find((o) => o.id === optionId)
+      if (!option) return
+      try {
+        await updateAdCreative(creativeId, buildCreativePayload(option))
+      } catch (err) {
+        console.warn('[AdsPage] failed to update ad_creatives row', err)
+      }
+    }
+    if (debounceMs <= 0) {
+      void run()
+      return
+    }
+    editDebounceTimers.current[optionId] = setTimeout(run, debounceMs)
   }
 
   const regenerateVariant = async (variantId: string) => {
@@ -947,6 +1057,7 @@ export function AdsPage() {
           : option,
       ),
     )
+    persistOptionPatch(variantId)
   }
 
   const handleRemoveMedia = async (id: string) => {
@@ -1313,6 +1424,7 @@ export function AdsPage() {
         <Tabs>
         <TabsList className="mb-4">
           <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>Studio</TabsTrigger>
+          <TabsTrigger value="library" activeValue={activeTab} onClick={() => setActiveTab('library')}>Ad Library</TabsTrigger>
           <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>Media Library</TabsTrigger>
           <TabsTrigger value="analytics" activeValue={activeTab} onClick={() => setActiveTab('analytics')}>Analytics</TabsTrigger>
         </TabsList>
@@ -1387,8 +1499,24 @@ export function AdsPage() {
             recommendedAdTypes={recommendedTypes}
             options={options}
             selectedId={selectedId}
-            onSelectOption={setSelectedId}
-            onUpdateOption={(id, patch) => setOptions((list) => list.map((o) => (o.id === id ? { ...o, ...patch } : o)))}
+            onSelectOption={(id) => {
+              setSelectedId(id)
+              const creativeId = creativeIdByOption.current[id]
+              if (creativeId) {
+                Object.entries(creativeIdByOption.current).forEach(([optId, cid]) => {
+                  if (cid && cid !== creativeId) {
+                    void updateAdCreative(cid, { is_selected_variant: false })
+                  } else if (cid === creativeId) {
+                    void updateAdCreative(cid, { is_selected_variant: true, status: 'draft' })
+                  }
+                  return optId
+                })
+              }
+            }}
+            onUpdateOption={(id, patch) => {
+              setOptions((list) => list.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+              persistOptionPatch(id, 600)
+            }}
             onGenerateOptions={generateOptions}
             onRegenerateVariant={regenerateVariant}
             variantRecommendation={variantRecommendation}
@@ -1414,6 +1542,60 @@ export function AdsPage() {
                 variant: 'destructive',
               })
               if (ok) resetCampaignDraft()
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="library" activeValue={activeTab}>
+          <AdLibraryPanel
+            workspaceId={currentWorkspaceId}
+            businessName={profile.businessProfile.businessName}
+            onOpenInStudio={(creative) => {
+              setActiveTab('studio')
+              setDraft((d) => ({
+                ...d,
+                campaignName: creative.campaign_name ?? d.campaignName,
+                goal: (creative.goal as Goal) ?? d.goal,
+                adType: (creative.ad_format as AdType) ?? d.adType,
+                destinationUrl: creative.destination_url ?? d.destinationUrl,
+                location: creative.audience?.location ?? d.location,
+                ageMin: creative.audience?.age_min ?? d.ageMin,
+                ageMax: creative.audience?.age_max ?? d.ageMax,
+                genders: (creative.audience?.genders as string[]) ?? d.genders,
+                behaviours: (creative.audience?.behaviours as string[]) ?? d.behaviours,
+                audienceSize: creative.audience?.audience_size ?? d.audienceSize,
+                budgetType: creative.budget?.type ?? d.budgetType,
+                dailyBudget:
+                  typeof creative.budget?.daily === 'number'
+                    ? String(creative.budget.daily)
+                    : d.dailyBudget,
+                lifetimeBudget:
+                  typeof creative.budget?.lifetime === 'number'
+                    ? String(creative.budget.lifetime)
+                    : d.lifetimeBudget,
+                scheduleStart: creative.schedule_start ?? d.scheduleStart,
+                scheduleEnd: creative.schedule_end ?? d.scheduleEnd,
+                placements: creative.placements ?? d.placements,
+              }))
+              const reusedOption: AdOption = {
+                id: creative.id,
+                name: creative.variant_label || 'Variant A',
+                primaryText: creative.primary_text,
+                headline: creative.headline,
+                description: creative.description ?? undefined,
+                cta: creative.cta,
+                previewUrl: creative.media_url ?? null,
+                previewType: (creative.media_type as 'image' | 'video') ?? 'image',
+                angle: creative.angle ?? undefined,
+                imagePrompt: creative.image_prompt ?? undefined,
+                creativeDirection: creative.creative_direction ?? undefined,
+                targetingAngle: creative.targeting_angle ?? undefined,
+              }
+              setOptions([reusedOption])
+              setSelectedId(reusedOption.id)
+              creativeIdByOption.current = { [reusedOption.id]: creative.id }
+              currentGenerationId.current = creative.generation_id
+              setStudioStep(4)
             }}
           />
         </TabsContent>
