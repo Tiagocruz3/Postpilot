@@ -87,6 +87,14 @@ export type AdCreativeUpdate = Partial<Omit<AdCreative, 'id' | 'workspace_id' | 
 
 const TABLE = 'ad_creatives'
 
+/**
+ * `ad_creatives` is not yet listed in the generated `Database` schema types,
+ * so we use an untyped client view to insert/update raw payloads here.
+ * All shapes are validated by the SQL constraints and the `normalize()` helper.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db: any = supabase
+
 function normalize(row: Record<string, unknown>): AdCreative {
   return {
     id: String(row.id),
@@ -130,19 +138,19 @@ function normalize(row: Record<string, unknown>): AdCreative {
 
 export async function insertAdCreatives(rows: AdCreativeInsert[]): Promise<AdCreative[]> {
   if (rows.length === 0) return []
-  const { data, error } = await supabase.from(TABLE).insert(rows).select('*')
+  const { data, error } = await db.from(TABLE).insert(rows).select('*')
   if (error) throw error
   return ((data ?? []) as Record<string, unknown>[]).map(normalize)
 }
 
 export async function updateAdCreative(id: string, patch: AdCreativeUpdate): Promise<AdCreative | null> {
-  const { data, error } = await supabase.from(TABLE).update(patch).eq('id', id).select('*').maybeSingle()
+  const { data, error } = await db.from(TABLE).update(patch).eq('id', id).select('*').maybeSingle()
   if (error) throw error
   return data ? normalize(data as Record<string, unknown>) : null
 }
 
 export async function deleteAdCreative(id: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id)
+  const { error } = await db.from(TABLE).delete().eq('id', id)
   if (error) throw error
 }
 
@@ -159,7 +167,7 @@ export async function listAdCreatives({
   search,
   limit = 100,
 }: ListAdCreativesParams): Promise<AdCreative[]> {
-  let query = supabase
+  let query = db
     .from(TABLE)
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -184,12 +192,12 @@ export async function listAdCreatives({
  * Mark one variant in a generation group as the selected one, demoting siblings.
  */
 export async function setSelectedVariant(generationId: string, selectedId: string): Promise<void> {
-  await supabase
+  await db
     .from(TABLE)
     .update({ is_selected_variant: false })
     .eq('generation_id', generationId)
     .neq('id', selectedId)
-  await supabase.from(TABLE).update({ is_selected_variant: true }).eq('id', selectedId)
+  await db.from(TABLE).update({ is_selected_variant: true }).eq('id', selectedId)
 }
 
 export const AD_CREATIVE_STATUS_LABELS: Record<AdCreativeStatus, string> = {

@@ -232,7 +232,8 @@ export function estimateReach(inputs: ReachEstimateInputs): ReachEstimate {
       ageBreadthFactor(ageMin, ageMax) *
       genderFactor(genders) *
       interestFactor(interests, behaviours) *
-      audienceSizeFactor(audienceSize),
+      audienceSizeFactor(audienceSize) *
+      objectiveFactor(objective),
   )
 
   const cpm = cpmForObjective(objective) * (1 / placementFactor(placements)) * (1 / adFormatFactor(adFormat))

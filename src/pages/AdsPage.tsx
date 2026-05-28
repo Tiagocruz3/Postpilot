@@ -1576,7 +1576,9 @@ export function AdsPage() {
                     : d.lifetimeBudget,
                 scheduleStart: creative.schedule_start ?? d.scheduleStart,
                 scheduleEnd: creative.schedule_end ?? d.scheduleEnd,
-                placements: creative.placements ?? d.placements,
+                placements: Array.isArray(creative.placements) && creative.placements.length > 0
+                  ? creative.placements.join(',')
+                  : d.placements,
               }))
               const reusedOption: AdOption = {
                 id: creative.id,

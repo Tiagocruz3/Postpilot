@@ -335,7 +335,7 @@ function ReelAd({ data }: { data: FacebookAdPreviewData; device: AdDevice }) {
   )
 }
 
-function MarketplaceAd({ data }: { data: FacebookAdPreviewData; device: AdDevice }) {
+function MarketplaceAd({ data, device }: { data: FacebookAdPreviewData; device: AdDevice }) {
   return (
     <div
       className={cn(
