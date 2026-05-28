@@ -96,7 +96,12 @@ export function AdsAudienceFields({
         />
       </div>
 
-      <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+      <div
+        className={cn(
+          'rounded-xl border bg-muted/20 p-4 space-y-3 transition-colors',
+          aiLoading && 'alive-ring border-primary/30 bg-primary/5',
+        )}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-sm font-medium">Detailed targeting · Interests</p>
@@ -109,6 +114,26 @@ export function AdsAudienceFields({
             </Button>
           ) : null}
         </div>
+
+        {aiLoading ? (
+          <div className="rounded-xl border bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI working</p>
+                <p className="text-sm text-foreground">Finding high-intent interests for your audience…</p>
+                <p className="mt-1 text-xs text-muted-foreground">This usually takes a few seconds.</p>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-primary/10 p-2">
+                <div className="alive-shimmer h-full w-full rounded-lg" />
+              </div>
+            </div>
+            <div className="mt-3 grid gap-2">
+              <div className="alive-shimmer h-2 rounded-full" />
+              <div className="alive-shimmer h-2 rounded-full" />
+              <div className="alive-shimmer h-2 rounded-full" />
+            </div>
+          </div>
+        ) : null}
 
         {INTEREST_GROUPS.map(({ group, options }) => (
           <div key={group}>
@@ -123,6 +148,7 @@ export function AdsAudienceFields({
                     onClick={() => toggleInterest(option.value)}
                     className={cn(
                       'rounded-full border px-3 py-1 text-xs transition-colors',
+                      aiLoading && 'opacity-70',
                       active ? 'border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]' : 'hover:bg-accent'
                     )}
                   >

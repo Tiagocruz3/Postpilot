@@ -363,10 +363,11 @@ export function AdsPage() {
     connectFacebook()
   }
 
-  const saveProfile = async () => {
+  const saveProfile = async (patch?: Partial<AdsStudioProfile>) => {
     if (!currentWorkspaceId || !user?.id) return
     const payload: AdsStudioProfile = {
       ...profile,
+      ...(patch ?? {}),
       userId: user.id,
       updatedAt: new Date().toISOString(),
       createdAt: profile.createdAt || new Date().toISOString(),
@@ -580,8 +581,7 @@ export function AdsPage() {
   }
 
   const completeOnboarding = async () => {
-    setProfile((prev) => ({ ...prev, onboardingCompleted: true }))
-    await saveProfile()
+    await saveProfile({ onboardingCompleted: true })
     setOnboardingDone(true)
     setMessage('Your Growth Ads AI Profile is ready.')
   }
