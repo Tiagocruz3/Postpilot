@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, RotateCcw, Sparkles, Trophy, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
 import { AdsReachPanel } from '@/components/ads/AdsReachPanel'
@@ -7,6 +7,12 @@ import {
   AdsTargetingSuggestions,
   type AdsTargetingSuggestion,
 } from '@/components/ads/AdsTargetingSuggestions'
+import {
+  AD_PLACEMENTS,
+  FacebookAdPreview,
+  type AdDevice,
+  type AdPlacement,
+} from '@/components/ads/FacebookAdPreview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -49,10 +55,20 @@ type AdOption = {
   name: string
   primaryText: string
   headline: string
+  description?: string
   cta: string
   previewUrl: string | null
   previewType: 'image' | 'video'
+  angle?: string
+  imagePrompt?: string
+  creativeDirection?: string
+  targetingAngle?: string
 }
+
+export type AdRecommendation = {
+  preferredVariant: string
+  reason: string
+} | null
 
 export type StudioStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
@@ -72,6 +88,10 @@ type AdsCampaignStudioProps = {
   onSelectOption: (id: string) => void
   onUpdateOption: (id: string, patch: Partial<AdOption>) => void
   onGenerateOptions: () => Promise<void>
+  /** Regenerate a single variant in place (keeps the other untouched). */
+  onRegenerateVariant?: (variantId: string) => Promise<void>
+  /** AI's pick of which variant should perform better and why. */
+  variantRecommendation?: AdRecommendation
   onGenerateCreative: (type: 'image' | 'video') => Promise<void>
   onSuggestAudience: () => Promise<void>
   /** AI-recommended targeting suggestions with reasoning per field. */
@@ -96,11 +116,11 @@ type AdsCampaignStudioProps = {
 const STUDIO_STEPS = [
   { id: 1, label: 'Goal', meta: 'What you want to achieve' },
   { id: 2, label: 'Offer', meta: 'What you are promoting' },
-  { id: 3, label: 'Generate', meta: 'Create 3 ad options' },
-  { id: 4, label: 'Edit', meta: 'Copy + creative' },
-  { id: 5, label: 'Audience & budget', meta: 'Who + how much' },
-  { id: 6, label: 'Lead destination', meta: 'Form or website link' },
-  { id: 7, label: 'Preview', meta: 'Review before publish' },
+  { id: 3, label: 'Variants', meta: 'Generate 2 ad versions' },
+  { id: 4, label: 'Edit', meta: 'Copy + creative + preview' },
+  { id: 5, label: 'Targeting', meta: 'Audience, budget, schedule' },
+  { id: 6, label: 'Destination', meta: 'Form or website link' },
+  { id: 7, label: 'Preview', meta: 'All placements + summary' },
   { id: 8, label: 'Publish', meta: 'Send to Meta Ads' },
 ] as const
 
@@ -120,6 +140,8 @@ export function AdsCampaignStudio({
   onSelectOption,
   onUpdateOption,
   onGenerateOptions,
+  onRegenerateVariant,
+  variantRecommendation,
   onGenerateCreative,
   onSuggestAudience,
   targetingSuggestions,
@@ -143,7 +165,28 @@ export function AdsCampaignStudio({
     if (controlledStep === undefined) setInternalStep(nextValue)
   }
   const [assistantPrompt, setAssistantPrompt] = useState('')
+  const [previewPlacement, setPreviewPlacement] = useState<AdPlacement>('facebook-feed')
+  const [previewDevice, setPreviewDevice] = useState<AdDevice>('mobile')
+  const [regeneratingVariantId, setRegeneratingVariantId] = useState<string | null>(null)
   const selectedOption = options.find((option) => option.id === selectedId) ?? null
+  const destinationDomain = useMemo(() => {
+    if (!draft.destinationUrl) return ''
+    try {
+      return new URL(draft.destinationUrl).hostname.replace(/^www\./, '')
+    } catch {
+      return draft.destinationUrl.replace(/^https?:\/\//, '').split('/')[0]
+    }
+  }, [draft.destinationUrl])
+
+  const handleRegenerateVariant = async (id: string) => {
+    if (!onRegenerateVariant) return
+    setRegeneratingVariantId(id)
+    try {
+      await onRegenerateVariant(id)
+    } finally {
+      setRegeneratingVariantId(null)
+    }
+  }
 
   const objective = useMemo(
     () => META_CAMPAIGN_OBJECTIVES.find((item) => item.value === draft.goal),
@@ -224,8 +267,8 @@ export function AdsCampaignStudio({
   const nextReason = (() => {
     if (step === 1 && !draft.goal) return 'Choose a goal first.'
     if (step === 2 && !draft.promoting.trim()) return 'Tell us what you’re promoting.'
-    if (step === 3 && options.length === 0) return 'Click “Generate ads” to create 3 options.'
-    if (step === 4 && !selectedOption) return 'Pick an ad option from the previous step.'
+    if (step === 3 && options.length === 0) return 'Click “Generate ad variants” to create two versions.'
+    if (step === 4 && !selectedOption) return 'Pick a variant from the previous step.'
     if (step === 5 && (!draft.location || !draft.dailyBudget)) return 'Add a location and daily budget.'
     if (step === 6 && destinationType !== 'meta_lead_form' && !draft.destinationUrl.trim()) {
       return 'Add a destination URL or use a Meta lead form.'
@@ -351,63 +394,135 @@ export function AdsCampaignStudio({
         ) : null}
 
         {step === 3 ? (
-          <Card className="border-0 shadow-sm ring-1 ring-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Generate 3 ad options with AI</CardTitle>
-              <CardDescription>We’ll create 3 angles: direct offer, problem/solution, and social proof.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button onClick={() => void onGenerateOptions()} disabled={generatingCopy || !draft.promoting.trim()}>
-                {generatingCopy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Generate ads
-              </Button>
+          <div className="space-y-4">
+            <Card className="border-0 shadow-sm ring-1 ring-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Generate 2 ad variants with AI</CardTitle>
+                <CardDescription>
+                  We'll create two different angles — pick the one you like, edit either, or regenerate just one.
+                  Both variants are saved to your Ad Library.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  onClick={() => void onGenerateOptions()}
+                  disabled={generatingCopy || !draft.promoting.trim()}
+                  className="bg-[#1877F2] hover:bg-[#166fe0]"
+                >
+                  {generatingCopy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  {options.length > 0 ? 'Generate fresh variants' : 'Generate ad variants'}
+                </Button>
 
-              {options.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-3">
-                  {options.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => onSelectOption(option.id)}
-                      className={cn(
-                        'rounded-xl border p-3 text-left transition-all',
-                        selectedId === option.id ? 'border-[#1877F2] ring-2 ring-[#1877F2]/20' : 'hover:bg-muted/50'
-                      )}
-                    >
-                      <p className="text-xs font-medium text-[#1877F2]">{option.name}</p>
-                      <p className="mt-1 text-sm font-semibold line-clamp-2">{option.headline}</p>
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{option.primaryText}</p>
-                      <Badge className="mt-2" variant="secondary">{option.cta}</Badge>
-                      <p className="mt-2 text-xs font-medium text-foreground">Use this ad →</p>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No ads yet — generate options to continue.</p>
-              )}
-              <div className="rounded-xl border bg-muted/20 p-4 text-sm">
-                <p className="font-medium">Tip</p>
-                <p className="text-muted-foreground">
-                  If your offer is unclear, go back and make your “Product / service” more specific (price, outcome, or timeframe).
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                {variantRecommendation ? (
+                  <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                    <Trophy className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">
+                        AI pick: <span className="font-semibold">{variantRecommendation.preferredVariant}</span>
+                      </p>
+                      <p className="mt-0.5 text-muted-foreground">{variantRecommendation.reason}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {options.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No variants yet — click Generate to create two side-by-side.</p>
+                ) : (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {options.map((option) => {
+                      const isSelected = selectedId === option.id
+                      const isRecommended =
+                        variantRecommendation?.preferredVariant?.toLowerCase() === option.name.toLowerCase()
+                      const isRegenerating = regeneratingVariantId === option.id
+                      return (
+                        <div
+                          key={option.id}
+                          className={cn(
+                            'flex flex-col gap-3 rounded-2xl border p-3 transition-colors',
+                            isSelected ? 'border-[#1877F2] ring-2 ring-[#1877F2]/20' : 'hover:bg-muted/30',
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-[#1877F2]">
+                                {option.name}
+                              </p>
+                              {option.angle ? (
+                                <p className="text-[11px] text-muted-foreground capitalize">{option.angle.replace(/-/g, ' ')} angle</p>
+                              ) : null}
+                            </div>
+                            {isRecommended ? (
+                              <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                                <Trophy className="mr-1 h-3 w-3" />
+                                AI pick
+                              </Badge>
+                            ) : null}
+                          </div>
+
+                          <FacebookAdPreview
+                            data={{
+                              pageName: businessName || 'Your Page',
+                              primaryText: option.primaryText,
+                              headline: option.headline,
+                              description: option.description,
+                              cta: option.cta,
+                              mediaUrl: option.previewUrl,
+                              mediaType: option.previewType,
+                              destinationDomain,
+                            }}
+                            placement="facebook-feed"
+                            device="mobile"
+                          />
+
+                          {option.targetingAngle ? (
+                            <p className="rounded-lg bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+                              <span className="font-medium text-foreground">Best audience:</span> {option.targetingAngle}
+                            </p>
+                          ) : null}
+
+                          <div className="mt-auto flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              className={cn('flex-1', isSelected ? 'bg-[#1877F2] hover:bg-[#166fe0]' : '')}
+                              variant={isSelected ? 'default' : 'outline'}
+                              onClick={() => onSelectOption(option.id)}
+                            >
+                              {isSelected ? 'Selected' : 'Use this ad'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void handleRegenerateVariant(option.id)}
+                              disabled={isRegenerating || !onRegenerateVariant}
+                            >
+                              {isRegenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         ) : null}
 
         {step === 4 ? (
           <Card className="border-0 shadow-sm ring-1 ring-border">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Edit your ad</CardTitle>
-              <CardDescription>Rewrite the copy, then generate or replace the creative.</CardDescription>
+              <CardDescription>
+                Rewrite the copy and creative — the live preview on the right updates instantly across every placement.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {!selectedOption ? (
                 <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-                  Select an ad option in the previous step.
+                  Select an ad variant in the previous step.
                 </div>
               ) : (
-                <>
+                <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,320px)]">
                   <div className="space-y-3 rounded-xl border p-4">
                     <div className="grid gap-1.5">
                       <Label>Headline</Label>
@@ -424,7 +539,22 @@ export function AdsCampaignStudio({
                         rows={4}
                       />
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid gap-1.5">
+                      <Label>Description (sub-text under headline)</Label>
+                      <Input
+                        value={selectedOption.description ?? ''}
+                        onChange={(event) => onUpdateOption(selectedOption.id, { description: event.target.value })}
+                        placeholder="Optional secondary line"
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Call to action</Label>
+                      <Input
+                        value={selectedOption.cta}
+                        onChange={(event) => onUpdateOption(selectedOption.id, { cta: event.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2 border-t pt-3">
                       <Button
                         size="sm"
                         variant="outline"
@@ -435,7 +565,7 @@ export function AdsCampaignStudio({
                         }
                       >
                         <Wand2 className="mr-2 h-4 w-4" />
-                        Rewrite copy
+                        Rewrite
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => void onGenerateCreative('image')}>
                         Regenerate image
@@ -443,20 +573,48 @@ export function AdsCampaignStudio({
                       <Button size="sm" variant="outline" onClick={() => void onGenerateCreative('video')}>
                         Regenerate video
                       </Button>
+                      {onRegenerateVariant ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void handleRegenerateVariant(selectedOption.id)}
+                          disabled={regeneratingVariantId === selectedOption.id}
+                        >
+                          {regeneratingVariantId === selectedOption.id ? (
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                          )}
+                          Regenerate this variant
+                        </Button>
+                      ) : null}
                     </div>
-                    {selectedOption.previewUrl ? (
-                      selectedOption.previewType === 'video' ? (
-                        <video src={selectedOption.previewUrl} controls className="aspect-[4/5] max-h-72 w-full rounded-lg object-cover bg-muted" />
-                      ) : (
-                        <img src={selectedOption.previewUrl} alt="" className="aspect-[4/5] max-h-72 w-full rounded-lg object-cover bg-muted" />
-                      )
-                    ) : (
-                      <div className="flex aspect-[4/5] max-h-72 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-                        Generate an image or video to preview
-                      </div>
-                    )}
                   </div>
-                </>
+
+                  <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Live preview</p>
+                    <PreviewPlacementSwitcher
+                      placement={previewPlacement}
+                      device={previewDevice}
+                      onPlacementChange={setPreviewPlacement}
+                      onDeviceChange={setPreviewDevice}
+                    />
+                    <FacebookAdPreview
+                      data={{
+                        pageName: businessName || 'Your Page',
+                        primaryText: selectedOption.primaryText,
+                        headline: selectedOption.headline,
+                        description: selectedOption.description,
+                        cta: selectedOption.cta,
+                        mediaUrl: selectedOption.previewUrl,
+                        mediaType: selectedOption.previewType,
+                        destinationDomain,
+                      }}
+                      placement={previewPlacement}
+                      device={previewDevice}
+                    />
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -693,36 +851,82 @@ export function AdsCampaignStudio({
         {step === 7 ? (
           <Card className="border-0 shadow-sm ring-1 ring-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Preview</CardTitle>
-              <CardDescription>Review everything before publishing.</CardDescription>
+              <CardTitle className="text-lg">Preview across placements</CardTitle>
+              <CardDescription>
+                See your ad exactly how it will appear on Facebook Feed, Instagram, Story, Reel, Marketplace, and Right column.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border p-4 space-y-2 text-sm">
-                  <p className="font-medium">Campaign summary</p>
-                  <ul className="space-y-1 text-muted-foreground">
-                    <li><span className="text-foreground">Goal:</span> {objective?.label ?? draft.goal}</li>
-                    <li><span className="text-foreground">Budget:</span> ${draft.dailyBudget}/day</li>
-                    <li><span className="text-foreground">Audience:</span> {draft.location || '—'} · {audienceProfile.ageRange || '—'} · {audienceProfile.gender || '—'}</li>
-                    <li><span className="text-foreground">Destination:</span> {destinationType === 'meta_lead_form' ? 'Meta lead form' : (draft.destinationUrl || '—')}</li>
-                  </ul>
-                </div>
-                <div className="rounded-xl border p-4 space-y-2 text-sm">
-                  <p className="font-medium">Ad preview</p>
-                  <p className="text-muted-foreground">{selectedOption?.primaryText || 'Select an ad option.'}</p>
-                  <p className="font-semibold">{selectedOption?.headline || '—'}</p>
-                  <Badge variant="secondary">{selectedOption?.cta || brandCta}</Badge>
-                </div>
+            <CardContent className="space-y-5">
+              <div className="rounded-xl border bg-muted/20 p-4 text-sm">
+                <p className="font-medium text-foreground">Campaign summary</p>
+                <ul className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-2">
+                  <li><span className="text-foreground">Goal:</span> {objective?.label ?? draft.goal}</li>
+                  <li>
+                    <span className="text-foreground">Budget:</span>{' '}
+                    {budgetType === 'lifetime'
+                      ? `$${lifetimeBudget || '—'} lifetime`
+                      : `$${draft.dailyBudget}/day`}
+                  </li>
+                  <li>
+                    <span className="text-foreground">Audience:</span> {draft.location || '—'} · {ageMin}–{ageMax} · {genders.length === 0 ? 'All' : genders.join(', ')}
+                  </li>
+                  <li><span className="text-foreground">Destination:</span> {destinationType === 'meta_lead_form' ? 'Meta lead form' : (draft.destinationUrl || '—')}</li>
+                </ul>
               </div>
-              {selectedOption?.previewUrl ? (
-                selectedOption.previewType === 'video' ? (
-                  <video src={selectedOption.previewUrl} controls className="aspect-[4/5] max-h-80 w-full rounded-xl object-cover bg-muted" />
-                ) : (
-                  <img src={selectedOption.previewUrl} alt="" className="aspect-[4/5] max-h-80 w-full rounded-xl object-cover bg-muted" />
-                )
+
+              {!selectedOption ? (
+                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                  Pick an ad variant to see all placement previews.
+                </div>
               ) : (
-                <div className="flex h-64 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-                  Add an image or video to preview your ad.
+                <div className="space-y-4">
+                  <PreviewPlacementSwitcher
+                    placement={previewPlacement}
+                    device={previewDevice}
+                    onPlacementChange={setPreviewPlacement}
+                    onDeviceChange={setPreviewDevice}
+                  />
+                  <div className="rounded-xl border bg-muted/10 p-4">
+                    <FacebookAdPreview
+                      data={{
+                        pageName: businessName || 'Your Page',
+                        primaryText: selectedOption.primaryText,
+                        headline: selectedOption.headline,
+                        description: selectedOption.description,
+                        cta: selectedOption.cta,
+                        mediaUrl: selectedOption.previewUrl,
+                        mediaType: selectedOption.previewType,
+                        destinationDomain,
+                      }}
+                      placement={previewPlacement}
+                      device={previewDevice}
+                    />
+                  </div>
+
+                  <details className="rounded-xl border bg-muted/10 p-3">
+                    <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Show all placements
+                    </summary>
+                    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {AD_PLACEMENTS.map(({ id }) => (
+                        <FacebookAdPreview
+                          key={id}
+                          data={{
+                            pageName: businessName || 'Your Page',
+                            primaryText: selectedOption.primaryText,
+                            headline: selectedOption.headline,
+                            description: selectedOption.description,
+                            cta: selectedOption.cta,
+                            mediaUrl: selectedOption.previewUrl,
+                            mediaType: selectedOption.previewType,
+                            destinationDomain,
+                          }}
+                          placement={id}
+                          device={previewDevice}
+                        />
+                      ))}
+                    </div>
+                  </details>
                 </div>
               )}
             </CardContent>
@@ -846,6 +1050,54 @@ export function AdsCampaignStudio({
 
         <AdsReachPanel inputs={reachInputs} />
       </aside>
+    </div>
+  )
+}
+
+function PreviewPlacementSwitcher({
+  placement,
+  device,
+  onPlacementChange,
+  onDeviceChange,
+}: {
+  placement: AdPlacement
+  device: AdDevice
+  onPlacementChange: (next: AdPlacement) => void
+  onDeviceChange: (next: AdDevice) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1">
+        {AD_PLACEMENTS.map(({ id, label, icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onPlacementChange(id)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+              placement === id ? 'border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]' : 'hover:bg-muted',
+            )}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="inline-flex rounded-full border p-0.5">
+        {(['mobile', 'desktop'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onDeviceChange(value)}
+            className={cn(
+              'rounded-full px-3 py-1 text-[11px] font-medium capitalize transition-colors',
+              device === value ? 'bg-[#1877F2] text-white' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

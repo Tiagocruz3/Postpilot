@@ -46,10 +46,17 @@ type AdOption = {
   name: string
   primaryText: string
   headline: string
+  description?: string
   cta: string
   previewUrl: string | null
   previewType: 'image' | 'video'
+  angle?: string
+  imagePrompt?: string
+  creativeDirection?: string
+  targetingAngle?: string
 }
+
+type AdRecommendation = { preferredVariant: string; reason: string } | null
 
 type StudioStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
@@ -210,6 +217,7 @@ export function AdsPage() {
   const [studioStep, setStudioStep] = useState<StudioStep>(1)
   const [resumedDraft, setResumedDraft] = useState(false)
   const [targetingSuggestions, setTargetingSuggestions] = useState<AdsTargetingSuggestion[]>([])
+  const [variantRecommendation, setVariantRecommendation] = useState<AdRecommendation>(null)
   const draftHydrated = useRef(false)
   /** Parsed targeting suggestion payload (raw values to apply when the user accepts a card). */
   const pendingApply = useRef<{
@@ -785,18 +793,42 @@ export function AdsPage() {
       return
     }
     setGeneratingCopy(true)
+    const previewType: 'image' | 'video' = draft.adType === 'Video Ad' ? 'video' : 'image'
     if (isDemoMode) {
-      const demo = [1, 2, 3].map((i) => ({
-        id: `demo-${i}`,
-        name: `Option ${i}`,
-        primaryText: `${profile.offerProfile.mainOffer || 'Your offer'} helps ${draft.audience || 'your audience'} solve ${profile.audienceProfile.painPoints || 'a real problem'}.`,
-        headline: `${profile.businessProfile.businessName || 'Your brand'} - ${profile.offerProfile.mainProductService || 'Offer'}`,
-        cta: profile.brandVoice.ctaStyle || 'Learn more',
-        previewUrl: null,
-        previewType: draft.adType === 'Video Ad' ? 'video' : 'image' as 'image' | 'video',
-      }))
+      const demo: AdOption[] = [
+        {
+          id: `demo-A`,
+          name: 'Variant A',
+          angle: 'direct-offer',
+          primaryText: `${profile.offerProfile.mainOffer || 'Your offer'} — built for ${draft.audience || 'your audience'}. Get the result you've been after, fast.`,
+          headline: `${profile.businessProfile.businessName || 'Your brand'} — ${profile.offerProfile.mainProductService || 'Offer'}`,
+          description: 'Booked in minutes. No surprises.',
+          cta: profile.brandVoice.ctaStyle || 'Learn more',
+          previewUrl: null,
+          previewType,
+          creativeDirection: 'Bright hero shot of the product or service in use.',
+          targetingAngle: 'High-intent buyers ready to act now.',
+        },
+        {
+          id: `demo-B`,
+          name: 'Variant B',
+          angle: 'problem-solution',
+          primaryText: `Tired of ${profile.audienceProfile.painPoints || 'the usual problem'}? ${profile.offerProfile.mainOffer || 'Our offer'} solves it without the usual hassle. Here's how →`,
+          headline: 'A better way to solve this',
+          description: 'Most people don\'t know this exists.',
+          cta: 'Get Offer',
+          previewUrl: null,
+          previewType,
+          creativeDirection: 'Before / after layout — bold contrast.',
+          targetingAngle: 'People who have tried alternatives and are frustrated.',
+        },
+      ]
       setOptions(demo)
       setSelectedId(demo[0].id)
+      setVariantRecommendation({
+        preferredVariant: 'Variant A',
+        reason: 'Variant A has a clearer offer and a stronger direct CTA likely to win in cold audiences.',
+      })
       setGeneratingCopy(false)
       return
     }
@@ -833,17 +865,88 @@ export function AdsPage() {
     })
     setGeneratingCopy(false)
     if (error) return setMessage(error.message)
-    const next = ((data?.variants as Array<Record<string, string>>) ?? []).slice(0, 3).map((v, i) => ({
+    const rawVariants = (data?.variants as Array<Record<string, unknown>>) ?? []
+    const next: AdOption[] = rawVariants.slice(0, 2).map((v, i) => ({
       id: crypto.randomUUID(),
-      name: `Option ${i + 1}`,
-      primaryText: v.primary_text || '',
-      headline: v.headline || '',
-      cta: v.cta || 'Learn More',
+      name: typeof v.name === 'string' && v.name ? v.name : `Variant ${String.fromCharCode(65 + i)}`,
+      primaryText: String(v.primary_text || ''),
+      headline: String(v.headline || ''),
+      description: typeof v.description === 'string' ? v.description : undefined,
+      cta: String(v.cta || 'Learn More'),
       previewUrl: null,
-      previewType: draft.adType === 'Video Ad' ? 'video' : 'image' as 'image' | 'video',
+      previewType,
+      angle: typeof v.angle === 'string' ? v.angle : undefined,
+      imagePrompt: typeof v.image_prompt === 'string' ? v.image_prompt : undefined,
+      creativeDirection: typeof v.creative_direction === 'string' ? v.creative_direction : undefined,
+      targetingAngle: typeof v.targeting_angle === 'string' ? v.targeting_angle : undefined,
     }))
     setOptions(next)
     setSelectedId(next[0]?.id ?? null)
+    const rec = data?.recommendation as { preferred_variant?: string; reason?: string } | undefined
+    if (rec?.preferred_variant) {
+      setVariantRecommendation({
+        preferredVariant: String(rec.preferred_variant),
+        reason: String(rec.reason || ''),
+      })
+    } else {
+      setVariantRecommendation(null)
+    }
+  }
+
+  const regenerateVariant = async (variantId: string) => {
+    const existing = options.find((option) => option.id === variantId)
+    if (!existing) return
+    const previewType: 'image' | 'video' = draft.adType === 'Video Ad' ? 'video' : 'image'
+    if (isDemoMode) {
+      const fresh: AdOption = {
+        ...existing,
+        primaryText: `${existing.primaryText.split('.')[0]}. Here's a fresh take — punchier opening and a tighter promise.`,
+        headline: `${existing.headline} ✦`,
+      }
+      setOptions((list) => list.map((o) => (o.id === variantId ? fresh : o)))
+      return
+    }
+    if (!currentWorkspaceId) {
+      return setMessage('Select a workspace to regenerate this variant.')
+    }
+    const gate = await consumeCredits('ad_copy', { workspaceId: currentWorkspaceId })
+    if (!gate.ok) return setMessage(gate.error ?? 'Insufficient credits.')
+
+    const { data, error } = await supabase.functions.invoke('generate-ad-copy', {
+      body: {
+        brief: [
+          `Business: ${profile.businessProfile.businessName}`,
+          `Offer: ${profile.offerProfile.mainOffer}`,
+          `Audience: ${draft.audience}`,
+          `Tone: ${profile.brandVoice.tone}`,
+          `Campaign goal: ${draft.goal}`,
+          `Replacing variant: ${existing.name} (was ${existing.angle || 'unknown'} angle). Use a NEW angle.`,
+        ].join('\n'),
+        workspace_id: currentWorkspaceId,
+        regenerate_variant_index: 0,
+      },
+    })
+    if (error) return setMessage(error.message)
+    const v = ((data?.variants as Array<Record<string, unknown>>) ?? [])[0]
+    if (!v) return setMessage('Could not regenerate this variant. Try again.')
+    setOptions((list) =>
+      list.map((option) =>
+        option.id === variantId
+          ? {
+              ...option,
+              primaryText: String(v.primary_text || option.primaryText),
+              headline: String(v.headline || option.headline),
+              description: typeof v.description === 'string' ? v.description : option.description,
+              cta: String(v.cta || option.cta),
+              previewType,
+              angle: typeof v.angle === 'string' ? v.angle : option.angle,
+              imagePrompt: typeof v.image_prompt === 'string' ? v.image_prompt : option.imagePrompt,
+              creativeDirection: typeof v.creative_direction === 'string' ? v.creative_direction : option.creativeDirection,
+              targetingAngle: typeof v.targeting_angle === 'string' ? v.targeting_angle : option.targetingAngle,
+            }
+          : option,
+      ),
+    )
   }
 
   const handleRemoveMedia = async (id: string) => {
@@ -1287,6 +1390,8 @@ export function AdsPage() {
             onSelectOption={setSelectedId}
             onUpdateOption={(id, patch) => setOptions((list) => list.map((o) => (o.id === id ? { ...o, ...patch } : o)))}
             onGenerateOptions={generateOptions}
+            onRegenerateVariant={regenerateVariant}
+            variantRecommendation={variantRecommendation}
             onGenerateCreative={generateCreative}
             onSuggestAudience={() => suggestAudienceWithAi()}
             targetingSuggestions={targetingSuggestions}
