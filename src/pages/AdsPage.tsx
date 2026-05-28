@@ -33,6 +33,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { Json } from '@/types/database'
 import { PublishedAdsPanel } from '@/components/ads/PublishedAdsPanel'
 import { AdLibraryPanel } from '@/components/ads/AdLibraryPanel'
+import { AdsAnalyticsDashboard } from '@/components/ads/AdsAnalyticsDashboard'
 import {
   insertAdCreatives,
   updateAdCreative,
@@ -1630,14 +1631,15 @@ export function AdsPage() {
 
         <TabsContent value="analytics" activeValue={activeTab}>
           <div className="space-y-4">
+            <AdsAnalyticsDashboard workspaceId={currentWorkspaceId} />
             <PublishedAdsPanel
               workspaceId={currentWorkspaceId}
               metaAccountId={profile?.metaConnection?.adAccountId ? `act_${profile.metaConnection.adAccountId.replace(/^act_/, '')}` : null}
             />
             <Card>
               <CardHeader>
-                <CardTitle>Analytics</CardTitle>
-                <CardDescription>Quick estimates + profile-based recommendations.</CardDescription>
+                <CardTitle>Forecast for this campaign</CardTitle>
+                <CardDescription>Estimates based on the current campaign draft.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Metric label="Est. spend (7d)" value={`$${(Number(draft.dailyBudget || 35) * 7).toFixed(0)}`} />

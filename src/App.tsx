@@ -11,6 +11,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { PlannerPage } from '@/pages/PlannerPage'
 import { ComposePage } from '@/pages/ComposePage'
 import { AdsPage } from '@/pages/AdsPage'
+import { AdDetailPage } from '@/pages/AdDetailPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { HistoryPage } from '@/pages/HistoryPage'
@@ -42,6 +43,7 @@ function App() {
           <Route path="planner" element={<PlannerPage />} />
           <Route path="compose" element={<ComposePage />} />
           <Route path="ads" element={<AdsPage />} />
+          <Route path="ads/library/:creativeId" element={<AdDetailPage />} />
           <Route path="library" element={<LibraryPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />

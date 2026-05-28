@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Loader2, RefreshCcw, Search, Trash2 } from 'lucide-react'
+import { Archive, ExternalLink, Loader2, RefreshCcw, Search, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +44,7 @@ type AdLibraryPanelProps = {
 
 export function AdLibraryPanel({ workspaceId, businessName, onOpenInStudio }: AdLibraryPanelProps) {
   const confirm = useConfirm()
+  const navigate = useNavigate()
   const [items, setItems] = useState<AdCreative[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -184,6 +186,7 @@ export function AdLibraryPanel({ workspaceId, businessName, onOpenInStudio }: Ad
                 onDelete={() => void handleDelete(creative)}
                 onStatusChange={(next) => void handleStatusChange(creative, next)}
                 onOpen={onOpenInStudio ? () => onOpenInStudio(creative) : undefined}
+                onOpenDetail={() => navigate(`/app/ads/library/${creative.id}`)}
               />
             ))}
           </div>
@@ -209,6 +212,7 @@ function AdLibraryCard({
   onDelete,
   onStatusChange,
   onOpen,
+  onOpenDetail,
 }: {
   creative: AdCreative
   businessName: string
@@ -216,6 +220,7 @@ function AdLibraryCard({
   onDelete: () => void
   onStatusChange: (next: AdCreativeStatus) => void
   onOpen?: () => void
+  onOpenDetail?: () => void
 }) {
   const destinationDomain = useMemo(() => {
     if (!creative.destination_url) return ''
@@ -276,9 +281,15 @@ function AdLibraryCard({
       </div>
 
       <div className="mt-auto flex flex-wrap items-center gap-1.5">
+        {onOpenDetail ? (
+          <Button size="sm" variant="default" className="flex-1" onClick={onOpenDetail}>
+            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+            Open detail
+          </Button>
+        ) : null}
         {onOpen ? (
-          <Button size="sm" variant="default" className="flex-1" onClick={onOpen}>
-            Open in Studio
+          <Button size="sm" variant="outline" onClick={onOpen}>
+            Edit
           </Button>
         ) : null}
         <StatusMenu current={creative.status} onChange={onStatusChange} />

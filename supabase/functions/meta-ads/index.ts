@@ -146,7 +146,46 @@ serve(withCors(async (req) => {
   }
 
   if (action === 'insights') {
-    const { json } = await fetchJson(`${apiBase}/${params.campaign_id}/insights?fields=impressions,clicks,spend,ctr,cpc,roas&access_token=${token}`)
+    const fields = [
+      'impressions',
+      'reach',
+      'frequency',
+      'clicks',
+      'spend',
+      'ctr',
+      'cpc',
+      'cpm',
+      'cpp',
+      'inline_link_clicks',
+      'actions',
+      'action_values',
+      'video_p25_watched_actions',
+      'video_p50_watched_actions',
+      'video_p100_watched_actions',
+      'website_purchase_roas',
+      'purchase_roas',
+    ].join(',')
+    const datePreset = typeof params.date_preset === 'string' ? params.date_preset : 'last_30d'
+    const timeRange =
+      params.time_range && typeof params.time_range === 'object'
+        ? `&time_range=${encodeURIComponent(JSON.stringify(params.time_range))}`
+        : `&date_preset=${encodeURIComponent(datePreset)}`
+    const level = typeof params.level === 'string' ? `&level=${encodeURIComponent(params.level)}` : ''
+    const breakdowns =
+      Array.isArray(params.breakdowns) && params.breakdowns.length > 0
+        ? `&breakdowns=${encodeURIComponent(params.breakdowns.join(','))}`
+        : ''
+    const target = String(params.ad_id || params.adset_id || params.campaign_id || params.account_id || '')
+    if (!target) {
+      return new Response(JSON.stringify({ error: 'Missing campaign_id / adset_id / ad_id / account_id' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const targetPath = target.startsWith('act_') ? target : target
+    const { json } = await fetchJson(
+      `${apiBase}/${targetPath}/insights?fields=${fields}${timeRange}${level}${breakdowns}&access_token=${token}`,
+    )
     return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
   }
 
