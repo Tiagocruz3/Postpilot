@@ -5,5 +5,5 @@
 -- with the latest pricing.
 
 UPDATE public.subscription_plans
-SET price_monthly = 500
+SET monthly_price = 500
 WHERE id = 'agency';
