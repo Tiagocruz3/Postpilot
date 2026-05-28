@@ -69,7 +69,7 @@ type AdOption = {
 
 type AdRecommendation = { preferredVariant: string; reason: string } | null
 
-type StudioStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+type StudioStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 type CampaignDraftState = {
   campaignName: string
@@ -1499,6 +1499,7 @@ export function AdsPage() {
             brandTone={profile.brandVoice.tone}
             brandCta={profile.brandVoice.ctaStyle}
             recommendedAdTypes={recommendedTypes}
+            facebookPageId={profile.metaConnection.facebookPageId || null}
             options={options}
             selectedId={selectedId}
             onSelectOption={(id) => {
@@ -1583,6 +1584,7 @@ export function AdsPage() {
           <AdLibraryPanel
             workspaceId={currentWorkspaceId}
             businessName={profile.businessProfile.businessName}
+            facebookPageId={profile.metaConnection.facebookPageId || null}
             onOpenInStudio={(creative) => {
               setActiveTab('studio')
               setDraft((d) => ({

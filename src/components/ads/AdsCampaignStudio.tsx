@@ -70,7 +70,7 @@ export type AdRecommendation = {
   reason: string
 } | null
 
-export type StudioStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+export type StudioStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 type AdsCampaignStudioProps = {
   draft: CampaignDraft
@@ -83,6 +83,8 @@ type AdsCampaignStudioProps = {
   brandTone: string
   brandCta: string
   recommendedAdTypes: string[]
+  /** Public Facebook page id used to load a real page avatar into previews. */
+  facebookPageId?: string | null
   options: AdOption[]
   selectedId: string | null
   onSelectOption: (id: string) => void
@@ -120,8 +122,9 @@ const STUDIO_STEPS = [
   { id: 4, label: 'Edit', meta: 'Copy + creative + preview' },
   { id: 5, label: 'Targeting', meta: 'Audience, budget, schedule' },
   { id: 6, label: 'Destination', meta: 'Form or website link' },
-  { id: 7, label: 'Preview', meta: 'All placements + summary' },
-  { id: 8, label: 'Publish', meta: 'Send to Meta Ads' },
+  { id: 7, label: 'Preview', meta: 'Single placement preview' },
+  { id: 8, label: 'Placements', meta: 'See all 6 placements at once' },
+  { id: 9, label: 'Publish', meta: 'Send to Meta Ads' },
 ] as const
 
 export function AdsCampaignStudio({
@@ -135,6 +138,7 @@ export function AdsCampaignStudio({
   brandTone,
   brandCta,
   recommendedAdTypes,
+  facebookPageId,
   options,
   selectedId,
   onSelectOption,
@@ -177,6 +181,10 @@ export function AdsCampaignStudio({
       return draft.destinationUrl.replace(/^https?:\/\//, '').split('/')[0]
     }
   }, [draft.destinationUrl])
+  const facebookPageAvatarUrl = useMemo(() => {
+    if (!facebookPageId) return null
+    return `https://graph.facebook.com/${encodeURIComponent(facebookPageId)}/picture?type=large`
+  }, [facebookPageId])
 
   const handleRegenerateVariant = async (id: string) => {
     if (!onRegenerateVariant) return
@@ -462,6 +470,7 @@ export function AdsCampaignStudio({
                           <FacebookAdPreview
                             data={{
                               pageName: businessName || 'Your Page',
+                              pageAvatarUrl: facebookPageAvatarUrl,
                               primaryText: option.primaryText,
                               headline: option.headline,
                               description: option.description,
@@ -602,6 +611,7 @@ export function AdsCampaignStudio({
                     <FacebookAdPreview
                       data={{
                         pageName: businessName || 'Your Page',
+                        pageAvatarUrl: facebookPageAvatarUrl,
                         primaryText: selectedOption.primaryText,
                         headline: selectedOption.headline,
                         description: selectedOption.description,
@@ -651,6 +661,8 @@ export function AdsCampaignStudio({
                   }}
                   onSuggestAi={onSuggestAudience}
                   aiLoading={suggestingAudience}
+                  hideAgeAndGender
+                  hidePainAndOutcome
                 />
 
                 <div className="grid gap-4 rounded-xl border bg-muted/15 p-4">
@@ -851,9 +863,9 @@ export function AdsCampaignStudio({
         {step === 7 ? (
           <Card className="border-0 shadow-sm ring-1 ring-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Preview across placements</CardTitle>
+              <CardTitle className="text-lg">Preview your ad</CardTitle>
               <CardDescription>
-                See your ad exactly how it will appear on Facebook Feed, Instagram, Story, Reel, Marketplace, and Right column.
+                Switch placement + device to preview a single surface in detail. Next step shows all placements side-by-side.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -876,7 +888,7 @@ export function AdsCampaignStudio({
 
               {!selectedOption ? (
                 <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
-                  Pick an ad variant to see all placement previews.
+                  Pick an ad variant to see the preview.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -886,10 +898,11 @@ export function AdsCampaignStudio({
                     onPlacementChange={setPreviewPlacement}
                     onDeviceChange={setPreviewDevice}
                   />
-                  <div className="rounded-xl border bg-muted/10 p-4">
+                  <div className="flex justify-center rounded-xl border bg-muted/10 p-6">
                     <FacebookAdPreview
                       data={{
                         pageName: businessName || 'Your Page',
+                        pageAvatarUrl: facebookPageAvatarUrl,
                         primaryText: selectedOption.primaryText,
                         headline: selectedOption.headline,
                         description: selectedOption.description,
@@ -902,17 +915,67 @@ export function AdsCampaignStudio({
                       device={previewDevice}
                     />
                   </div>
+                  <div className="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">Summary:</span>{' '}
+                      {objective?.label ?? draft.goal} · {draft.location || 'no location'} · {ageMin}-{ageMax} ·{' '}
+                      {genders.length === 0 ? 'All genders' : genders.join(', ')} ·{' '}
+                      {budgetType === 'lifetime'
+                        ? `$${lifetimeBudget || '—'} lifetime`
+                        : `$${draft.dailyBudget}/day`}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
-                  <details className="rounded-xl border bg-muted/10 p-3">
-                    <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Show all placements
-                    </summary>
-                    <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {AD_PLACEMENTS.map(({ id }) => (
+        {step === 8 ? (
+          <Card className="border-0 shadow-sm ring-1 ring-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">All placements</CardTitle>
+              <CardDescription>
+                Pixel-honest previews across every Meta surface. Toggle mobile / desktop to compare.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!selectedOption ? (
+                <div className="rounded-xl border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+                  Pick an ad variant first.
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 rounded-xl border bg-muted/10 px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                      Showing all 6 placements on {previewDevice === 'mobile' ? 'mobile' : 'desktop'}.
+                    </p>
+                    <div className="inline-flex rounded-full border p-0.5">
+                      {(['mobile', 'desktop'] as const).map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setPreviewDevice(value)}
+                          className={cn(
+                            'rounded-full px-3 py-1 text-[11px] font-medium capitalize transition-colors',
+                            previewDevice === value
+                              ? 'bg-[#1877F2] text-white'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid items-start gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3">
+                    {AD_PLACEMENTS.map(({ id }) => (
+                      <div key={id} className="flex justify-center">
                         <FacebookAdPreview
-                          key={id}
                           data={{
                             pageName: businessName || 'Your Page',
+                            pageAvatarUrl: facebookPageAvatarUrl,
                             primaryText: selectedOption.primaryText,
                             headline: selectedOption.headline,
                             description: selectedOption.description,
@@ -924,16 +987,16 @@ export function AdsCampaignStudio({
                           placement={id}
                           device={previewDevice}
                         />
-                      ))}
-                    </div>
-                  </details>
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
         ) : null}
 
-        {step === 8 ? (
+        {step === 9 ? (
           <Card className="border-0 shadow-sm ring-1 ring-border">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Publish to Meta Ads</CardTitle>
@@ -975,14 +1038,14 @@ export function AdsCampaignStudio({
           </Button>
 
           <div className="flex items-center gap-3">
-            {nextReason && step < 8 ? (
+            {nextReason && step < 9 ? (
               <p className="hidden text-xs text-muted-foreground sm:block">{nextReason}</p>
             ) : null}
-            {step < 8 ? (
+            {step < 9 ? (
               <Button
                 disabled={!canNext}
                 onClick={() =>
-                  setStep((s) => (Math.min(8, s + 1) as (typeof STUDIO_STEPS)[number]['id']))
+                  setStep((s) => (Math.min(9, s + 1) as (typeof STUDIO_STEPS)[number]['id']))
                 }
                 className="bg-[#1877F2] hover:bg-[#166fe0]"
                 title={nextReason || undefined}

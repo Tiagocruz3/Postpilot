@@ -85,14 +85,22 @@ export function AdDetailPage() {
   const [actionLoading, setActionLoading] = useState<'publish' | 'pause' | 'resume' | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [metaAccountId, setMetaAccountId] = useState<string | null>(null)
+  const [facebookPageId, setFacebookPageId] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState<string>('Your Page')
 
   useEffect(() => {
     if (!currentWorkspaceId || !user?.id) return
     void fetchAdsStudioProfile(currentWorkspaceId, user.id).then((profile) => {
       const id = profile?.metaConnection?.adAccountId
       setMetaAccountId(id ? `act_${id.replace(/^act_/, '')}` : null)
+      setFacebookPageId(profile?.metaConnection?.facebookPageId || null)
+      setBusinessName(profile?.businessProfile?.businessName || 'Your Page')
     })
   }, [currentWorkspaceId, user?.id])
+
+  const pageAvatarUrl = facebookPageId
+    ? `https://graph.facebook.com/${encodeURIComponent(facebookPageId)}/picture?type=large`
+    : null
 
   const reload = useCallback(async () => {
     if (!currentWorkspaceId || !creativeId) return
@@ -331,7 +339,8 @@ export function AdDetailPage() {
               />
               <FacebookAdPreview
                 data={{
-                  pageName: 'Your Page',
+                  pageName: businessName,
+                  pageAvatarUrl,
                   primaryText: creative.primary_text,
                   headline: creative.headline,
                   description: creative.description ?? undefined,
@@ -485,7 +494,8 @@ export function AdDetailPage() {
                 <FacebookAdPreview
                   key={id}
                   data={{
-                    pageName: 'Your Page',
+                    pageName: businessName,
+                    pageAvatarUrl,
                     primaryText: creative.primary_text,
                     headline: creative.headline,
                     description: creative.description ?? undefined,

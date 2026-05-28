@@ -30,6 +30,10 @@ type AdsAudienceFieldsProps = {
   onSuggestAi?: () => Promise<void>
   aiLoading?: boolean
   compact?: boolean
+  /** Hide the Age + Gender dropdowns when the parent renders its own richer controls. */
+  hideAgeAndGender?: boolean
+  /** Hide the secondary pain-points / desired-outcome textareas (already captured elsewhere). */
+  hidePainAndOutcome?: boolean
 }
 
 export function AdsAudienceFields({
@@ -38,6 +42,8 @@ export function AdsAudienceFields({
   onSuggestAi,
   aiLoading = false,
   compact = false,
+  hideAgeAndGender = false,
+  hidePainAndOutcome = false,
 }: AdsAudienceFieldsProps) {
   const [customInterest, setCustomInterest] = useState('')
   const selectedInterests = parseInterestList(value.interests)
@@ -79,21 +85,26 @@ export function AdsAudienceFields({
           onChange={(locations) => onChange({ ...value, locations })}
           options={LOCATION_OPTIONS}
           placeholder="Choose where to show ads"
+          className={hideAgeAndGender ? 'md:col-span-2' : undefined}
         />
-        <AdsSelectField
-          label="Age"
-          value={value.ageRange}
-          onChange={(ageRange) => onChange({ ...value, ageRange })}
-          options={AGE_RANGE_OPTIONS}
-          placeholder="Select age range"
-        />
-        <AdsSelectField
-          label="Gender"
-          value={value.gender}
-          onChange={(gender) => onChange({ ...value, gender })}
-          options={GENDER_OPTIONS}
-          placeholder="All genders"
-        />
+        {hideAgeAndGender ? null : (
+          <>
+            <AdsSelectField
+              label="Age"
+              value={value.ageRange}
+              onChange={(ageRange) => onChange({ ...value, ageRange })}
+              options={AGE_RANGE_OPTIONS}
+              placeholder="Select age range"
+            />
+            <AdsSelectField
+              label="Gender"
+              value={value.gender}
+              onChange={(gender) => onChange({ ...value, gender })}
+              options={GENDER_OPTIONS}
+              placeholder="All genders"
+            />
+          </>
+        )}
       </div>
 
       <div
@@ -187,32 +198,34 @@ export function AdsAudienceFields({
         )}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="grid gap-1.5">
-          <Label className="text-sm font-medium">
-            Pain points <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            value={value.painPoints}
-            onChange={(event) => onChange({ ...value, painPoints: event.target.value })}
-            placeholder="What frustrates them before they find you?"
-            rows={2}
-            className="resize-none"
-          />
+      {hidePainAndOutcome ? null : (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label className="text-sm font-medium">
+              Pain points <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              value={value.painPoints}
+              onChange={(event) => onChange({ ...value, painPoints: event.target.value })}
+              placeholder="What frustrates them before they find you?"
+              rows={2}
+              className="resize-none"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-sm font-medium">
+              Desired outcome <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              value={value.desiredOutcome}
+              onChange={(event) => onChange({ ...value, desiredOutcome: event.target.value })}
+              placeholder="Book a consult, buy, sign up, message you…"
+              rows={2}
+              className="resize-none"
+            />
+          </div>
         </div>
-        <div className="grid gap-1.5">
-          <Label className="text-sm font-medium">
-            Desired outcome <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            value={value.desiredOutcome}
-            onChange={(event) => onChange({ ...value, desiredOutcome: event.target.value })}
-            placeholder="Book a consult, buy, sign up, message you…"
-            rows={2}
-            className="resize-none"
-          />
-        </div>
-      </div>
+      )}
     </div>
   )
 }

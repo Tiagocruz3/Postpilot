@@ -39,10 +39,16 @@ const STATUS_BADGE_CLASS: Record<AdCreativeStatus, string> = {
 type AdLibraryPanelProps = {
   workspaceId: string | null
   businessName: string
+  facebookPageId?: string | null
   onOpenInStudio?: (creative: AdCreative) => void
 }
 
-export function AdLibraryPanel({ workspaceId, businessName, onOpenInStudio }: AdLibraryPanelProps) {
+export function AdLibraryPanel({
+  workspaceId,
+  businessName,
+  facebookPageId = null,
+  onOpenInStudio,
+}: AdLibraryPanelProps) {
   const confirm = useConfirm()
   const navigate = useNavigate()
   const [items, setItems] = useState<AdCreative[]>([])
@@ -188,6 +194,7 @@ export function AdLibraryPanel({ workspaceId, businessName, onOpenInStudio }: Ad
                 key={creative.id}
                 creative={creative}
                 businessName={businessName}
+                facebookPageId={facebookPageId}
                 onArchive={() => void handleArchive(creative)}
                 onDelete={() => void handleDelete(creative)}
                 onStatusChange={(next) => void handleStatusChange(creative, next)}
@@ -214,6 +221,7 @@ function EmptyState({ message }: { message: string }) {
 function AdLibraryCard({
   creative,
   businessName,
+  facebookPageId,
   onArchive,
   onDelete,
   onStatusChange,
@@ -222,12 +230,16 @@ function AdLibraryCard({
 }: {
   creative: AdCreative
   businessName: string
+  facebookPageId?: string | null
   onArchive: () => void
   onDelete: () => void
   onStatusChange: (next: AdCreativeStatus) => void
   onOpen?: () => void
   onOpenDetail?: () => void
 }) {
+  const pageAvatarUrl = facebookPageId
+    ? `https://graph.facebook.com/${encodeURIComponent(facebookPageId)}/picture?type=large`
+    : null
   const destinationDomain = useMemo(() => {
     if (!creative.destination_url) return ''
     try {
@@ -257,6 +269,7 @@ function AdLibraryCard({
       <FacebookAdPreview
         data={{
           pageName: businessName || 'Your Page',
+          pageAvatarUrl,
           primaryText: creative.primary_text,
           headline: creative.headline,
           description: creative.description ?? undefined,

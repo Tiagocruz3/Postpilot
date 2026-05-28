@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import {
   Bookmark,
   Globe,
@@ -51,13 +51,17 @@ type FacebookAdPreviewProps = {
 const DEFAULT_AVATAR_BG = 'linear-gradient(135deg, #1877F2, #00C6FF)'
 
 function PageAvatar({ url, name, size = 36 }: { url?: string | null; name: string; size?: number }) {
-  if (url) {
+  const [failed, setFailed] = useState(false)
+  if (url && !failed) {
     return (
       <img
         src={url}
         alt={name}
         width={size}
         height={size}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
         className="rounded-full object-cover"
         style={{ width: size, height: size }}
       />
