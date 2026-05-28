@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
-import { Search } from 'lucide-react'
+import { Coins, Pencil, Power, Search, Trash2, UserPlus } from 'lucide-react'
 import { useConfirm } from '@/components/ConfirmProvider'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,8 +10,37 @@ import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } fr
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { adminAdjustCredits, adminUpdateUser } from '@/lib/admin/rpc'
+import {
+  adminAdjustCredits,
+  adminCreateUser,
+  adminDeleteUser,
+  adminUpdateUser,
+} from '@/lib/admin/rpc'
 import type { AdminUserRow, SubscriptionPlanRow } from '@/lib/admin/types'
+import { cn } from '@/lib/utils'
+
+type CreateUserForm = {
+  email: string
+  password: string
+  name: string
+  role: 'admin' | 'member'
+  plan: string
+}
+
+const EMPTY_CREATE_FORM: CreateUserForm = {
+  email: '',
+  password: '',
+  name: '',
+  role: 'member',
+  plan: 'free',
+}
+
+function initials(name: string, email: string) {
+  const source = name?.trim() || email?.trim() || '?'
+  const parts = source.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return source.slice(0, 2).toUpperCase()
+}
 
 type AdminUsersTabProps = {
   users: AdminUserRow[]
@@ -29,6 +59,8 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
   const [creditUser, setCreditUser] = useState<AdminUserRow | null>(null)
   const [topupAmount, setTopupAmount] = useState('500')
   const [busy, setBusy] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<CreateUserForm>(EMPTY_CREATE_FORM)
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -85,6 +117,57 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
     }
   }
 
+  const handleDelete = async (user: AdminUserRow) => {
+    const ok = await confirm({
+      title: `Delete ${user.name || user.email}?`,
+      description:
+        'This permanently removes the auth account, profile, and all data they own. This cannot be undone.',
+      confirmLabel: 'Delete user',
+      variant: 'destructive',
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      await adminDeleteUser(user.user_id)
+      onMessage(`Deleted ${user.email}.`)
+      await onRefresh()
+    } catch (err) {
+      onMessage(err instanceof Error ? err.message : 'Delete failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitCreate = async () => {
+    const email = createForm.email.trim().toLowerCase()
+    if (!email) {
+      onMessage('Email is required.')
+      return
+    }
+    if (createForm.password.length < 8) {
+      onMessage('Password must be at least 8 characters.')
+      return
+    }
+    setBusy(true)
+    try {
+      await adminCreateUser({
+        email,
+        password: createForm.password,
+        name: createForm.name.trim() || undefined,
+        role: createForm.role,
+        plan: createForm.plan,
+      })
+      onMessage(`Created ${email}. They can sign in immediately — no email confirmation needed.`)
+      setCreateOpen(false)
+      setCreateForm(EMPTY_CREATE_FORM)
+      await onRefresh()
+    } catch (err) {
+      onMessage(err instanceof Error ? err.message : 'Could not create user.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const applyCredits = async (give: boolean) => {
     if (!creditUser) return
     const amount = Number(topupAmount) || 0
@@ -115,9 +198,25 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle>Users</CardTitle>
-          <CardDescription>Manage accounts, roles, plans, and credits.</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle>Users</CardTitle>
+            <CardDescription>Manage accounts, roles, plans, and credits.</CardDescription>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setCreateForm({
+                ...EMPTY_CREATE_FORM,
+                plan: plans[0]?.id ?? 'free',
+              })
+              setCreateOpen(true)
+            }}
+            disabled={busy}
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add user
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
@@ -146,57 +245,128 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
             </Select>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full min-w-[960px] text-sm">
+          <div className="rounded-xl border">
+            <table className="w-full table-fixed text-sm">
               <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Email</th>
-                  <th className="px-3 py-2">Role</th>
-                  <th className="px-3 py-2">Plan</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2 text-right">Monthly</th>
-                  <th className="px-3 py-2 text-right">Top-up</th>
-                  <th className="px-3 py-2 text-right">Used</th>
-                  <th className="px-3 py-2">Joined</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="px-3 py-2 font-medium">User</th>
+                  <th className="w-[88px] px-2 py-2 font-medium">Role</th>
+                  <th className="w-[96px] px-2 py-2 font-medium">Plan</th>
+                  <th className="w-[100px] px-2 py-2 font-medium">Status</th>
+                  <th className="w-[150px] px-2 py-2 text-right font-medium">Credits</th>
+                  <th className="hidden w-[96px] px-2 py-2 font-medium lg:table-cell">Joined</th>
+                  <th className="w-[136px] px-2 py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                      No users match your filters.
+                    </td>
+                  </tr>
+                ) : null}
                 {filtered.map((user) => (
-                  <tr key={user.user_id} className="border-b last:border-0">
-                    <td className="px-3 py-2 font-medium">{user.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{user.email}</td>
-                    <td className="px-3 py-2 capitalize">{user.role}</td>
-                    <td className="px-3 py-2 capitalize">{user.plan}</td>
+                  <tr key={user.user_id} className="border-b align-middle last:border-0 hover:bg-muted/30">
                     <td className="px-3 py-2">
-                      <Badge variant={user.subscription_status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback
+                            className={cn(
+                              'text-[11px]',
+                              user.role === 'admin'
+                                ? 'bg-primary/15 text-primary'
+                                : 'bg-muted text-muted-foreground',
+                            )}
+                          >
+                            {initials(user.name, user.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium leading-tight">{user.name}</p>
+                          <p className="truncate text-xs text-muted-foreground" title={user.email}>
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2">
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                        {user.role}
+                      </Badge>
+                    </td>
+                    <td className="truncate px-2 py-2 capitalize" title={user.plan}>
+                      {user.plan}
+                    </td>
+                    <td className="px-2 py-2">
+                      <Badge
+                        variant={user.subscription_status === 'active' ? 'default' : 'secondary'}
+                        className={cn(
+                          'capitalize',
+                          user.subscription_status === 'suspended' &&
+                            'bg-destructive/15 text-destructive hover:bg-destructive/15',
+                        )}
+                      >
                         {user.subscription_status}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{user.role === 'admin' ? '∞' : user.monthly_credits.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{user.topup_credits.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{user.credits_used.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                      {format(new Date(user.joined_at), 'MMM d, yyyy')}
+                    <td className="px-2 py-2 text-right">
+                      <div className="tabular-nums leading-tight">
+                        <p>
+                          {user.role === 'admin' ? '∞' : user.credits_used.toLocaleString()}
+                          <span className="text-muted-foreground">
+                            {user.role === 'admin' ? '' : ` / ${user.monthly_credits.toLocaleString()}`}
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">+{user.topup_credits.toLocaleString()} top-up</p>
+                      </div>
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        <Button size="sm" variant="outline" disabled={busy} onClick={() => setEditUser({ ...user })}>
-                          Edit
+                    <td className="hidden whitespace-nowrap px-2 py-2 text-xs text-muted-foreground lg:table-cell">
+                      {format(new Date(user.joined_at), 'MMM d, yy')}
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          disabled={busy}
+                          title="Edit role, plan, status"
+                          onClick={() => setEditUser({ ...user })}
+                        >
+                          <Pencil className="h-4 w-4" />
                         </Button>
                         {user.role !== 'admin' ? (
                           <>
-                            <Button size="sm" variant="outline" disabled={busy} onClick={() => setCreditUser(user)}>
-                              Credits
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              disabled={busy}
+                              title="Adjust credits"
+                              onClick={() => setCreditUser(user)}
+                            >
+                              <Coins className="h-4 w-4" />
                             </Button>
                             <Button
-                              size="sm"
-                              variant="outline"
+                              size="icon"
+                              variant="ghost"
+                              className={cn('h-8 w-8', user.suspended_at && 'text-amber-600')}
                               disabled={busy}
+                              title={user.suspended_at ? 'Reactivate' : 'Suspend'}
                               onClick={() => void handleSuspend(user, !user.suspended_at)}
                             >
-                              {user.suspended_at ? 'Activate' : 'Suspend'}
+                              <Power className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              disabled={busy}
+                              title="Delete user"
+                              onClick={() => void handleDelete(user)}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </>
                         ) : null}
@@ -209,6 +379,100 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (busy) return
+          if (!open) setCreateForm(EMPTY_CREATE_FORM)
+          setCreateOpen(open)
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Create user</DialogTitle>
+          <DialogDescription>
+            The account is confirmed instantly — no email verification required.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 py-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="admin-create-email">Email</Label>
+            <Input
+              id="admin-create-email"
+              type="email"
+              autoComplete="off"
+              value={createForm.email}
+              onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="user@example.com"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="admin-create-password">Password</Label>
+            <Input
+              id="admin-create-password"
+              type="text"
+              autoComplete="new-password"
+              value={createForm.password}
+              onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+              placeholder="At least 8 characters"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Share this with the user — they can sign in immediately.
+            </p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="admin-create-name">Display name (optional)</Label>
+            <Input
+              id="admin-create-name"
+              value={createForm.name}
+              onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Defaults to the email handle"
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label>Role</Label>
+              <Select
+                value={createForm.role}
+                onChange={(e) =>
+                  setCreateForm((f) => ({ ...f, role: e.target.value as 'admin' | 'member' }))
+                }
+              >
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Membership plan</Label>
+              <Select
+                value={createForm.plan}
+                onChange={(e) => setCreateForm((f) => ({ ...f, plan: e.target.value }))}
+              >
+                {plans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              setCreateForm(EMPTY_CREATE_FORM)
+              setCreateOpen(false)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button disabled={busy} onClick={() => void submitCreate()}>
+            {busy ? 'Creating…' : 'Create user'}
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       <Dialog open={Boolean(editUser)} onOpenChange={(open) => !open && setEditUser(null)}>
         <DialogHeader>

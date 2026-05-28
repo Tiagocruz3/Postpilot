@@ -144,6 +144,77 @@ export async function adminListUsers(): Promise<AdminUserRow[]> {
   return (data as AdminUserRow[]) ?? []
 }
 
+export async function adminCreateUser(params: {
+  email: string
+  password: string
+  name?: string
+  role?: 'admin' | 'member'
+  plan?: string
+  subscriptionStatus?: string
+}): Promise<{ user_id: string; email: string }> {
+  const email = params.email.trim().toLowerCase()
+  if (!email) throw new Error('Email is required.')
+  if (!params.password || params.password.length < 8) {
+    throw new Error('Password must be at least 8 characters.')
+  }
+  if (isDemoMode) {
+    const users = loadDemoUsers()
+    if (users.some((u) => u.email.toLowerCase() === email)) {
+      throw new Error('A user with this email already exists.')
+    }
+    const role = params.role === 'admin' ? 'admin' : 'member'
+    const plan = params.plan ?? 'free'
+    const config = loadDemoConfig()
+    const planRow = config.plans.find((p) => p.id === plan)
+    const newUser: AdminUserRow = {
+      user_id: `demo-${crypto.randomUUID()}`,
+      name: params.name?.trim() || email.split('@')[0],
+      email,
+      role,
+      plan,
+      subscription_status: params.subscriptionStatus ?? 'active',
+      monthly_credits: planRow?.monthly_credits ?? 0,
+      topup_credits: 0,
+      credits_used: 0,
+      posts_used: 0,
+      images_used: 0,
+      videos_used: 0,
+      joined_at: new Date().toISOString(),
+      suspended_at: null,
+    }
+    saveDemoUsers([newUser, ...users])
+    return { user_id: newUser.user_id, email }
+  }
+  const { data, error } = await supabase.functions.invoke('admin-manage-user', {
+    body: {
+      action: 'create',
+      email,
+      password: params.password,
+      name: params.name,
+      role: params.role ?? 'member',
+      plan: params.plan ?? 'free',
+      subscription_status: params.subscriptionStatus ?? 'active',
+    },
+  })
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error as string)
+  return { user_id: String(data?.user_id ?? ''), email }
+}
+
+export async function adminDeleteUser(userId: string): Promise<void> {
+  if (!userId) throw new Error('userId is required.')
+  if (isDemoMode) {
+    const users = loadDemoUsers().filter((u) => u.user_id !== userId)
+    saveDemoUsers(users)
+    return
+  }
+  const { data, error } = await supabase.functions.invoke('admin-manage-user', {
+    body: { action: 'delete', user_id: userId },
+  })
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error as string)
+}
+
 export async function adminGetConfig(): Promise<AdminSubscriptionConfig> {
   if (isDemoMode) return loadDemoConfig()
   const { data, error } = await db.rpc('admin_get_subscription_config')

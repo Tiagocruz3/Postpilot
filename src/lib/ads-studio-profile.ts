@@ -17,6 +17,14 @@ export type AdsStudioProfile = {
    * walk them through onboarding before they publish ads to that Page.
    */
   onboardedPageIds?: string[]
+  /**
+   * Per-Facebook-Page onboarding snapshots, keyed by Page id. The top-level
+   * business/offer/audience/voice/destination/creative fields always reflect
+   * the *currently selected* Page; this map preserves each other Page's saved
+   * answers so switching Pages (or onboarding a new one) never clobbers the
+   * data captured for another Page.
+   */
+  pageProfiles?: Record<string, AdsPageProfileSections>
   metaConnection: {
     facebookPageId: string
     instagramAccountId: string
@@ -78,12 +86,50 @@ export type AdsStudioProfile = {
   updatedAt: string
 }
 
+/**
+ * The subset of onboarding fields that are specific to a single Facebook Page.
+ * Stored per Page in {@link AdsStudioProfile.pageProfiles} so each Page keeps
+ * its own business/offer/audience/voice/destination/creative answers plus its
+ * own onboarding-progress flags.
+ */
+export type AdsPageProfileSections = {
+  businessProfile: AdsStudioProfile['businessProfile']
+  offerProfile: AdsStudioProfile['offerProfile']
+  audienceProfile: AdsStudioProfile['audienceProfile']
+  brandVoice: AdsStudioProfile['brandVoice']
+  leadDestination: AdsStudioProfile['leadDestination']
+  creativePreferences: AdsStudioProfile['creativePreferences']
+  onboardingCompleted: boolean
+  onboardingStep: number
+}
+
+/** Pull the per-Page onboarding sections out of a full profile. */
+export function extractPageSections(profile: AdsStudioProfile): AdsPageProfileSections {
+  return {
+    businessProfile: profile.businessProfile,
+    offerProfile: profile.offerProfile,
+    audienceProfile: profile.audienceProfile,
+    brandVoice: profile.brandVoice,
+    leadDestination: profile.leadDestination,
+    creativePreferences: profile.creativePreferences,
+    onboardingCompleted: Boolean(profile.onboardingCompleted),
+    onboardingStep: profile.onboardingStep ?? 1,
+  }
+}
+
+/** Blank per-Page sections used when a Page begins onboarding from scratch. */
+export function emptyPageSections(userId: string): AdsPageProfileSections {
+  const base = createDefaultAdsStudioProfile(userId)
+  return extractPageSections(base)
+}
+
 export function createDefaultAdsStudioProfile(userId: string): AdsStudioProfile {
   return {
     userId,
     onboardingCompleted: false,
     onboardingStep: 1,
     onboardedPageIds: [],
+    pageProfiles: {},
     metaConnection: {
       facebookPageId: '',
       instagramAccountId: '',
@@ -218,7 +264,7 @@ export async function fetchAdsStudioProfile(
       ? [fallbackPageId]
       : rawOnboardedPageIds
 
-  return {
+  const normalized: AdsStudioProfile = {
     ...base,
     ...raw,
     userId,
@@ -233,7 +279,21 @@ export async function fetchAdsStudioProfile(
     onboardingCompleted: Boolean(raw.onboardingCompleted),
     onboardingStep: normalizedStep,
     onboardedPageIds,
+    pageProfiles:
+      raw.pageProfiles && typeof raw.pageProfiles === 'object' ? { ...raw.pageProfiles } : {},
   }
+
+  // Seed a snapshot for the currently selected Page so a legacy profile (one
+  // captured before per-Page storage existed) doesn't lose its answers the
+  // first time the user switches Pages.
+  if (fallbackPageId && !normalized.pageProfiles?.[fallbackPageId] && raw.onboardingCompleted) {
+    normalized.pageProfiles = {
+      ...(normalized.pageProfiles ?? {}),
+      [fallbackPageId]: extractPageSections(normalized),
+    }
+  }
+
+  return normalized
 }
 
 export async function saveAdsStudioProfile(

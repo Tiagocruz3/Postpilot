@@ -13,7 +13,13 @@ import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { APP_PAGE } from '@/lib/app-labels'
 import { isDemoMode } from '@/lib/demo'
 import { useCredits } from '@/contexts/CreditContext'
-import { createDefaultAdsStudioProfile, fetchAdsStudioProfile, type AdsStudioProfile } from '@/lib/ads-studio-profile'
+import {
+  createDefaultAdsStudioProfile,
+  emptyPageSections,
+  extractPageSections,
+  fetchAdsStudioProfile,
+  type AdsStudioProfile,
+} from '@/lib/ads-studio-profile'
 import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
   findFacebookIntegration,
@@ -225,6 +231,12 @@ export function AdsPage() {
   const [aiTip, setAiTip] = useState('')
   const [suggestingAudience, setSuggestingAudience] = useState(false)
   const [generatingCopy, setGeneratingCopy] = useState(false)
+  /**
+   * Variant IDs whose image / video creative is still being generated. Used to
+   * show shimmer placeholders + disable the "Use this ad" CTA so users only see
+   * a real ad card once both the copy and media have finished generating.
+   */
+  const [generatingMediaIds, setGeneratingMediaIds] = useState<string[]>([])
   const [mediaPage, setMediaPage] = useState(1)
   const [updatingPostingTarget, setUpdatingPostingTarget] = useState(false)
   /**
@@ -575,25 +587,69 @@ export function AdsPage() {
    * metadata used by the `meta-ads` edge function. Optionally enters the
    * onboarding flow for the new Page when `restartOnboarding` is true.
    */
+  /**
+   * Build the profile patch for switching the active Facebook Page WITHOUT
+   * losing any other Page's onboarding answers. We snapshot the current Page's
+   * sections into `pageProfiles`, then load the target Page's saved snapshot
+   * (or blank sections when starting a fresh onboarding) into the top-level
+   * working fields.
+   */
+  const buildPageSwitchPatch = (
+    pageId: string,
+    restartOnboarding: boolean,
+  ): { patch: Partial<AdsStudioProfile>; onboardingCompleted: boolean; onboardingStep: number } => {
+    const userId = user?.id ?? profile.userId
+    const currentPageId = profile.metaConnection.facebookPageId
+
+    // 1. Snapshot the Page we're leaving so its answers are preserved.
+    const pageProfiles = { ...(profile.pageProfiles ?? {}) }
+    if (currentPageId) {
+      pageProfiles[currentPageId] = extractPageSections(profile)
+    }
+
+    // 2. Resolve the target Page's sections.
+    const savedTarget = pageProfiles[pageId]
+    const targetSections =
+      restartOnboarding || !savedTarget ? emptyPageSections(userId) : savedTarget
+    // A restart always begins onboarding fresh; an existing snapshot keeps its
+    // own completion flag.
+    const onboardingCompleted = restartOnboarding ? false : targetSections.onboardingCompleted
+    const onboardingStep = restartOnboarding ? 1 : targetSections.onboardingStep
+
+    const patch: Partial<AdsStudioProfile> = {
+      pageProfiles,
+      businessProfile: targetSections.businessProfile,
+      offerProfile: targetSections.offerProfile,
+      audienceProfile: targetSections.audienceProfile,
+      brandVoice: targetSections.brandVoice,
+      leadDestination: targetSections.leadDestination,
+      creativePreferences: targetSections.creativePreferences,
+      onboardingCompleted,
+      onboardingStep,
+      metaConnection: {
+        ...profile.metaConnection,
+        facebookPageId: pageId,
+        connectedAt: new Date().toISOString(),
+      },
+    }
+    return { patch, onboardingCompleted, onboardingStep }
+  }
+
   const applyFacebookPageSwitch = async (
     pageId: string,
     pageName: string,
     options: { restartOnboarding?: boolean } = {},
   ) => {
     const restartOnboarding = options.restartOnboarding ?? false
+    const { patch, onboardingCompleted, onboardingStep } = buildPageSwitchPatch(
+      pageId,
+      restartOnboarding,
+    )
+
     if (isDemoMode) {
-      setProfile((prev) => ({
-        ...prev,
-        metaConnection: {
-          ...prev.metaConnection,
-          facebookPageId: pageId,
-          connectedAt: new Date().toISOString(),
-        },
-      }))
-      if (restartOnboarding) {
-        setOnboardingDone(false)
-        setOnboardingStep(1)
-      }
+      setProfile((prev) => ({ ...prev, ...patch }))
+      setOnboardingDone(onboardingCompleted)
+      setOnboardingStep(onboardingStep)
       setMessage(
         restartOnboarding
           ? `Switched to ${pageName} (demo). Complete onboarding to start posting ads.`
@@ -622,20 +678,9 @@ export function AdsPage() {
         }
         void refreshIntegrations()
       }
-      await saveProfile({
-        metaConnection: {
-          ...profile.metaConnection,
-          facebookPageId: pageId,
-          connectedAt: new Date().toISOString(),
-        },
-        ...(restartOnboarding
-          ? { onboardingCompleted: false, onboardingStep: 1 }
-          : {}),
-      })
-      if (restartOnboarding) {
-        setOnboardingDone(false)
-        setOnboardingStep(1)
-      }
+      await saveProfile(patch)
+      setOnboardingDone(onboardingCompleted)
+      setOnboardingStep(onboardingStep)
       setMessage(
         restartOnboarding
           ? `Switched to ${pageName}. Complete onboarding to start posting ads from this Page.`
@@ -1099,6 +1144,11 @@ export function AdsPage() {
         console.warn('[AdsPage] failed to persist variants to ad_creatives', err)
       }
     }
+
+    setGeneratingMediaIds(next.map((option) => option.id))
+    void Promise.allSettled(
+      next.map((option) => generateMediaForVariant(option.id, previewType, { option })),
+    )
   }
 
   /** Snapshot of the current draft + a variant into an ad_creatives column shape. */
@@ -1243,28 +1293,91 @@ export function AdsPage() {
     void refreshMedia()
   }
 
-  const generateCreative = async (type: 'image' | 'video') => {
-    if (!selectedOption || !currentWorkspaceId || !user?.id) return
+  /**
+   * Generate an image / video creative for a single ad variant. Used both when
+   * `generateOptions` first creates variants (so the user gets text + media in
+   * one click) and when the user manually clicks "Regenerate image / video"
+   * inside the editor. Handles per-variant loading state, credit gating, and
+   * persistence so the rest of the UI can simply observe `generatingMediaIds`.
+   */
+  const generateMediaForVariant = async (
+    optionId: string,
+    type: 'image' | 'video',
+    overrides?: { promptOverride?: string; option?: AdOption },
+  ) => {
+    if (!currentWorkspaceId || !user?.id) return
+    // Prefer the passed-in option (avoids stale-closure issues when called
+    // immediately after a setOptions) and fall back to the current state.
+    const baseOption = overrides?.option ?? options.find((o) => o.id === optionId)
+    if (!baseOption) return
     const fn = type === 'image' ? 'generate-image' : 'generate-video'
-    if (!isDemoMode) {
-      const gate = await consumeForFunction(fn, { premium: false }, { workspaceId: currentWorkspaceId })
-      if (!gate.ok) return setMessage(gate.error ?? 'Insufficient credits.')
+    setGeneratingMediaIds((ids) => (ids.includes(optionId) ? ids : [...ids, optionId]))
+    try {
+      if (!isDemoMode) {
+        const gate = await consumeForFunction(fn, { premium: false }, { workspaceId: currentWorkspaceId })
+        if (!gate.ok) {
+          setMessage(gate.error ?? 'Insufficient credits.')
+          return
+        }
+      }
+      const prompt =
+        overrides?.promptOverride ||
+        baseOption.imagePrompt ||
+        baseOption.creativeDirection ||
+        `${baseOption.headline}. ${baseOption.primaryText}`
+      if (isDemoMode) {
+        await new Promise((resolve) => setTimeout(resolve, 900 + Math.random() * 600))
+        const seed = encodeURIComponent(`${baseOption.id}-${type}`)
+        const demoUrl =
+          type === 'video'
+            ? 'https://download.samplelib.com/mp4/sample-5s.mp4'
+            : `https://picsum.photos/seed/${seed}/800/800`
+        setOptions((list) =>
+          list.map((o) =>
+            o.id === optionId ? { ...o, previewUrl: demoUrl, previewType: type } : o,
+          ),
+        )
+        return
+      }
+      const { data, error } = await supabase.functions.invoke(fn, {
+        body: {
+          prompt,
+          platform: 'facebook',
+          workspace_id: currentWorkspaceId,
+          user_id: user.id,
+          source: 'ads',
+          metadata: { adOptionId: optionId, campaignId: draft.campaignName || null },
+        },
+      })
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+      if (data?.url) {
+        const url = data.url as string
+        setOptions((list) =>
+          list.map((o) => (o.id === optionId ? { ...o, previewUrl: url, previewType: type } : o)),
+        )
+        const creativeId = creativeIdByOption.current[optionId]
+        if (creativeId) {
+          try {
+            await updateAdCreative(creativeId, { media_url: url, media_type: type })
+          } catch (err) {
+            console.warn('[AdsPage] failed to persist generated media to ad_creatives', err)
+          }
+        }
+        void refreshMedia()
+      }
+    } catch (err) {
+      console.warn('[AdsPage] media generation failed', err)
+    } finally {
+      setGeneratingMediaIds((ids) => ids.filter((id) => id !== optionId))
     }
-    const { data, error } = await supabase.functions.invoke(fn, {
-      body: {
-        prompt: `${selectedOption.headline}. ${selectedOption.primaryText}`,
-        platform: 'facebook',
-        workspace_id: currentWorkspaceId,
-        user_id: user.id,
-        source: 'ads',
-        metadata: { adOptionId: selectedOption.id, campaignId: draft.campaignName || null },
-      },
-    })
-    if (error) return setMessage(error.message)
-    if (data?.url) {
-      setOptions((list) => list.map((o) => (o.id === selectedOption.id ? { ...o, previewUrl: data.url as string, previewType: type } : o)))
-      void refreshMedia()
-    }
+  }
+
+  const generateCreative = async (type: 'image' | 'video') => {
+    if (!selectedOption) return
+    await generateMediaForVariant(selectedOption.id, type)
   }
 
   const validateCurrentStep = () => {
@@ -1304,10 +1417,21 @@ export function AdsPage() {
     const onboardedPageIds = currentPageId && !existingOnboardedPageIds.includes(currentPageId)
       ? [...existingOnboardedPageIds, currentPageId]
       : existingOnboardedPageIds
+    // Snapshot the just-completed answers against this Page so switching away
+    // and back (or onboarding another Page) never overwrites them.
+    const pageProfiles = { ...(profile.pageProfiles ?? {}) }
+    if (currentPageId) {
+      pageProfiles[currentPageId] = {
+        ...extractPageSections(profile),
+        onboardingCompleted: true,
+        onboardingStep: 8,
+      }
+    }
     void saveProfile({
       onboardingCompleted: true,
       onboardingStep: 8,
       onboardedPageIds,
+      pageProfiles,
     })
   }
 
@@ -1801,6 +1925,7 @@ export function AdsPage() {
             onApplyAllTargetingSuggestions={applyAllTargetingSuggestions}
             onEditProfile={() => setShowProfile(true)}
             generatingCopy={generatingCopy}
+            generatingMediaIds={generatingMediaIds}
             suggestingAudience={suggestingAudience}
             aiTip={aiTip}
             metaReady={Boolean(profile.metaConnection.adAccountId && profile.metaConnection.facebookPageId)}

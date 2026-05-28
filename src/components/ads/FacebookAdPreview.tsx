@@ -5,12 +5,14 @@ import {
   Heart,
   Home,
   Image as ImageIcon,
+  Loader2,
   MessageCircle,
   MoreHorizontal,
   Search,
   Send,
   Share2,
   ShoppingBag,
+  Sparkles,
   ThumbsUp,
   Users,
   Video,
@@ -46,6 +48,12 @@ type FacebookAdPreviewProps = {
   placement?: AdPlacement
   device?: AdDevice
   className?: string
+  /**
+   * When true, the media slot renders an animated shimmer placeholder instead
+   * of the static empty-state icon. Used while AI image / video generation is
+   * still in flight so the ad card feels "alive" until the asset arrives.
+   */
+  mediaLoading?: boolean
 }
 
 const DEFAULT_AVATAR_BG = 'linear-gradient(135deg, #1877F2, #00C6FF)'
@@ -81,12 +89,49 @@ function PageAvatar({ url, name, size = 36 }: { url?: string | null; name: strin
 function MediaArea({
   data,
   aspect,
+  loading = false,
 }: {
   data: FacebookAdPreviewData
   aspect: 'square' | 'portrait' | 'landscape'
+  loading?: boolean
 }) {
   const aspectClass =
     aspect === 'square' ? 'aspect-square' : aspect === 'portrait' ? 'aspect-[9/16]' : 'aspect-[16/9]'
+
+  if (loading) {
+    const Icon = data.mediaType === 'video' ? Video : ImageIcon
+    const label = data.mediaType === 'video' ? 'Rendering your video' : 'Designing your image'
+    const sublabel =
+      data.mediaType === 'video' ? 'This can take up to a minute' : 'Usually ready in 10–20 seconds'
+    return (
+      <div
+        className={cn(
+          'relative w-full overflow-hidden bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10',
+          aspectClass,
+        )}
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div className="alive-shimmer absolute inset-0" />
+        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center">
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-background/85 shadow-sm backdrop-blur">
+            <Icon className="h-5 w-5 text-primary" />
+            <Loader2 className="absolute -bottom-1 -right-1 h-4 w-4 animate-spin rounded-full bg-background p-0.5 text-primary shadow-sm" />
+          </div>
+          <div className="space-y-0.5">
+            <p className="flex items-center justify-center gap-1 text-xs font-semibold text-foreground">
+              <Sparkles className="h-3 w-3 text-primary" />
+              {label}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{sublabel}</p>
+          </div>
+          <div className="h-1 w-24 overflow-hidden rounded-full bg-muted">
+            <div className="alive-shimmer h-full w-2/3 rounded-full bg-primary/60" />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!data.mediaUrl) {
     return (
@@ -154,7 +199,7 @@ function ActionRow({ compact = false }: { compact?: boolean }) {
   )
 }
 
-function FacebookFeedAd({ data, device }: { data: FacebookAdPreviewData; device: AdDevice }) {
+function FacebookFeedAd({ data, device, mediaLoading }: { data: FacebookAdPreviewData; device: AdDevice; mediaLoading?: boolean }) {
   return (
     <div
       className={cn(
@@ -185,7 +230,7 @@ function FacebookFeedAd({ data, device }: { data: FacebookAdPreviewData; device:
         {data.primaryText || 'Your ad copy will appear here.'}
       </p>
 
-      <MediaArea data={data} aspect="square" />
+      <MediaArea data={data} aspect="square" loading={mediaLoading} />
 
       <div className="flex items-center justify-between gap-3 bg-slate-50 px-3 py-2 dark:bg-slate-800">
         <div className="min-w-0 flex-1">
@@ -207,7 +252,7 @@ function FacebookFeedAd({ data, device }: { data: FacebookAdPreviewData; device:
   )
 }
 
-function InstagramFeedAd({ data, device }: { data: FacebookAdPreviewData; device: AdDevice }) {
+function InstagramFeedAd({ data, device, mediaLoading }: { data: FacebookAdPreviewData; device: AdDevice; mediaLoading?: boolean }) {
   return (
     <div
       className={cn(
@@ -228,7 +273,7 @@ function InstagramFeedAd({ data, device }: { data: FacebookAdPreviewData; device
         <MoreHorizontal className="h-4 w-4 text-slate-500" />
       </div>
 
-      <MediaArea data={data} aspect="square" />
+      <MediaArea data={data} aspect="square" loading={mediaLoading} />
 
       <div className="flex items-center justify-between px-3 py-2 text-slate-700 dark:text-slate-200">
         <div className="flex items-center gap-3">
@@ -260,11 +305,11 @@ function InstagramFeedAd({ data, device }: { data: FacebookAdPreviewData; device
   )
 }
 
-function StoryAd({ data }: { data: FacebookAdPreviewData; device: AdDevice }) {
+function StoryAd({ data, mediaLoading }: { data: FacebookAdPreviewData; device: AdDevice; mediaLoading?: boolean }) {
   return (
     <div className="relative w-full max-w-[260px] overflow-hidden rounded-[28px] border border-slate-800 bg-black shadow-xl">
       <div className="aspect-[9/16] relative">
-        <MediaArea data={data} aspect="portrait" />
+        <MediaArea data={data} aspect="portrait" loading={mediaLoading} />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/60 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black to-transparent" />
 
@@ -303,11 +348,11 @@ function StoryAd({ data }: { data: FacebookAdPreviewData; device: AdDevice }) {
   )
 }
 
-function ReelAd({ data }: { data: FacebookAdPreviewData; device: AdDevice }) {
+function ReelAd({ data, mediaLoading }: { data: FacebookAdPreviewData; device: AdDevice; mediaLoading?: boolean }) {
   return (
     <div className="relative w-full max-w-[260px] overflow-hidden rounded-[28px] border border-slate-800 bg-black shadow-xl">
       <div className="relative aspect-[9/16]">
-        <MediaArea data={data} aspect="portrait" />
+        <MediaArea data={data} aspect="portrait" loading={mediaLoading} />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black via-black/60 to-transparent" />
 
         <div className="absolute right-3 top-1/3 z-10 flex flex-col items-center gap-4 text-white">
@@ -339,7 +384,7 @@ function ReelAd({ data }: { data: FacebookAdPreviewData; device: AdDevice }) {
   )
 }
 
-function MarketplaceAd({ data, device }: { data: FacebookAdPreviewData; device: AdDevice }) {
+function MarketplaceAd({ data, device, mediaLoading }: { data: FacebookAdPreviewData; device: AdDevice; mediaLoading?: boolean }) {
   return (
     <div
       className={cn(
@@ -347,7 +392,7 @@ function MarketplaceAd({ data, device }: { data: FacebookAdPreviewData; device: 
         device === 'mobile' ? 'w-full max-w-[220px]' : 'w-full max-w-xs',
       )}
     >
-      <MediaArea data={data} aspect="square" />
+      <MediaArea data={data} aspect="square" loading={mediaLoading} />
       <div className="space-y-1 p-3">
         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Sponsored</p>
         <p className="line-clamp-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -367,11 +412,11 @@ function MarketplaceAd({ data, device }: { data: FacebookAdPreviewData; device: 
   )
 }
 
-function RightColumnAd({ data }: { data: FacebookAdPreviewData }) {
+function RightColumnAd({ data, mediaLoading }: { data: FacebookAdPreviewData; mediaLoading?: boolean }) {
   return (
     <div className="flex w-full max-w-xs gap-3 rounded-lg border bg-white p-2 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="h-20 w-20 shrink-0 overflow-hidden rounded">
-        <MediaArea data={data} aspect="square" />
+        <MediaArea data={data} aspect="square" loading={mediaLoading} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-between">
         <div className="space-y-0.5">
@@ -426,28 +471,29 @@ export function FacebookAdPreview({
   placement = 'facebook-feed',
   device = 'mobile',
   className,
+  mediaLoading = false,
 }: FacebookAdPreviewProps) {
   const id = useId()
   let body: React.ReactNode
   switch (placement) {
     case 'instagram-feed':
-      body = <InstagramFeedAd data={data} device={device} />
+      body = <InstagramFeedAd data={data} device={device} mediaLoading={mediaLoading} />
       break
     case 'story':
-      body = <StoryAd data={data} device={device} />
+      body = <StoryAd data={data} device={device} mediaLoading={mediaLoading} />
       break
     case 'reel':
-      body = <ReelAd data={data} device={device} />
+      body = <ReelAd data={data} device={device} mediaLoading={mediaLoading} />
       break
     case 'marketplace':
-      body = <MarketplaceAd data={data} device={device} />
+      body = <MarketplaceAd data={data} device={device} mediaLoading={mediaLoading} />
       break
     case 'right-column':
-      body = <RightColumnAd data={data} />
+      body = <RightColumnAd data={data} mediaLoading={mediaLoading} />
       break
     case 'facebook-feed':
     default:
-      body = <FacebookFeedAd data={data} device={device} />
+      body = <FacebookFeedAd data={data} device={device} mediaLoading={mediaLoading} />
       break
   }
 

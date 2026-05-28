@@ -106,6 +106,8 @@ type AdsCampaignStudioProps = {
   metaReady?: boolean
   onPublish?: () => Promise<void> | void
   generatingCopy?: boolean
+  /** IDs of variants whose image / video creative is still being generated. */
+  generatingMediaIds?: string[]
   suggestingAudience?: boolean
   aiTip?: string
   /** Optional controlled step. If omitted the studio manages its own step locally. */
@@ -155,6 +157,7 @@ export function AdsCampaignStudio({
   metaReady = false,
   onPublish,
   generatingCopy = false,
+  generatingMediaIds,
   suggestingAudience = false,
   aiTip,
   step: controlledStep,
@@ -457,28 +460,57 @@ export function AdsCampaignStudio({
                   </div>
                 ) : null}
 
-                {options.length === 0 ? (
+                {options.length === 0 && !generatingCopy ? (
                   <p className="text-sm text-muted-foreground">No variants yet — click Generate to create two side-by-side.</p>
-                ) : (
+                ) : null}
+
+                {options.length === 0 && generatingCopy ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {[0, 1].map((index) => (
+                      <VariantSkeletonCard
+                        key={`skeleton-${index}`}
+                        label={index === 0 ? 'Variant A' : 'Variant B'}
+                        mediaType={draft.adType === 'Video Ad' ? 'video' : 'image'}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+
+                {options.length > 0 ? (
                   <div className="grid gap-4 lg:grid-cols-2">
                     {options.map((option) => {
                       const isSelected = selectedId === option.id
                       const isRecommended =
                         variantRecommendation?.preferredVariant?.toLowerCase() === option.name.toLowerCase()
                       const isRegenerating = regeneratingVariantId === option.id
+                      const mediaLoading =
+                        (generatingMediaIds?.includes(option.id) ?? false) || (!option.previewUrl && isRegenerating)
+                      // A variant is only "ready" once both copy and media are
+                      // present and nothing is still being generated for it.
+                      const hasCopy = Boolean(option.headline?.trim() && option.primaryText?.trim())
+                      const isReady = hasCopy && Boolean(option.previewUrl) && !mediaLoading
                       return (
                         <div
                           key={option.id}
                           className={cn(
-                            'flex flex-col gap-3 rounded-2xl border p-3 transition-colors',
+                            'alive-enter flex flex-col gap-3 rounded-2xl border p-3 transition-all',
                             isSelected ? 'border-[#1877F2] ring-2 ring-[#1877F2]/20' : 'hover:bg-muted/30',
+                            !isReady && 'border-dashed',
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-wide text-[#1877F2]">
-                                {option.name}
-                              </p>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-[#1877F2]">
+                                  {option.name}
+                                </p>
+                                {!isReady ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Generating {option.previewType}…
+                                  </span>
+                                ) : null}
+                              </div>
                               {option.angle ? (
                                 <p className="text-[11px] text-muted-foreground capitalize">{option.angle.replace(/-/g, ' ')} angle</p>
                               ) : null}
@@ -505,6 +537,7 @@ export function AdsCampaignStudio({
                             }}
                             placement="facebook-feed"
                             device="mobile"
+                            mediaLoading={mediaLoading}
                           />
 
                           {option.targetingAngle ? (
@@ -519,14 +552,19 @@ export function AdsCampaignStudio({
                               className={cn('flex-1', isSelected ? 'bg-[#1877F2] hover:bg-[#166fe0]' : '')}
                               variant={isSelected ? 'default' : 'outline'}
                               onClick={() => onSelectOption(option.id)}
+                              disabled={mediaLoading}
                             >
-                              {isSelected ? 'Selected' : 'Use this ad'}
+                              {mediaLoading
+                                ? `Finishing ${option.previewType}…`
+                                : isSelected
+                                  ? 'Selected'
+                                  : 'Use this ad'}
                             </Button>
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => void handleRegenerateVariant(option.id)}
-                              disabled={isRegenerating || !onRegenerateVariant}
+                              disabled={isRegenerating || !onRegenerateVariant || mediaLoading}
                             >
                               {isRegenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                             </Button>
@@ -535,7 +573,7 @@ export function AdsCampaignStudio({
                       )
                     })}
                   </div>
-                )}
+                ) : null}
               </CardContent>
             </Card>
           </div>
@@ -600,10 +638,26 @@ export function AdsCampaignStudio({
                         <Wand2 className="mr-2 h-4 w-4" />
                         Rewrite
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => void onGenerateCreative('image')}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void onGenerateCreative('image')}
+                        disabled={generatingMediaIds?.includes(selectedOption.id) ?? false}
+                      >
+                        {generatingMediaIds?.includes(selectedOption.id) && selectedOption.previewType === 'image' ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : null}
                         Regenerate image
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => void onGenerateCreative('video')}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void onGenerateCreative('video')}
+                        disabled={generatingMediaIds?.includes(selectedOption.id) ?? false}
+                      >
+                        {generatingMediaIds?.includes(selectedOption.id) && selectedOption.previewType === 'video' ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : null}
                         Regenerate video
                       </Button>
                       {onRegenerateVariant ? (
@@ -646,6 +700,7 @@ export function AdsCampaignStudio({
                       }}
                       placement={previewPlacement}
                       device={previewDevice}
+                      mediaLoading={generatingMediaIds?.includes(selectedOption.id) ?? false}
                     />
                   </div>
                 </div>
@@ -937,6 +992,7 @@ export function AdsCampaignStudio({
                       }}
                       placement={previewPlacement}
                       device={previewDevice}
+                      mediaLoading={generatingMediaIds?.includes(selectedOption.id) ?? false}
                     />
                   </div>
                   <div className="rounded-xl border bg-muted/20 p-3 text-xs text-muted-foreground">
@@ -1026,6 +1082,7 @@ export function AdsCampaignStudio({
                       }}
                       placement={previewPlacement}
                       device={previewDevice}
+                      mediaLoading={generatingMediaIds?.includes(selectedOption.id) ?? false}
                     />
                   </div>
 
@@ -1207,6 +1264,61 @@ function PreviewPlacementSwitcher({
             {value}
           </button>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function VariantSkeletonCard({
+  label,
+  mediaType,
+}: {
+  label: string
+  mediaType: 'image' | 'video'
+}) {
+  return (
+    <div
+      className="alive-enter relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-dashed bg-muted/10 p-3"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="alive-shimmer pointer-events-none absolute inset-0 opacity-60" />
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1877F2]">{label}</p>
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Crafting {mediaType === 'video' ? 'video ad' : 'image ad'}…
+          </span>
+        </div>
+        <div className="h-5 w-16 rounded-full bg-muted/60" />
+      </div>
+
+      <div className="relative space-y-2 rounded-xl border bg-background p-3">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-full bg-muted/70" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 w-2/3 rounded-full bg-muted/70" />
+            <div className="h-2 w-1/3 rounded-full bg-muted/50" />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <div className="h-2.5 w-11/12 rounded-full bg-muted/60" />
+          <div className="h-2.5 w-9/12 rounded-full bg-muted/60" />
+          <div className="h-2.5 w-7/12 rounded-full bg-muted/40" />
+        </div>
+        <div className="aspect-square w-full overflow-hidden rounded-lg bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10">
+          <div className="alive-shimmer h-full w-full" />
+        </div>
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="h-2.5 w-1/2 rounded-full bg-muted/60" />
+          <div className="h-6 w-20 rounded-md bg-muted/60" />
+        </div>
+      </div>
+
+      <div className="relative flex items-center gap-2">
+        <div className="h-8 flex-1 rounded-md bg-muted/60" />
+        <div className="h-8 w-10 rounded-md bg-muted/40" />
       </div>
     </div>
   )
