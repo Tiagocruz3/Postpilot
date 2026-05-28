@@ -12,7 +12,7 @@ import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { APP_PAGE } from '@/lib/app-labels'
 import { isDemoMode } from '@/lib/demo'
 import { useCredits } from '@/contexts/CreditContext'
-import { createDefaultAdsStudioProfile, fetchAdsStudioProfile } from '@/lib/ads-studio-profile'
+import { createDefaultAdsStudioProfile, fetchAdsStudioProfile, type AdsStudioProfile } from '@/lib/ads-studio-profile'
 import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
   findFacebookIntegration,
@@ -39,7 +39,6 @@ interface OutletContext {
 type AdsTab = 'studio' | 'media' | 'analytics'
 type Goal = 'Get leads' | 'Send traffic to website' | 'Get messages' | 'Increase sales' | 'Boost engagement' | 'Build awareness'
 type AdType = 'Single Image Ad' | 'Video Ad' | 'Carousel Ad' | 'Story / Reel Ad' | 'Lead Form Ad' | 'Website Conversion Ad' | 'Engagement Ad'
-type DestinationType = 'custom_url' | 'meta_lead_form'
 
 type AdOption = {
   id: string
@@ -67,71 +66,6 @@ const BUSINESS_TYPES = ['Local business', 'Online store', 'Coach / consultant', 
 const VISUAL_STYLES = ['Clean and modern', 'Bold and high-converting', 'Luxury', 'Minimal', 'UGC style', 'Product-focused', 'Lifestyle', 'Cinematic']
 const CREATIVE_FORMATS = ['Image ads', 'Video ads', 'Carousel ads', 'Story ads', 'Reel ads', 'UGC-style ads', 'Product promo ads', 'Offer graphics', 'I will upload my own media']
 
-type AdsStudioProfile = {
-  userId: string
-  /** Once true, never show onboarding again unless reset from Settings. */
-  onboardingCompleted?: boolean
-  metaConnection: {
-    facebookPageId: string
-    instagramAccountId: string
-    adAccountId: string
-    connectedAt: string
-  }
-  businessProfile: {
-    businessName: string
-    industry: string
-    websiteUrl: string
-    businessType: string
-  }
-  offerProfile: {
-    mainProductService: string
-    mainOffer: string
-    pricePoint: string
-    keyBenefits: string
-    customerProblemSolved: string
-  }
-  audienceProfile: {
-    description: string
-    locations: string
-    ageRange: string
-    gender: string
-    interests: string
-    painPoints: string
-    desiredOutcome: string
-  }
-  brandVoice: {
-    tone: string
-    writingStyle: string
-    ctaStyle: string
-    wordsToAvoid: string
-  }
-  leadDestination: {
-    type: DestinationType
-    defaultUrl: string
-  }
-  creativePreferences: {
-    formats: string[]
-    visualStyle: string
-    brandColors: string
-    logoUrl: string
-  }
-  aiPreferences: {
-    useResearch: boolean
-    researchTrends: boolean
-    suggestAudiences: boolean
-    suggestHooks: boolean
-    generateCopy: boolean
-    generateImages: boolean
-    generateVideos: boolean
-    recommendBudget: boolean
-    recommendPlacements: boolean
-    analyzePerformance: boolean
-  }
-  completionScore: number
-  createdAt: string
-  updatedAt: string
-}
-
 const requiredByStep: Record<number, string[]> = {
   1: [],
   2: ['businessProfile.businessName', 'businessProfile.industry', 'businessProfile.websiteUrl', 'businessProfile.businessType'],
@@ -156,7 +90,7 @@ export function AdsPage() {
   const [showProfile, setShowProfile] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(1)
   const [onboardingDone, setOnboardingDone] = useState(false)
-  const [studioStep, setStudioStep] = useState(1)
+  const [showOnboardingComplete, setShowOnboardingComplete] = useState(false)
   const [message, setMessage] = useState('')
   const [aiTip, setAiTip] = useState('')
   const [suggestingAudience, setSuggestingAudience] = useState(false)
@@ -196,6 +130,9 @@ export function AdsPage() {
           const locked = Boolean(saved.onboardingCompleted)
           const legacyComplete = (saved.completionScore ?? 0) >= 70
           setOnboardingDone(locked || legacyComplete)
+          if (!locked && !legacyComplete) {
+            setOnboardingStep(saved.onboardingStep ? Math.max(1, Math.min(8, saved.onboardingStep)) : 1)
+          }
         }
       } catch {
         if (!active) return
@@ -263,7 +200,6 @@ export function AdsPage() {
       }
       setOnboardingDone(false)
       setOnboardingStep(1)
-      setStudioStep(1)
       setOptions([])
       setSelectedId(null)
       setMessage('Set up Growth Ads again — complete each onboarding step or skip sections you will fill later.')
@@ -520,7 +456,6 @@ export function AdsPage() {
     }))
     setOptions(next)
     setSelectedId(next[0]?.id ?? null)
-    setStudioStep(4)
   }
 
   const handleRemoveMedia = async (id: string) => {
@@ -571,19 +506,22 @@ export function AdsPage() {
 
   const nextOnboarding = async () => {
     if (!validateCurrentStep()) return
-    await saveProfile()
-    setOnboardingStep((s) => Math.min(8, s + 1))
+    const nextStep = Math.min(8, onboardingStep + 1)
+    await saveProfile({ onboardingStep: nextStep })
+    setOnboardingStep(nextStep)
   }
 
   const skipOnboarding = async () => {
-    await saveProfile()
-    setOnboardingStep((s) => Math.min(8, s + 1))
+    const nextStep = Math.min(8, onboardingStep + 1)
+    await saveProfile({ onboardingStep: nextStep })
+    setOnboardingStep(nextStep)
   }
 
   const completeOnboarding = async () => {
-    await saveProfile({ onboardingCompleted: true })
+    await saveProfile({ onboardingCompleted: true, onboardingStep: 8 })
     setOnboardingDone(true)
-    setMessage('Your Growth Ads AI Profile is ready.')
+    setShowOnboardingComplete(true)
+    setMessage('')
   }
 
   return (
@@ -606,14 +544,50 @@ export function AdsPage() {
 
       <div className="flex flex-wrap gap-2">
         <Badge variant="outline">Growth Ads Profile {completion}% complete</Badge>
-        <Badge variant="secondary" className="alive-soft-pulse">
-          Step {onboardingDone ? studioStep : onboardingStep} active
-        </Badge>
+        {!onboardingDone ? (
+          <Badge variant="secondary" className="alive-soft-pulse">
+            Step {onboardingStep} active
+          </Badge>
+        ) : null}
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div className="alive-shimmer h-full rounded-full bg-primary/35" style={{ width: `${Math.max(8, completion)}%` }} />
       </div>
       {message ? <div className="rounded-xl border bg-primary/5 px-4 py-3 text-sm">{message}</div> : null}
+
+      <Dialog open={showOnboardingComplete} onOpenChange={setShowOnboardingComplete} panelClassName="w-full max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Your Growth Ads AI Profile is ready</DialogTitle>
+          <DialogDescription>
+            Growth Ads will use your business, audience, offer, and creative preferences to generate better campaigns.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 rounded-2xl border bg-muted/20 p-4">
+          <p className="text-sm font-medium">Growth Ads Profile: {completion}% complete</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            You can edit this anytime via <span className="font-medium text-foreground">Edit AI Profile</span>.
+          </p>
+        </div>
+        <DialogFooter className="mt-5">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowOnboardingComplete(false)
+              setOnboardingDone(true)
+            }}
+          >
+            Go to Growth Ads
+          </Button>
+          <Button
+            onClick={() => {
+              setShowOnboardingComplete(false)
+              setOnboardingDone(true)
+            }}
+          >
+            Create first Meta ad
+          </Button>
+        </DialogFooter>
+      </Dialog>
 
       {!onboardingDone ? (
         <Card className="alive-enter">
@@ -794,7 +768,17 @@ export function AdsPage() {
             ) : null}
 
             <div className="flex flex-wrap justify-between gap-2 pt-2">
-              <Button variant="outline" disabled={onboardingStep === 1} onClick={() => setOnboardingStep((s) => Math.max(1, s - 1))}>Back</Button>
+              <Button
+                variant="outline"
+                disabled={onboardingStep === 1}
+                onClick={() => {
+                  const prevStep = Math.max(1, onboardingStep - 1)
+                  setOnboardingStep(prevStep)
+                  void saveProfile({ onboardingStep: prevStep })
+                }}
+              >
+                Back
+              </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => void saveProfile()}>Save</Button>
                 <Button variant="outline" onClick={() => void skipOnboarding()}>Skip</Button>
@@ -818,8 +802,7 @@ export function AdsPage() {
                     <p>Business Profile</p><p>Offer</p><p>Audience</p><p>Brand Voice</p><p>Destination</p><p>Creative Preferences</p><p>AI Optimization</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => setStudioStep(1)}>Create First Meta Ad</Button>
-                    <Button variant="outline" onClick={() => setOnboardingDone(true)}>Go to Growth Ads</Button>
+                    <Button onClick={() => setOnboardingDone(true)}>Go to Growth Ads</Button>
                     <Button variant="outline" onClick={() => setOnboardingStep(2)}>Complete Missing Details</Button>
                   </div>
                 </CardContent>

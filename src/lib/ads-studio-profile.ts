@@ -8,6 +8,8 @@ export type AdsStudioProfile = {
   userId: string
   /** Once true, never show onboarding again unless reset from Settings. */
   onboardingCompleted?: boolean
+  /** Resume onboarding where the user left off (1-8). */
+  onboardingStep?: number
   metaConnection: {
     facebookPageId: string
     instagramAccountId: string
@@ -73,6 +75,7 @@ export function createDefaultAdsStudioProfile(userId: string): AdsStudioProfile 
   return {
     userId,
     onboardingCompleted: false,
+    onboardingStep: 1,
     metaConnection: {
       facebookPageId: '',
       instagramAccountId: '',
@@ -192,6 +195,8 @@ export async function fetchAdsStudioProfile(
   // Older rows may not include every field (or even userId). Normalize to the latest schema
   // so onboarding-complete flags and defaults survive across updates.
   const base = createDefaultAdsStudioProfile(userId)
+  const rawStep = typeof raw.onboardingStep === 'number' ? raw.onboardingStep : Number(raw.onboardingStep)
+  const normalizedStep = Number.isFinite(rawStep) ? Math.max(1, Math.min(8, Math.round(rawStep))) : 1
   return {
     ...base,
     ...raw,
@@ -205,6 +210,7 @@ export async function fetchAdsStudioProfile(
     creativePreferences: { ...base.creativePreferences, ...(raw.creativePreferences ?? {}) },
     aiPreferences: { ...base.aiPreferences, ...(raw.aiPreferences ?? {}) },
     onboardingCompleted: Boolean(raw.onboardingCompleted),
+    onboardingStep: normalizedStep,
   }
 }
 
