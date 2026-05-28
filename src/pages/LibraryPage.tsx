@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { Copy, Image as ImageIcon, Megaphone, RefreshCcw, Trash2, Video } from 'lucide-react'
+import { Copy, Image as ImageIcon, RefreshCcw, Trash2, Video } from 'lucide-react'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
 import { Badge } from '@/components/ui/badge'
@@ -9,10 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Pagination } from '@/components/ui/pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { APP_PAGE } from '@/lib/app-labels'
-import { AdLibraryPanel } from '@/components/ads/AdLibraryPanel'
-import { fetchAdsStudioProfile } from '@/lib/ads-studio-profile'
-import { useAuth } from '@/hooks/useAuth'
-import { isDemoMode } from '@/lib/demo'
 import type { Workspace } from '@/types'
 
 interface OutletContext {
@@ -20,20 +16,17 @@ interface OutletContext {
   currentWorkspace: Workspace | null
 }
 
-type LibraryTab = 'image' | 'video' | 'ads'
+type LibraryTab = 'image' | 'video'
 
 const VAULT_PAGE_SIZE = 12
 
 export function LibraryPage() {
   const navigate = useNavigate()
   const confirm = useConfirm()
-  const { user } = useAuth()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const [activeTab, setActiveTab] = useState<LibraryTab>('image')
   const [message, setMessage] = useState('')
   const { items, loading, error, refresh, remove } = useAiMediaLibrary(currentWorkspaceId)
-  const [businessName, setBusinessName] = useState<string>('')
-  const [facebookPageId, setFacebookPageId] = useState<string | null>(null)
   const [imagePage, setImagePage] = useState(1)
   const [videoPage, setVideoPage] = useState(1)
 
@@ -51,23 +44,6 @@ export function LibraryPage() {
     Math.max(1, videoPage),
     Math.max(1, Math.ceil(videoItems.length / VAULT_PAGE_SIZE)),
   )
-
-  useEffect(() => {
-    if (!currentWorkspaceId || !user?.id || isDemoMode) {
-      setBusinessName(currentWorkspace?.name ?? '')
-      setFacebookPageId(null)
-      return
-    }
-    let active = true
-    void fetchAdsStudioProfile(currentWorkspaceId, user.id).then((profile) => {
-      if (!active) return
-      setBusinessName(profile?.businessProfile?.businessName || currentWorkspace?.name || '')
-      setFacebookPageId(profile?.metaConnection?.facebookPageId || null)
-    })
-    return () => {
-      active = false
-    }
-  }, [currentWorkspaceId, user?.id, currentWorkspace?.name])
 
   const copyUrl = async (url: string) => {
     await navigator.clipboard.writeText(url)
@@ -131,19 +107,7 @@ export function LibraryPage() {
             <Video className="mr-2 h-4 w-4" />
             Videos
           </TabsTrigger>
-          <TabsTrigger value="ads" activeValue={activeTab} onClick={(value) => setActiveTab(value as LibraryTab)}>
-            <Megaphone className="mr-2 h-4 w-4" />
-            Ads
-          </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="ads" activeValue={activeTab}>
-          <AdLibraryPanel
-            workspaceId={currentWorkspaceId}
-            businessName={businessName}
-            facebookPageId={facebookPageId}
-          />
-        </TabsContent>
 
         {(['image', 'video'] as const).map((tab) => {
           const tabItems = tab === 'image' ? imageItems : videoItems
