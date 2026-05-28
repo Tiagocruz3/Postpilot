@@ -57,12 +57,12 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-violet-500 to-fuchsia-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
               P
               <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight">PostPilot</div>
+              <div className="text-sm font-semibold tracking-tight">Ad Guru</div>
               <div className="text-[11px] text-muted-foreground">AI social command center</div>
             </div>
           </Link>
@@ -93,7 +93,7 @@ export function LandingPage() {
             </Button>
             <Button
               onClick={() => navigate(primaryCtaHref)}
-              className="bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40"
+              className="bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40"
             >
               {primaryCtaLabel}
               <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -112,7 +112,7 @@ export function LandingPage() {
             <div className="relative">
               <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur">
                 <span className="alive-status-dot" />
-                New — AI Ad Studio + Lead Forms
+                New: AI Ad Studio + Lead Forms
               </p>
 
               <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
@@ -122,7 +122,7 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-                Create scroll-stopping posts, AI images, videos, and ad campaigns — then schedule, publish, and track
+                Create scroll-stopping posts, AI images, videos, and ad campaigns, then schedule, publish, and track
                 everything from one beautiful dashboard.
               </p>
 
@@ -130,7 +130,7 @@ export function LandingPage() {
                 <Button
                   size="lg"
                   onClick={() => navigate(primaryCtaHref)}
-                  className="h-12 bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 px-6 text-base text-white alive-glow"
+                  className="h-12 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-6 text-base text-white alive-glow"
                 >
                   {primaryCtaLabel}
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -165,7 +165,7 @@ export function LandingPage() {
             {/* Hero product preview */}
             <div className="relative">
               {/* Floating glow behind */}
-              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-violet-500/20 to-fuchsia-500/20 blur-3xl" />
+              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-sky-500/20 to-cyan-500/20 blur-3xl" />
 
               {/* Floating badges */}
               <div className="alive-float absolute -left-6 top-6 hidden rounded-2xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex">
@@ -182,7 +182,7 @@ export function LandingPage() {
 
               <div className="alive-float-slow absolute -right-4 bottom-10 hidden rounded-2xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-fuchsia-500/15 text-fuchsia-600">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-600">
                     <Sparkles className="h-4 w-4" />
                   </div>
                   <div className="text-xs leading-tight">
@@ -196,7 +196,7 @@ export function LandingPage() {
                 <div className="rounded-[1.5rem] border bg-card p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-xs font-bold text-white">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-sky-500 text-xs font-bold text-white">
                         P
                       </div>
                       <p className="text-sm font-semibold">Command Center</p>
@@ -211,7 +211,7 @@ export function LandingPage() {
                     {[
                       { label: 'Scheduled', value: '12', accent: 'from-primary/20 to-primary/5', icon: CalendarDays },
                       { label: 'Engagement', value: '+28%', accent: 'from-emerald-500/20 to-emerald-500/5', icon: BarChart3 },
-                      { label: 'Active ads', value: '3', accent: 'from-fuchsia-500/20 to-fuchsia-500/5', icon: Megaphone },
+                      { label: 'Active ads', value: '3', accent: 'from-cyan-500/20 to-cyan-500/5', icon: Megaphone },
                       { label: 'Leads', value: '47', accent: 'from-amber-500/20 to-amber-500/5', icon: Target },
                     ].map((stat) => {
                       const Icon = stat.icon
@@ -235,7 +235,7 @@ export function LandingPage() {
                     })}
                   </div>
 
-                  <div className="mt-4 rounded-2xl border bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent p-4">
+                  <div className="mt-4 rounded-2xl border bg-gradient-to-br from-primary/10 via-sky-500/5 to-transparent p-4">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
                         <Bot className="h-4 w-4" />
@@ -291,7 +291,7 @@ export function LandingPage() {
               </h2>
               <p className="mt-4 text-base leading-7 text-muted-foreground">
                 Most creators and businesses jump between AI tools, design apps, schedulers, spreadsheets, and ad
-                platforms just to publish one campaign. It's exhausting — and the results suffer.
+                platforms just to publish one campaign. It's exhausting, and the results suffer.
               </p>
             </div>
 
@@ -300,8 +300,8 @@ export function LandingPage() {
                 {
                   title: 'Too Many Tools',
                   desc: 'You create in one app, design in another, schedule somewhere else, then manage ads in Meta.',
-                  tint: 'from-rose-500/10 to-transparent',
-                  iconBg: 'bg-rose-500/15 text-rose-600',
+                  tint: 'from-blue-500/10 to-transparent',
+                  iconBg: 'bg-blue-500/15 text-blue-600',
                   icon: LayoutDashboard,
                 },
                 {
@@ -313,9 +313,9 @@ export function LandingPage() {
                 },
                 {
                   title: 'Ads Feel Complicated',
-                  desc: 'Campaigns, creatives, audiences, lead forms — it should not require Ads Manager expertise.',
-                  tint: 'from-violet-500/10 to-transparent',
-                  iconBg: 'bg-violet-500/15 text-violet-600',
+                  desc: 'Campaigns, creatives, audiences, lead forms. It should not require Ads Manager expertise.',
+                  tint: 'from-sky-500/10 to-transparent',
+                  iconBg: 'bg-sky-500/15 text-sky-600',
                   icon: Megaphone,
                 },
               ].map((card) => {
@@ -337,7 +337,7 @@ export function LandingPage() {
         </section>
 
         {/* === Solution === */}
-        <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/[0.04] via-background to-violet-500/[0.04]">
+        <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/[0.04] via-background to-sky-500/[0.04]">
           <div className="mx-auto max-w-6xl px-4 py-20">
             <div className="grid gap-10 md:grid-cols-[1.1fr_minmax(0,360px)] md:items-start">
               <div>
@@ -346,7 +346,7 @@ export function LandingPage() {
                   One workspace for content, ads, and growth
                 </h2>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-                  PostPilot brings content creation, scheduling, AI generation, ad creation, lead forms, and performance
+                  Ad Guru brings content creation, scheduling, AI generation, ad creation, lead forms, and performance
                   tracking into one beginner-friendly platform.
                 </p>
 
@@ -372,7 +372,7 @@ export function LandingPage() {
 
               <Card className="border-primary/20 bg-background shadow-xl shadow-primary/10">
                 <CardHeader>
-                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
+                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white">
                     <Rocket className="h-5 w-5" />
                   </div>
                   <CardTitle>Start creating in minutes</CardTitle>
@@ -380,7 +380,7 @@ export function LandingPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button
-                    className="w-full bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 text-white"
+                    className="w-full bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white"
                     onClick={() => navigate(primaryCtaHref)}
                   >
                     Start Creating Now
@@ -417,7 +417,7 @@ export function LandingPage() {
             </div>
 
             <div className="relative mt-12">
-              <div className="pointer-events-none absolute inset-x-20 -top-10 bottom-0 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-violet-500/10 to-fuchsia-500/10 blur-3xl" />
+              <div className="pointer-events-none absolute inset-x-20 -top-10 bottom-0 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-sky-500/10 to-cyan-500/10 blur-3xl" />
 
               <div className="rounded-[1.75rem] border bg-background p-3 shadow-2xl shadow-primary/10">
                 <div className="grid gap-4 md:grid-cols-3">
@@ -432,15 +432,15 @@ export function LandingPage() {
                     {
                       title: 'Scheduled content',
                       icon: CalendarDays,
-                      tint: 'from-violet-500/15 to-transparent',
-                      iconBg: 'bg-violet-500/15 text-violet-600',
+                      tint: 'from-sky-500/15 to-transparent',
+                      iconBg: 'bg-sky-500/15 text-sky-600',
                       items: ['Week view', 'Publishing queue', 'Approvals'],
                     },
                     {
                       title: 'Performance',
                       icon: BarChart3,
-                      tint: 'from-fuchsia-500/15 to-transparent',
-                      iconBg: 'bg-fuchsia-500/15 text-fuchsia-600',
+                      tint: 'from-cyan-500/15 to-transparent',
+                      iconBg: 'bg-cyan-500/15 text-cyan-600',
                       items: ['Engagement', 'Leads', 'Active ads'],
                     },
                   ].map((block) => {
@@ -480,7 +480,7 @@ export function LandingPage() {
         </section>
 
         {/* === Features bento === */}
-        <section id="features" className="relative border-b bg-gradient-to-br from-background via-background to-violet-500/[0.03]">
+        <section id="features" className="relative border-b bg-gradient-to-br from-background via-background to-sky-500/[0.03]">
           <div className="mx-auto max-w-6xl px-4 py-20">
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Features</p>
@@ -497,7 +497,7 @@ export function LandingPage() {
                 desc="Track posts, engagement, ads, leads, AI usage, and performance from one beautiful dashboard."
                 icon={LayoutDashboard}
                 iconBg="bg-primary/15 text-primary"
-                tint="from-primary/10 via-violet-500/5 to-transparent"
+                tint="from-primary/10 via-sky-500/5 to-transparent"
                 size="lg"
               />
 
@@ -506,8 +506,8 @@ export function LandingPage() {
                 title="Create Studio"
                 desc="Generate captions, hashtags, ideas, scripts, images, and videos with AI."
                 icon={Wand2}
-                iconBg="bg-violet-500/15 text-violet-600"
-                tint="from-violet-500/10 to-transparent"
+                iconBg="bg-sky-500/15 text-sky-600"
+                tint="from-sky-500/10 to-transparent"
               />
 
               <FeatureCard
@@ -524,8 +524,8 @@ export function LandingPage() {
                 title="Ad Studio"
                 desc="3 AI ad options, edit copy + creative, lead forms, publish to Meta."
                 icon={Megaphone}
-                iconBg="bg-fuchsia-500/15 text-fuchsia-600"
-                tint="from-fuchsia-500/10 to-transparent"
+                iconBg="bg-cyan-500/15 text-cyan-600"
+                tint="from-cyan-500/10 to-transparent"
               />
               <FeatureCard
                 className="md:col-span-2"
@@ -550,7 +550,7 @@ export function LandingPage() {
                 <ImageIcon className="h-3.5 w-3.5 text-primary" /> AI Images
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
-                <Video className="h-3.5 w-3.5 text-fuchsia-600" /> AI Videos
+                <Video className="h-3.5 w-3.5 text-cyan-600" /> AI Videos
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
                 <Target className="h-3.5 w-3.5 text-emerald-600" /> Lead Forms
@@ -566,11 +566,11 @@ export function LandingPage() {
         </section>
 
         {/* === Ad Studio Highlight === */}
-        <section className="relative overflow-hidden border-b bg-gradient-to-br from-fuchsia-500/[0.05] via-background to-primary/[0.05]">
+        <section className="relative overflow-hidden border-b bg-gradient-to-br from-cyan-500/[0.05] via-background to-primary/[0.05]">
           <div className="mx-auto max-w-6xl px-4 py-20">
             <div className="grid gap-10 md:grid-cols-[1.1fr_minmax(0,420px)] md:items-center">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fuchsia-600">Ad Studio</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-600">Ad Studio</p>
                 <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
                   Build better ads without opening Ads Manager
                 </h2>
@@ -587,19 +587,19 @@ export function LandingPage() {
                   <Button
                     size="lg"
                     onClick={() => navigate(primaryCtaHref)}
-                    className="bg-gradient-to-r from-fuchsia-500 via-violet-500 to-primary text-white shadow-md shadow-fuchsia-500/20"
+                    className="bg-gradient-to-r from-cyan-500 via-sky-500 to-primary text-white shadow-md shadow-cyan-500/20"
                   >
                     Create My First Ad
                     <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                   <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5 text-fuchsia-600" />
+                    <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
                     AI-assisted setup in under 3 minutes
                   </span>
                 </div>
               </div>
 
-              <Card className="border-fuchsia-500/20 bg-background shadow-2xl shadow-fuchsia-500/10">
+              <Card className="border-cyan-500/20 bg-background shadow-2xl shadow-cyan-500/10">
                 <CardHeader>
                   <CardTitle className="text-base">Ad Studio steps</CardTitle>
                   <CardDescription>From offer → live ads in a guided flow.</CardDescription>
@@ -617,7 +617,7 @@ export function LandingPage() {
                       className={cn(
                         'flex items-center gap-3 rounded-xl border px-3 py-2.5',
                         index === 2
-                          ? 'border-fuchsia-500/30 bg-fuchsia-500/5'
+                          ? 'border-cyan-500/30 bg-cyan-500/5'
                           : 'bg-muted/10',
                       )}
                     >
@@ -625,7 +625,7 @@ export function LandingPage() {
                         className={cn(
                           'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
                           index === 2
-                            ? 'bg-gradient-to-br from-fuchsia-500 to-violet-500 text-white'
+                            ? 'bg-gradient-to-br from-cyan-500 to-sky-500 text-white'
                             : 'bg-muted text-muted-foreground',
                         )}
                       >
@@ -633,7 +633,7 @@ export function LandingPage() {
                       </span>
                       <span className="text-foreground">{step}</span>
                       {index === 2 ? (
-                        <span className="ml-auto rounded-full bg-fuchsia-500/15 px-2 py-0.5 text-[10px] font-semibold text-fuchsia-600">
+                        <span className="ml-auto rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-600">
                           AI
                         </span>
                       ) : null}
@@ -657,7 +657,7 @@ export function LandingPage() {
 
             <div className="mt-12 grid gap-4 md:grid-cols-4">
               {[
-                { title: 'Describe your goal', desc: 'Tell PostPilot what you want to create, promote, or announce.', icon: Target },
+                { title: 'Describe your goal', desc: 'Tell Ad Guru what you want to create, promote, or announce.', icon: Target },
                 { title: 'Generate content', desc: 'Create captions, images, videos, hashtags, and ad copy with AI.', icon: Wand2 },
                 { title: 'Schedule or launch', desc: 'Publish posts or launch ads through Meta/Facebook Ads.', icon: Rocket },
                 { title: 'Track and improve', desc: 'Monitor engagement, leads, and AI suggestions to improve.', icon: BarChart3 },
@@ -669,7 +669,7 @@ export function LandingPage() {
                     className="relative rounded-2xl border bg-card p-5 alive-card-tilt"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white">
                         <Icon className="h-4 w-4" />
                       </div>
                       <span className="text-xs font-semibold text-muted-foreground">Step {idx + 1}</span>
@@ -721,7 +721,7 @@ export function LandingPage() {
                       <span className="font-semibold">570 / 750</span>
                     </div>
                     <div className="mt-3 h-2 rounded-full bg-muted">
-                      <div className="h-full w-[76%] rounded-full bg-gradient-to-r from-amber-500 to-fuchsia-500" />
+                      <div className="h-full w-[76%] rounded-full bg-gradient-to-r from-amber-500 to-cyan-500" />
                     </div>
                     <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                       <span>Resets in 12 days</span>
@@ -801,8 +801,8 @@ export function LandingPage() {
                 >
                   {plan.popular ? (
                     <>
-                      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-violet-500/5 to-fuchsia-500/10" />
-                      <div className="absolute right-3 top-3 z-10 rounded-full bg-gradient-to-r from-primary to-fuchsia-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10" />
+                      <div className="absolute right-3 top-3 z-10 rounded-full bg-gradient-to-r from-primary to-cyan-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
                         Most Popular
                       </div>
                     </>
@@ -835,7 +835,7 @@ export function LandingPage() {
                       className={cn(
                         'w-full',
                         plan.popular
-                          ? 'bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 text-white'
+                          ? 'bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white'
                           : '',
                       )}
                       variant={plan.popular ? 'default' : 'outline'}
@@ -851,7 +851,7 @@ export function LandingPage() {
         </section>
 
         {/* === Social proof === */}
-        <section className="border-b bg-gradient-to-br from-violet-500/[0.04] via-background to-primary/[0.04]">
+        <section className="border-b bg-gradient-to-br from-sky-500/[0.04] via-background to-primary/[0.04]">
           <div className="mx-auto max-w-6xl px-4 py-20">
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Loved by</p>
@@ -862,18 +862,18 @@ export function LandingPage() {
             <div className="mt-12 grid gap-4 md:grid-cols-3">
               {[
                 {
-                  quote: '“PostPilot helped us turn one campaign idea into a full week of posts and ads in under an hour.”',
+                  quote: '“Ad Guru helped us turn one campaign idea into a full week of posts and ads in under an hour.”',
                   name: 'Sarah K.',
                   role: 'Founder · DTC Skincare',
                   initials: 'SK',
-                  bg: 'from-rose-500 to-fuchsia-500',
+                  bg: 'from-blue-500 to-cyan-500',
                 },
                 {
                   quote: '“Ad Studio makes creating Facebook campaigns feel simple. The AI options give us a strong starting point every time.”',
                   name: 'Marcus T.',
                   role: 'Marketing Lead · Local Gym',
                   initials: 'MT',
-                  bg: 'from-primary to-violet-500',
+                  bg: 'from-primary to-sky-500',
                 },
                 {
                   quote: '“We stopped jumping between five different tools. Now content, ads, and analytics all live in one place.”',
@@ -932,7 +932,7 @@ export function LandingPage() {
                     <Button
                       size="lg"
                       onClick={() => navigate(primaryCtaHref)}
-                      className="h-12 bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 px-6 text-base text-white alive-glow"
+                      className="h-12 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-6 text-base text-white alive-glow"
                     >
                       {primaryCtaLabel}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -980,17 +980,17 @@ export function LandingPage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-violet-500 to-fuchsia-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
                 P
               </div>
               <div>
-                <p className="text-sm font-semibold">PostPilot</p>
+                <p className="text-sm font-semibold">Ad Guru</p>
                 <p className="text-xs text-muted-foreground">Your AI-powered social media command center.</p>
               </div>
             </div>
             <p className="mt-4 max-w-xl text-sm text-muted-foreground">
               Create posts, generate images and videos, schedule content, launch ads, collect leads, and track
-              performance — all from one beautiful dashboard.
+              performance, all from one beautiful dashboard.
             </p>
           </div>
 
@@ -1019,7 +1019,7 @@ export function LandingPage() {
         </div>
         <div className="border-t">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <p>© {new Date().getFullYear()} PostPilot. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Ad Guru. All rights reserved.</p>
             <div className="flex gap-4">
               <span>Privacy Policy</span>
               <span>Terms of Service</span>
