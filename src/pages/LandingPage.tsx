@@ -193,7 +193,7 @@ export function LandingPage() {
               </div>
 
               <div className="relative rounded-[2rem] border bg-background/80 p-3 shadow-2xl shadow-primary/10 backdrop-blur-xl">
-                <div className="rounded-[1.5rem] border bg-card p-5">
+                <div className="rounded-[1.5rem] bg-card p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-sky-500 text-xs font-bold text-white">

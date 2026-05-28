@@ -951,19 +951,6 @@ export function ComposePage() {
   const onSelectMediaSource = (source: MediaSourceType) => {
     setMediaSource(source)
     setReplaceInPreview(false)
-    if (source === 'stock-image') {
-      setShowStockPicker(true)
-      return
-    }
-    if (source === 'user-media') {
-      userMediaInputRef.current?.click()
-      return
-    }
-    if (source === 'ai-image') {
-      void generateImage(false)
-      return
-    }
-    void generateVideo(false)
   }
 
   const showImageMediaTools = mediaSource === 'ai-image'
@@ -1464,7 +1451,6 @@ export function ComposePage() {
           setContent(nextContent)
           setImageHint(visualIdea)
           setMessage('Research caption applied.')
-          autoRunSelectedMediaForDraft(nextContent)
         }}
         onGenerateVisual={(visualIdea) => {
           setImageHint(visualIdea)
@@ -1474,7 +1460,6 @@ export function ComposePage() {
           const nextContent = sanitizeComposeCopy(caption)
           setContent(nextContent)
           setMessage(`Caption applied. Pick a date below. Suggested: ${suggestedTime}`)
-          autoRunSelectedMediaForDraft(nextContent)
         }}
       />
 
@@ -1491,7 +1476,6 @@ export function ComposePage() {
           setContent(nextContent)
           setImageHint(visualIdea)
           setMessage(`Brand-safe version ready. Schedule hint: ${scheduleHint}`)
-          autoRunSelectedMediaForDraft(nextContent)
         }}
         onGenerateVisual={(visualIdea) => {
           setImageHint(visualIdea)
@@ -1502,7 +1486,6 @@ export function ComposePage() {
           setContent(nextContent)
           setImageHint(visualIdea)
           setMessage(`Schedule inspired post. Suggested timing: ${scheduleHint}. Set date/time below, then Schedule Post.`)
-          autoRunSelectedMediaForDraft(nextContent)
         }}
       />
 
