@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { resolveRequestUserId } from '../_shared/api-auth.ts'
+import {
+  mediaTypesFromTaskPayload,
+  primaryPublishMedia,
+  resolvePublishMedia,
+} from '../_shared/publish-media.ts'
 import { recordPublishResult, updatePostMetrics } from '../_shared/post-results.ts'
 
 const corsHeaders = {
@@ -180,6 +185,7 @@ serve(async (req) => {
   const taskId = body.task_id as string | undefined
   const content = (body.content as string | undefined) ?? ''
   const mediaUrls = (body.media_urls as string[] | undefined) ?? []
+  const mediaTypes = (body.media_types as string[] | undefined) ?? []
 
   const userId = await resolveRequestUserId(req, supabase, taskId)
   if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -231,11 +237,32 @@ serve(async (req) => {
   }
 
   try {
+    const payloadTypes = mediaTypesFromTaskPayload((task as { payload?: unknown }).payload)
+    const mediaItems = resolvePublishMedia(
+      mediaUrls,
+      mediaTypes.length ? mediaTypes : payloadTypes,
+    )
+    const primaryMedia = primaryPublishMedia(mediaItems)
+
     let postId: string | null = null
-    if (mediaUrls.length > 0) {
+    if (primaryMedia?.type === 'video') {
+      const params = new URLSearchParams({
+        file_url: primaryMedia.url,
+        description: content,
+        access_token: token,
+      })
+      const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/videos?${params.toString()}`, {
+        method: 'POST',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error?.message || `Facebook video upload failed (${res.status}).`)
+      }
+      postId = data.id || data.post_id || null
+    } else if (primaryMedia?.type === 'image') {
       const form = new FormData()
       form.append('message', content)
-      form.append('url', mediaUrls[0])
+      form.append('url', primaryMedia.url)
       form.append('access_token', token)
       const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/photos`, { method: 'POST', body: form })
       const data = await res.json().catch(() => ({}))
@@ -261,8 +288,10 @@ serve(async (req) => {
     }
 
     const details = await fetchPostDetails(postId, token)
-    const permalink = details?.permalink_url || `https://www.facebook.com/${postId}`
-    const fullPicture = details?.full_picture || mediaUrls[0] || null
+    const permalink =
+      details?.permalink_url ||
+      (primaryMedia?.type === 'video' ? `https://www.facebook.com/watch/?v=${postId}` : `https://www.facebook.com/${postId}`)
+    const fullPicture = details?.full_picture || (primaryMedia?.type === 'image' ? primaryMedia.url : null) || null
 
     const scheduled = await recordPublishResult(supabase, {
       task_id: taskId,

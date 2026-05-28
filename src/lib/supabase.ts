@@ -1,8 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+function normalizeSupabaseUrl(raw: string | undefined) {
+  if (!raw) return undefined
+  return raw.replace(/\/rest\/v1\/?$/i, '').replace(/\/$/, '')
+}
+
+const supabaseUrl = normalizeSupabaseUrl(
+  import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL,
+)
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY
 const fallbackSupabaseUrl = 'https://example.supabase.co'
 const fallbackSupabaseAnonKey = 'public-anon-key'
 

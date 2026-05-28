@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { resolveRequestUserId } from '../_shared/api-auth.ts'
+import {
+  mediaTypesFromTaskPayload,
+  primaryPublishMedia,
+  resolvePublishMedia,
+} from '../_shared/publish-media.ts'
 import { recordPublishResult, updatePostMetrics } from '../_shared/post-results.ts'
 
 const corsHeaders = {
@@ -118,6 +123,7 @@ serve(async (req) => {
   const taskId = body.task_id as string | undefined
   const content = (body.content as string | undefined) ?? ''
   const mediaUrls = (body.media_urls as string[] | undefined) ?? []
+  const mediaTypes = (body.media_types as string[] | undefined) ?? []
 
   const userId = await resolveRequestUserId(req, supabase, taskId)
   if (!userId) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -189,21 +195,54 @@ serve(async (req) => {
   }
 
   try {
-    const imageUrl = mediaUrls[0]
+    const payloadTypes = mediaTypesFromTaskPayload((task as { payload?: unknown }).payload)
+    const mediaItems = resolvePublishMedia(
+      mediaUrls,
+      mediaTypes.length ? mediaTypes : payloadTypes,
+    )
+    const primaryMedia = primaryPublishMedia(mediaItems)
+    if (!primaryMedia) {
+      throw new Error('Instagram posts require at least one image or video.')
+    }
+
+    const containerBody =
+      primaryMedia.type === 'video'
+        ? { media_type: 'VIDEO', video_url: primaryMedia.url, caption: content, access_token: token }
+        : { image_url: primaryMedia.url, caption: content, access_token: token }
+
     const createRes = await fetch(`https://graph.facebook.com/v18.0/${account.id}/media`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image_url: imageUrl, caption: content, access_token: token }),
+      body: JSON.stringify(containerBody),
     })
     const createData = await createRes.json().catch(() => ({}))
     if (!createRes.ok || !createData.id) {
       throw new Error(createData?.error?.message || 'Could not create Instagram media container.')
     }
 
+    const containerId = createData.id as string
+    if (primaryMedia.type === 'video') {
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const statusRes = await fetch(
+          `https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${encodeURIComponent(token)}`,
+        )
+        const statusData = await statusRes.json().catch(() => ({}))
+        const status = statusData.status_code as string | undefined
+        if (status === 'FINISHED') break
+        if (status === 'ERROR') {
+          throw new Error(statusData?.error?.message || 'Instagram video processing failed.')
+        }
+        if (attempt === 23) {
+          throw new Error('Instagram video processing timed out. Try again in a minute.')
+        }
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+      }
+    }
+
     const publishRes = await fetch(`https://graph.facebook.com/v18.0/${account.id}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creation_id: createData.id, access_token: token }),
+      body: JSON.stringify({ creation_id: containerId, access_token: token }),
     })
     const publishData = await publishRes.json().catch(() => ({}))
     if (!publishRes.ok || !publishData.id) {
@@ -213,7 +252,7 @@ serve(async (req) => {
     const mediaId = publishData.id as string
     const details = await fetchInstagramDetails(mediaId, token)
     const permalink = details?.permalink || (account.username ? `https://www.instagram.com/${account.username}/` : null)
-    const previewImage = details?.thumbnail_url || details?.media_url || imageUrl
+    const previewImage = details?.thumbnail_url || details?.media_url || (primaryMedia.type === 'image' ? primaryMedia.url : null)
 
     const scheduled = await recordPublishResult(supabase, {
       task_id: taskId,

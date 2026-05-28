@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ConfirmProvider } from '@/components/ConfirmProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignupPage } from '@/pages/SignupPage'
@@ -24,6 +25,7 @@ function App() {
   }
 
   return (
+    <ConfirmProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={profile ? <Navigate to="/" /> : <LoginPage />} />
@@ -40,6 +42,7 @@ function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </ConfirmProvider>
   )
 }
 

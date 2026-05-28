@@ -25,7 +25,12 @@ serve(async (req) => {
           Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ task_id: task.id, content: post.content, media_urls: post.media_urls }),
+        body: JSON.stringify({
+          task_id: task.id,
+          content: post.content,
+          media_urls: post.media_urls,
+          media_types: (task.payload as { media_types?: string[] } | null)?.media_types ?? [],
+        }),
       })
 
       if (!res.ok) throw new Error(await res.text())

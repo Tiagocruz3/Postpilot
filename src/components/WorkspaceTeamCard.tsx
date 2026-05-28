@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { useWorkspaceTeam } from '@/hooks/useWorkspaceTeam'
 import { getInitials } from '@/lib/user-preferences'
 import type { WorkspaceRole } from '@/types'
@@ -27,6 +28,7 @@ export function WorkspaceTeamCard({
   onWorkspaceDeleted,
 }: WorkspaceTeamCardProps) {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const { members, invites, canManage, loading, inviteMember, removeMember, revokeInvite, deleteWorkspace } =
     useWorkspaceTeam(workspaceId, currentUserId)
 
@@ -58,7 +60,15 @@ export function WorkspaceTeamCard({
     }
   }
 
-  const handleRemoveMember = async (userId: string) => {
+  const handleRemoveMember = async (userId: string, memberLabel: string) => {
+    const confirmed = await confirm({
+      title: `Remove ${memberLabel}?`,
+      description: 'They will lose access to this workspace immediately.',
+      confirmLabel: 'Remove member',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
     setBusy(true)
     setMessage('')
     try {
@@ -71,7 +81,15 @@ export function WorkspaceTeamCard({
     }
   }
 
-  const handleRevokeInvite = async (inviteId: string) => {
+  const handleRevokeInvite = async (inviteId: string, email: string) => {
+    const confirmed = await confirm({
+      title: 'Revoke invite?',
+      description: `The invite for ${email} will be cancelled.`,
+      confirmLabel: 'Revoke',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
     setBusy(true)
     setMessage('')
     try {
@@ -89,12 +107,13 @@ export function WorkspaceTeamCard({
       return
     }
 
-    const confirmed = window.confirm(
-      `Delete "${workspaceName}"? This removes all members, invites, and workspace data. This cannot be undone.`
-    )
-    if (!confirmed) {
-      return
-    }
+    const confirmed = await confirm({
+      title: `Delete "${workspaceName}"?`,
+      description: 'This removes all members, invites, and workspace data. This cannot be undone.',
+      confirmLabel: 'Delete workspace',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
 
     setBusy(true)
     setMessage('')
@@ -199,7 +218,7 @@ export function WorkspaceTeamCard({
                           size="sm"
                           variant="outline"
                           disabled={busy}
-                          onClick={() => void handleRemoveMember(member.user_id)}
+                          onClick={() => void handleRemoveMember(member.user_id, label)}
                         >
                           <Trash2 className="mr-2 h-3 w-3" />
                           Remove
@@ -235,7 +254,7 @@ export function WorkspaceTeamCard({
                         size="sm"
                         variant="outline"
                         disabled={busy}
-                        onClick={() => void handleRevokeInvite(invite.id)}
+                        onClick={() => void handleRevokeInvite(invite.id, invite.email)}
                       >
                         Revoke
                       </Button>

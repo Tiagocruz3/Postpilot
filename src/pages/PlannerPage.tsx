@@ -23,6 +23,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react'
 import { APP_PAGE } from '@/lib/app-labels'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 
 interface OutletContext {
@@ -63,6 +64,7 @@ export function PlannerPage() {
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const { tasks, createTask, updateTask, deleteTask, loading } = usePlannerTasks(currentWorkspaceId || undefined)
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
@@ -142,6 +144,13 @@ export function PlannerPage() {
 
   const removeTask = async () => {
     if (!editingTask?.id) return
+    const confirmed = await confirm({
+      title: 'Delete planner entry?',
+      description: 'This removes the scheduled item from your content calendar.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
     try {
       await deleteTask(editingTask.id)
       setShowDialog(false)

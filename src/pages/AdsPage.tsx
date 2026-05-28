@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { Link, Sparkles, Wand2 } from 'lucide-react'
+import { Link } from 'lucide-react'
+import { useConfirm } from '@/components/ConfirmProvider'
+import { AdsAudienceFields } from '@/components/ads/AdsAudienceFields'
+import { AdsCampaignStudio } from '@/components/ads/AdsCampaignStudio'
+import { AdsSelectField } from '@/components/ads/AdsSelectField'
 import { MetaConnectionFields } from '@/components/ads/MetaConnectionFields'
+import { INDUSTRY_OPTIONS } from '@/lib/ads-targeting-options'
 import { useAuth } from '@/hooks/useAuth'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { APP_PAGE } from '@/lib/app-labels'
 import { isDemoMode } from '@/lib/demo'
+import { createDefaultAdsStudioProfile, fetchAdsStudioProfile } from '@/lib/ads-studio-profile'
 import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
   findFacebookIntegration,
@@ -44,8 +50,6 @@ type AdOption = {
   previewType: 'image' | 'video'
 }
 
-const GOALS: Goal[] = ['Get leads', 'Send traffic to website', 'Get messages', 'Increase sales', 'Boost engagement', 'Build awareness']
-const AD_TYPES: AdType[] = ['Single Image Ad', 'Video Ad', 'Carousel Ad', 'Story / Reel Ad', 'Lead Form Ad', 'Website Conversion Ad', 'Engagement Ad']
 const ONBOARDING_STEPS = [
   'Welcome',
   'Business Profile',
@@ -125,37 +129,6 @@ type AdsStudioProfile = {
   updatedAt: string
 }
 
-const DEFAULT_PROFILE = (userId: string): AdsStudioProfile => ({
-  userId,
-  metaConnection: {
-    facebookPageId: '',
-    instagramAccountId: '',
-    adAccountId: '',
-    connectedAt: '',
-  },
-  businessProfile: { businessName: '', industry: '', websiteUrl: '', businessType: '' },
-  offerProfile: { mainProductService: '', mainOffer: '', pricePoint: '', keyBenefits: '', customerProblemSolved: '' },
-  audienceProfile: { description: '', locations: '', ageRange: '', gender: '', interests: '', painPoints: '', desiredOutcome: '' },
-  brandVoice: { tone: 'Professional', writingStyle: '', ctaStyle: 'Learn more', wordsToAvoid: '' },
-  leadDestination: { type: 'custom_url', defaultUrl: '' },
-  creativePreferences: { formats: ['Image ads'], visualStyle: 'Clean and modern', brandColors: '', logoUrl: '' },
-  aiPreferences: {
-    useResearch: true,
-    researchTrends: true,
-    suggestAudiences: true,
-    suggestHooks: true,
-    generateCopy: true,
-    generateImages: true,
-    generateVideos: true,
-    recommendBudget: true,
-    recommendPlacements: true,
-    analyzePerformance: true,
-  },
-  completionScore: 5,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-})
-
 const requiredByStep: Record<number, string[]> = {
   1: [],
   2: ['businessProfile.businessName', 'businessProfile.industry', 'businessProfile.websiteUrl', 'businessProfile.businessType'],
@@ -169,6 +142,7 @@ const requiredByStep: Record<number, string[]> = {
 
 export function AdsPage() {
   const location = useLocation()
+  const confirm = useConfirm()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const { user } = useAuth()
   const { items: mediaItems, remove: removeMedia, refresh: refreshMedia } = useAiMediaLibrary(currentWorkspaceId)
@@ -179,7 +153,10 @@ export function AdsPage() {
   const [onboardingDone, setOnboardingDone] = useState(false)
   const [studioStep, setStudioStep] = useState(1)
   const [message, setMessage] = useState('')
-  const [profile, setProfile] = useState<AdsStudioProfile>(DEFAULT_PROFILE(user?.id ?? ''))
+  const [aiTip, setAiTip] = useState('')
+  const [suggestingAudience, setSuggestingAudience] = useState(false)
+  const [generatingCopy, setGeneratingCopy] = useState(false)
+  const [profile, setProfile] = useState<AdsStudioProfile>(() => createDefaultAdsStudioProfile(user?.id ?? ''))
   const [draft, setDraft] = useState({
     campaignName: '',
     promoting: '',
@@ -190,6 +167,7 @@ export function AdsPage() {
     tone: 'Professional and clear',
     destinationUrl: '',
     dailyBudget: '35',
+    placements: 'advantage',
   })
   const [options, setOptions] = useState<AdOption[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -205,17 +183,15 @@ export function AdsPage() {
     const userId = user.id
     let active = true
     async function loadOnboarding() {
-      const { data } = await supabase
-        .from('meta_ads_onboarding')
-        .select('answers')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId)
-        .maybeSingle()
-      if (!active) return
-      const saved = ((data as { answers?: AdsStudioProfile } | null)?.answers ?? null) as AdsStudioProfile | null
-      if (saved) {
-        setProfile(saved)
-        setOnboardingDone((saved.completionScore ?? 0) >= 70)
+      try {
+        const saved = await fetchAdsStudioProfile(workspaceId, userId)
+        if (!active) return
+        if (saved) {
+          setProfile(saved)
+          setOnboardingDone((saved.completionScore ?? 0) >= 70)
+        }
+      } catch {
+        if (!active) return
       }
     }
     void loadOnboarding()
@@ -264,6 +240,38 @@ export function AdsPage() {
       window.history.replaceState({}, '', location.pathname)
     }
   }, [location.pathname, location.search, refreshIntegrations])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const wantsOnboarding = params.get('onboarding') === '1'
+    const wantsEditProfile = params.get('editProfile') === '1'
+    if (!wantsOnboarding && !wantsEditProfile) return
+
+    if (wantsOnboarding) {
+      setOnboardingDone(false)
+      setOnboardingStep(1)
+      setStudioStep(1)
+      setOptions([])
+      setSelectedId(null)
+      setMessage('Set up Growth Ads again — complete each onboarding step or skip sections you will fill later.')
+      if (currentWorkspaceId && user?.id) {
+        void fetchAdsStudioProfile(currentWorkspaceId, user.id).then((saved) => {
+          setProfile(saved ?? createDefaultAdsStudioProfile(user.id))
+          setOnboardingDone(false)
+        })
+      } else if (user?.id) {
+        setProfile(createDefaultAdsStudioProfile(user.id))
+      }
+    }
+
+    if (wantsEditProfile) {
+      setOnboardingDone(true)
+      setShowProfile(true)
+      setMessage('Update your Growth Ads AI profile.')
+    }
+
+    window.history.replaceState({}, '', location.pathname)
+  }, [location.search, currentWorkspaceId, user?.id])
 
   useEffect(() => {
     if (isDemoMode) return
@@ -362,8 +370,77 @@ export function AdsPage() {
     }
   }
 
+  const suggestAudienceWithAi = async (goalOverride?: string) => {
+    setSuggestingAudience(true)
+    setMessage('')
+    const applySuggestion = (data: Record<string, unknown>) => {
+      const interests = Array.isArray(data.interests)
+        ? (data.interests as string[]).join(', ')
+        : typeof data.interests === 'string'
+          ? data.interests
+          : ''
+      setProfile((prev) => ({
+        ...prev,
+        audienceProfile: {
+          ...prev.audienceProfile,
+          description: String(data.audience_description || prev.audienceProfile.description),
+          locations: String(data.locations || prev.audienceProfile.locations),
+          ageRange: String(data.age_range || prev.audienceProfile.ageRange),
+          gender: String(data.gender || prev.audienceProfile.gender),
+          interests: interests || prev.audienceProfile.interests,
+          painPoints: String(data.pain_points || prev.audienceProfile.painPoints),
+          desiredOutcome: String(data.desired_outcome || prev.audienceProfile.desiredOutcome),
+        },
+      }))
+      setDraft((prev) => ({
+        ...prev,
+        audience: String(data.audience_description || prev.audience),
+        location: String(data.locations || prev.location),
+      }))
+      if (typeof data.ai_tip === 'string') setAiTip(data.ai_tip)
+      setMessage('AI updated your audience targeting.')
+    }
+
+    if (isDemoMode) {
+      applySuggestion({
+        audience_description: `People interested in ${profile.offerProfile.mainProductService || 'your offer'} near ${profile.audienceProfile.locations || 'your area'}.`,
+        locations: profile.audienceProfile.locations || 'Australia — Brisbane',
+        age_range: '25-54',
+        gender: 'All',
+        interests: ['Small business owners', 'Online shopping', profile.businessProfile.industry || 'Marketing'].filter(Boolean),
+        pain_points: profile.offerProfile.customerProblemSolved || 'They need a trusted provider with clear pricing.',
+        desired_outcome: draft.goal === 'Get leads' ? 'Submit a lead form or message you' : 'Visit your website and take action',
+        ai_tip: 'Start with Advantage+ placements and a $35/day budget for 7 days, then narrow by best-performing age group.',
+      })
+      setSuggestingAudience(false)
+      return
+    }
+
+    if (!currentWorkspaceId) {
+      setSuggestingAudience(false)
+      return setMessage('Select a workspace to use AI suggestions.')
+    }
+
+    const { data, error } = await supabase.functions.invoke('suggest-ads-targeting', {
+      body: {
+        workspace_id: currentWorkspaceId,
+        goal: goalOverride ?? draft.goal,
+        business_profile: profile.businessProfile,
+        offer_profile: profile.offerProfile,
+      },
+    })
+    setSuggestingAudience(false)
+    if (error) return setMessage(error.message)
+    if (data?.error) return setMessage(String(data.error))
+    applySuggestion(data as Record<string, unknown>)
+  }
+
   const generateOptions = async () => {
-    if (!currentWorkspaceId || !draft.promoting.trim()) return
+    if (!draft.promoting.trim()) {
+      setMessage('Add what you are promoting before generating ads.')
+      return
+    }
+    setGeneratingCopy(true)
     if (isDemoMode) {
       const demo = [1, 2, 3].map((i) => ({
         id: `demo-${i}`,
@@ -376,7 +453,12 @@ export function AdsPage() {
       }))
       setOptions(demo)
       setSelectedId(demo[0].id)
+      setGeneratingCopy(false)
       return
+    }
+    if (!currentWorkspaceId && !isDemoMode) {
+      setGeneratingCopy(false)
+      return setMessage('Select a workspace to generate ads.')
     }
     const { data, error } = await supabase.functions.invoke('generate-ad-copy', {
       body: {
@@ -398,6 +480,7 @@ export function AdsPage() {
         workspace_id: currentWorkspaceId,
       },
     })
+    setGeneratingCopy(false)
     if (error) return setMessage(error.message)
     const next = ((data?.variants as Array<Record<string, string>>) ?? []).slice(0, 3).map((v, i) => ({
       id: crypto.randomUUID(),
@@ -411,6 +494,18 @@ export function AdsPage() {
     setOptions(next)
     setSelectedId(next[0]?.id ?? null)
     setStudioStep(4)
+  }
+
+  const handleRemoveMedia = async (id: string) => {
+    const confirmed = await confirm({
+      title: 'Delete this asset?',
+      description: 'It will be removed from your Growth Ads media library.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+    await removeMedia(id)
+    void refreshMedia()
   }
 
   const generateCreative = async (type: 'image' | 'video') => {
@@ -461,11 +556,11 @@ export function AdsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6 alive-enter">
+    <div className="mx-auto max-w-7xl space-y-6 p-6 alive-enter">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">AI-based ad creation with a clean, simple flow.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Facebook-style campaign builder with AI audience, copy, and creative help.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowProfile(true)}>Edit AI Profile</Button>
@@ -526,7 +621,14 @@ export function AdsPage() {
             {onboardingStep === 2 ? (
               <div className="grid gap-3 md:grid-cols-2">
                 <Field required label="Business name" value={profile.businessProfile.businessName} onChange={(v) => setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, businessName: v } }))} />
-                <Field required label="Industry / niche" value={profile.businessProfile.industry} onChange={(v) => setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, industry: v } }))} />
+                <AdsSelectField
+                  label="Industry / niche"
+                  required
+                  value={profile.businessProfile.industry}
+                  onChange={(industry) => setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, industry } }))}
+                  options={INDUSTRY_OPTIONS}
+                  placeholder="Select your industry"
+                />
                 <Field required label="Website URL" value={profile.businessProfile.websiteUrl} onChange={(v) => setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, websiteUrl: v } }))} />
                 <div className="grid gap-1.5">
                   <Label>Business type *</Label>
@@ -552,18 +654,12 @@ export function AdsPage() {
             ) : null}
 
             {onboardingStep === 4 ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field required label="Audience description" value={profile.audienceProfile.description} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, description: v } }))} multiline />
-                <Field required label="Target location" value={profile.audienceProfile.locations} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, locations: v } }))} />
-                <Field label="Age range" value={profile.audienceProfile.ageRange} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, ageRange: v } }))} />
-                <Field label="Gender (optional)" value={profile.audienceProfile.gender} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, gender: v } }))} />
-                <Field required label="Interests" value={profile.audienceProfile.interests} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, interests: v } }))} multiline />
-                <Field required label="Pain points" value={profile.audienceProfile.painPoints} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, painPoints: v } }))} multiline />
-                <div className="md:col-span-2 space-y-2">
-                  <Field required label="Desired outcome" value={profile.audienceProfile.desiredOutcome} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, desiredOutcome: v } }))} />
-                  <Button variant="outline" onClick={() => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, interests: p.audienceProfile.interests || 'Buying intent, competitor interest, local intent', painPoints: p.audienceProfile.painPoints || p.offerProfile.customerProblemSolved } }))}>Suggest Audience with AI</Button>
-                </div>
-              </div>
+              <AdsAudienceFields
+                value={profile.audienceProfile}
+                onChange={(audienceProfile) => setProfile((p) => ({ ...p, audienceProfile }))}
+                onSuggestAi={() => suggestAudienceWithAi()}
+                aiLoading={suggestingAudience}
+              />
             ) : null}
 
             {onboardingStep === 5 ? (
@@ -705,131 +801,52 @@ export function AdsPage() {
         </TabsList>
 
         <TabsContent value="studio" activeValue={activeTab}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Meta Ad</CardTitle>
-              <CardDescription>Campaign Brief to Ad Type to Generate to Edit to Destination to Audience to Budget to Preview to Launch</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                {['Campaign Brief', 'Choose Ad Type', 'Generate 3 Options', 'Edit', 'Destination', 'Audience', 'Budget & Schedule', 'Preview', 'Review & Launch'].map((label, idx) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setStudioStep(idx + 1)}
-                    className={`rounded-full border px-3 py-1 text-xs transition-all ${studioStep === idx + 1 ? 'alive-ring bg-primary text-primary-foreground' : 'hover:bg-accent'}`}
-                  >
-                    {idx + 1}. {label}
-                  </button>
-                ))}
-              </div>
-              <Card className="bg-muted/30">
-                <CardContent className="p-3 text-sm">
-                  <p className="font-medium">Using Your Growth Ads Profile</p>
-                  <p className="text-muted-foreground">We pre-filled this campaign using your business, audience, offer, and brand voice.</p>
-                  <Button size="sm" className="mt-2" variant="outline" onClick={() => setShowProfile(true)}>Edit Profile Context</Button>
-                </CardContent>
-              </Card>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Campaign name" value={draft.campaignName} onChange={(v) => setDraft((d) => ({ ...d, campaignName: v }))} />
-                <Field label="What are you promoting?" value={draft.promoting} onChange={(v) => setDraft((d) => ({ ...d, promoting: v }))} />
-                <Field label="Audience" value={draft.audience} onChange={(v) => setDraft((d) => ({ ...d, audience: v }))} />
-                <Field label="Location" value={draft.location} onChange={(v) => setDraft((d) => ({ ...d, location: v }))} />
-                <div className="grid gap-1.5">
-                  <Label>Goal</Label>
-                  <Select value={draft.goal} onChange={(e) => setDraft((d) => ({ ...d, goal: e.target.value as Goal }))}>
-                    {GOALS.map((goal) => <option key={goal} value={goal}>{goal}</option>)}
-                  </Select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Ad type</Label>
-                  <Select value={draft.adType} onChange={(e) => setDraft((d) => ({ ...d, adType: e.target.value as AdType }))}>
-                    {AD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                  </Select>
-                </div>
-              </div>
-              <Card className="bg-primary/5">
-                <CardContent className="p-3 text-sm">
-                  <p className="font-medium">Recommended From Your Profile</p>
-                  <p className="text-muted-foreground">
-                    Because your goal is <strong>{draft.goal}</strong> and destination preference is{' '}
-                    <strong>{profile.leadDestination.type === 'meta_lead_form' ? 'Meta Lead Form' : 'My Own URL'}</strong>, these ad types are recommended.
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {recommendedTypes.map((type) => <Badge key={type} variant="outline">{type}</Badge>)}
-                    <Button size="sm" variant="outline" onClick={() => setDraft((d) => ({ ...d, adType: recommendedTypes[0] as AdType }))}>Use Recommended</Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Button onClick={() => void generateOptions()}><Sparkles className="mr-2 h-4 w-4" />Generate 3 Ad Options</Button>
-
-              {options.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-3">
-                  {options.map((option) => (
-                    <Card key={option.id} className={selectedId === option.id ? 'border-primary' : ''}>
-                      <CardHeader>
-                        <CardTitle className="text-sm">{option.name}</CardTitle>
-                        <CardDescription>{option.headline}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p className="text-xs text-muted-foreground">{option.primaryText}</p>
-                        <Button size="sm" onClick={() => setSelectedId(option.id)}>Select This Ad</Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : null}
-
-              {selectedOption ? (
-                <div className="space-y-3 rounded-xl border p-3">
-                  <Field label="Primary text" value={selectedOption.primaryText} onChange={(v) => setOptions((list) => list.map((o) => o.id === selectedOption.id ? { ...o, primaryText: v } : o))} multiline />
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setOptions((list) => list.map((o) => o.id === selectedOption.id ? { ...o, primaryText: `${o.primaryText} Keep ${profile.brandVoice.tone} tone. CTA: ${profile.brandVoice.ctaStyle}.` } : o))}><Wand2 className="mr-2 h-4 w-4" />Rewrite</Button>
-                    <Button size="sm" variant="outline" onClick={() => void generateCreative('image')}>Generate Image</Button>
-                    <Button size="sm" variant="outline" onClick={() => void generateCreative('video')}>Generate Video</Button>
-                  </div>
-                  {selectedOption.previewUrl ? (
-                    selectedOption.previewType === 'video'
-                      ? <video src={selectedOption.previewUrl} controls className="h-44 w-full rounded-lg object-cover" />
-                      : <img src={selectedOption.previewUrl} alt="" className="h-44 w-full rounded-lg object-cover" />
-                  ) : <div className="flex h-44 items-center justify-center rounded-lg border text-sm text-muted-foreground">No creative yet</div>}
-                </div>
-              ) : null}
-
-              <Card className="bg-muted/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Destination</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p>Pre-selected from onboarding: {profile.leadDestination.type === 'meta_lead_form' ? 'Meta Lead Form' : 'My Own URL'}</p>
-                  <Field label="Destination URL" value={draft.destinationUrl} onChange={(v) => setDraft((d) => ({ ...d, destinationUrl: v }))} />
-                  {profile.leadDestination.type === 'meta_lead_form' ? <p className="text-xs text-muted-foreground">Suggested form questions: Name, Email, Phone, Preferred time, Service need.</p> : null}
-                </CardContent>
-              </Card>
-
-              <Card className="bg-muted/30">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Audience AI Cards</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-2 md:grid-cols-3 text-xs text-muted-foreground">
-                  <div className="rounded-lg border p-2"><p className="font-medium text-foreground">Suggested Interests</p>{profile.audienceProfile.interests || 'Add interests in profile.'}</div>
-                  <div className="rounded-lg border p-2"><p className="font-medium text-foreground">Audience Pain Points</p>{profile.audienceProfile.painPoints || 'Add pain points in profile.'}</div>
-                  <div className="rounded-lg border p-2"><p className="font-medium text-foreground">Expansion Recommendation</p>Start broad for 7 days, then narrow by top CTR audience cluster.</div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-primary/5">
-                <CardContent className="p-3 text-sm">
-                  <p className="font-medium">Recommended Starting Budget</p>
-                  <p className="text-muted-foreground">
-                    Based on your audience and campaign goal, start with ${(Math.max(25, Number(draft.dailyBudget) || 35)).toFixed(0)}-$
-                    {(Math.max(40, Number(draft.dailyBudget) + 15 || 50)).toFixed(0)} per day.
-                  </p>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
+          <AdsCampaignStudio
+            draft={{
+              campaignName: draft.campaignName,
+              promoting: draft.promoting,
+              goal: draft.goal,
+              adType: draft.adType,
+              audience: draft.audience,
+              location: draft.location,
+              tone: draft.tone,
+              destinationUrl: draft.destinationUrl,
+              dailyBudget: draft.dailyBudget,
+              placements: draft.placements,
+            }}
+            onDraftChange={(patch) =>
+              setDraft((d) => {
+                const next = { ...d, ...patch }
+                return {
+                  ...next,
+                  goal: (patch.goal ?? d.goal) as Goal,
+                  adType: (patch.adType ?? d.adType) as AdType,
+                }
+              })
+            }
+            audienceProfile={profile.audienceProfile}
+            onAudienceProfileChange={(audienceProfile) => {
+              setProfile((p) => ({ ...p, audienceProfile }))
+              void saveProfile()
+            }}
+            businessName={profile.businessProfile.businessName}
+            defaultDestinationUrl={profile.leadDestination.defaultUrl || profile.businessProfile.websiteUrl}
+            destinationType={profile.leadDestination.type}
+            brandTone={profile.brandVoice.tone}
+            brandCta={profile.brandVoice.ctaStyle}
+            recommendedAdTypes={recommendedTypes}
+            options={options}
+            selectedId={selectedId}
+            onSelectOption={setSelectedId}
+            onUpdateOption={(id, patch) => setOptions((list) => list.map((o) => (o.id === id ? { ...o, ...patch } : o)))}
+            onGenerateOptions={generateOptions}
+            onGenerateCreative={generateCreative}
+            onSuggestAudience={() => suggestAudienceWithAi()}
+            onEditProfile={() => setShowProfile(true)}
+            generatingCopy={generatingCopy}
+            suggestingAudience={suggestingAudience}
+            aiTip={aiTip}
+          />
         </TabsContent>
 
         <TabsContent value="media" activeValue={activeTab}>
@@ -849,7 +866,7 @@ export function AdsPage() {
                           : <img src={asset.public_url} alt="" className="h-40 w-full rounded object-cover" />}
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(asset.public_url)}>Reuse</Button>
-                          <Button size="sm" variant="destructive" onClick={() => void removeMedia(asset.id)}>Delete</Button>
+                          <Button size="sm" variant="destructive" onClick={() => void handleRemoveMedia(asset.id)}>Delete</Button>
                         </div>
                       </CardContent>
                     </Card>

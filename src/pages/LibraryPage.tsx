@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { Copy, Image as ImageIcon, RefreshCcw, Trash2, Video } from 'lucide-react'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ type LibraryTab = 'image' | 'video'
 
 export function LibraryPage() {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const [activeTab, setActiveTab] = useState<LibraryTab>('image')
   const [message, setMessage] = useState('')
@@ -28,7 +30,15 @@ export function LibraryPage() {
     setMessage('URL copied to clipboard.')
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, mediaType: 'image' | 'video') => {
+    const confirmed = await confirm({
+      title: `Delete this ${mediaType}?`,
+      description: 'It will be removed from your AI Vault for this workspace.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
     setMessage('')
     try {
       await remove(id)
@@ -127,7 +137,7 @@ export function LibraryPage() {
                         <Button size="sm" onClick={() => useInCompose(item.public_url, item.media_type)}>
                           Use in {APP_PAGE.createStudio}
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => void handleDelete(item.id)}>
+                        <Button size="sm" variant="destructive" onClick={() => void handleDelete(item.id, item.media_type)}>
                           <Trash2 className="mr-1 h-3 w-3" />
                         </Button>
                       </div>

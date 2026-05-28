@@ -12,7 +12,10 @@ import {
   Trash2,
   Video,
 } from 'lucide-react'
+import { useConfirm } from '@/components/ConfirmProvider'
+import { GrowthAdsProfileSettings } from '@/components/settings/GrowthAdsProfileSettings'
 import { WorkspaceTeamCard } from '@/components/WorkspaceTeamCard'
+import { APP_PAGE } from '@/lib/app-labels'
 import { useWorkspaceTeam } from '@/hooks/useWorkspaceTeam'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -56,6 +59,7 @@ type SettingsTab =
   | 'regional'
   | 'team'
   | 'accounts'
+  | 'growth-ads'
   | 'content-ai'
   | 'image-ai'
   | 'video-ai'
@@ -120,6 +124,7 @@ function makeDemoIntegrations(): UserIntegration[] {
 
 export function SettingsPage() {
   const location = useLocation()
+  const confirm = useConfirm()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user, profile } = useAuth()
   const { canManage: canManageTeam } = useWorkspaceTeam(currentWorkspaceId, user?.id)
@@ -325,7 +330,15 @@ export function SettingsPage() {
     [userPreferences.timeZone]
   )
 
-  const disconnect = async (id: string) => {
+  const disconnect = async (id: string, providerName: string) => {
+    const confirmed = await confirm({
+      title: `Disconnect ${providerName}?`,
+      description: 'Scheduled posts and publishing for this account may stop until you connect again.',
+      confirmLabel: 'Disconnect',
+      variant: 'destructive',
+    })
+    if (!confirmed) return
+
     if (isDemoMode) {
       setIntegrations((prev) => prev.filter((integration) => integration.id !== id))
       return
@@ -568,6 +581,9 @@ export function SettingsPage() {
           <TabsTrigger value="accounts" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
             Accounts
           </TabsTrigger>
+          <TabsTrigger value="growth-ads" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+            {APP_PAGE.growthAds}
+          </TabsTrigger>
           {isWorkspaceAdmin ? (
             <>
               <TabsTrigger value="content-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
@@ -791,6 +807,14 @@ export function SettingsPage() {
           />
         </TabsContent>
 
+        <TabsContent value="growth-ads" activeValue={activeTab}>
+          <GrowthAdsProfileSettings
+            workspaceId={currentWorkspaceId}
+            userId={user?.id}
+            onMessage={setSettingsMessage}
+          />
+        </TabsContent>
+
         <TabsContent value="accounts" activeValue={activeTab}>
           <Card>
             <CardHeader>
@@ -814,7 +838,7 @@ export function SettingsPage() {
                       </div>
                     </div>
                     {connected ? (
-                      <Button size="sm" variant="destructive" onClick={() => disconnect(connected.id)}>
+                      <Button size="sm" variant="destructive" onClick={() => void disconnect(connected.id, provider.name)}>
                         <Trash2 className="mr-2 h-3 w-3" />
                         Disconnect
                       </Button>

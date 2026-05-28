@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "supabase:secrets": "bash scripts/sync-supabase-secrets.sh",
     "supabase:deploy:functions": "bash scripts/deploy-edge-functions.sh",
-    "supabase:deploy": "npm run supabase:deploy:functions && npm run supabase:secrets"
+    "supabase:deploy:all": "bash scripts/deploy-all-edge-functions.sh",
+    "supabase:deploy": "npm run supabase:deploy:all && npm run supabase:secrets"
   },
   "dependencies": {
     "@supabase/auth-ui-react": "^0.4.7",

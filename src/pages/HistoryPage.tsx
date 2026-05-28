@@ -15,6 +15,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { PostCommentsPanel } from '@/components/history/PostCommentsPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -91,6 +92,7 @@ function statusFor(post: PublishedPost): 'published' | 'failed' | 'pending' {
 }
 
 export function HistoryPage() {
+  const confirm = useConfirm()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId)
   const [platformFilter, setPlatformFilter] = useState<string>('all')
@@ -174,9 +176,12 @@ export function HistoryPage() {
   const removePost = async (post: PublishedPost) => {
     if (isDemoMode) return
     const label = statusFor(post) === 'published' ? 'published post' : statusFor(post) === 'failed' ? 'failed post' : 'post'
-    const confirmed = window.confirm(
-      `Remove this ${label} from history? This deletes the planner entry locally; it does not delete the live post on ${platformLabel(post.platform)}.`,
-    )
+    const confirmed = await confirm({
+      title: `Remove ${label}?`,
+      description: `This removes the entry from your activity history. It does not delete the live post on ${platformLabel(post.platform)}.`,
+      confirmLabel: 'Remove',
+      variant: 'destructive',
+    })
     if (!confirmed) return
 
     setDeletingId(post.id)

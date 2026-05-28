@@ -156,7 +156,6 @@ export function ComposePage() {
   const [showResearch, setShowResearch] = useState(false)
   const [showRemix, setShowRemix] = useState(false)
   const [remixSeed, setRemixSeed] = useState({ text: '', niche: '' })
-  const [showDraftRequired, setShowDraftRequired] = useState(false)
   const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
   const [showCompletedPost, setShowCompletedPost] = useState(false)
   const { integrations, isConnected, refresh: refreshIntegrations } = useWorkspaceIntegrations(currentWorkspaceId)
@@ -495,6 +494,7 @@ export function ComposePage() {
       }
 
       const mediaUrls = media.map((item) => item.url)
+      const mediaTypes = media.map((item) => item.type)
 
       const plannerTask: PlannerTaskInsert = {
         user_id: user.id,
@@ -506,7 +506,7 @@ export function ComposePage() {
         status: 'scheduled',
         kind: 'post',
         platform: activeTab,
-        payload: { media_urls: mediaUrls, link_url: linkUrl },
+        payload: { media_urls: mediaUrls, media_types: mediaTypes, link_url: linkUrl },
       }
 
       const taskRes = await supabase.from('planner_tasks').insert(plannerTask as never).select().single()
@@ -538,7 +538,7 @@ export function ComposePage() {
           scheduled_post_id?: string | null
           error?: string
         }>(`${activeTab}-api`, {
-          body: { task_id: createdTask.id, content: cleanContent, media_urls: mediaUrls },
+          body: { task_id: createdTask.id, content: cleanContent, media_urls: mediaUrls, media_types: mediaTypes },
         })
 
         if (invokeRes.error) {
@@ -699,12 +699,6 @@ export function ComposePage() {
 
   const generateImage = async (regenerate: boolean, contentOverride?: string) => {
     const baseContent = sanitizeComposeCopy(contentOverride ?? content)
-    if (!baseContent.trim() && !imageHint.trim()) {
-      setCopyLoading(false)
-      setMessage('Add post text or an image direction before generating.')
-      return
-    }
-
     setCopyLoading(false)
     setImageLoading(true)
     setMessage(regenerate ? 'Regenerating image...' : 'Generating image...')
@@ -732,9 +726,9 @@ export function ComposePage() {
       }
 
       const initialTopic = draftTopic.trim()
-      const promptContext = [initialTopic ? `Primary user intent/topic: ${initialTopic}` : '', imageHint, baseContent]
-        .filter(Boolean)
-        .join('\n\n')
+      const promptContext =
+        [initialTopic ? `Primary user intent/topic: ${initialTopic}` : '', imageHint, baseContent].filter(Boolean).join('\n\n') ||
+        `High-quality image for a ${platformLabel(activeTab)} social post.`
       const directPrompt = regenerate
         ? `${promptContext}\n\nCreate a fresh alternate composition with a different angle while keeping the same core intent.`
         : promptContext
@@ -780,9 +774,9 @@ export function ComposePage() {
 
   const generateVideo = async (regenerate: boolean, contentOverride?: string) => {
     const baseContent = sanitizeComposeCopy(contentOverride ?? content)
-    if (!baseContent.trim() && !videoHint.trim()) {
+    if (!baseContent.trim() && !videoHint.trim() && !draftTopic.trim()) {
       setCopyLoading(false)
-      setMessage('Add post text or a video direction before generating.')
+      setMessage('Add a caption, topic, or video direction before generating.')
       return
     }
 
@@ -843,7 +837,7 @@ export function ComposePage() {
       if (!replaceCurrent || prev.length === 0) return [...prev, item]
       return [...prev.slice(0, -1), item]
     })
-    if (firstDraftCreated && item.type === 'image') {
+    if (item.type === 'image') {
       setShowPreview(true)
     }
   }
@@ -856,7 +850,7 @@ export function ComposePage() {
       // Regenerate should fully replace prior media of the same type.
       return [...prev.filter((entry) => entry.type !== item.type), item]
     })
-    if (firstDraftCreated && item.type === 'image') {
+    if (item.type === 'image') {
       setShowPreview(true)
     }
   }
@@ -878,7 +872,6 @@ export function ComposePage() {
     setShowResearch(false)
     setShowRemix(false)
     setRemixSeed({ text: '', niche: '' })
-    setShowDraftRequired(false)
     draftRestoredRef.current = false
     clearDraftSnapshot(currentWorkspaceId)
   }
@@ -948,17 +941,12 @@ export function ComposePage() {
 
   const onSelectMediaSource = (source: MediaSourceType) => {
     setMediaSource(source)
-    if (!draftReady) {
-      setShowDraftRequired(true)
-      setMessage('Create your post draft first, then add or generate media.')
-      return
-    }
+    setReplaceInPreview(false)
     if (source === 'stock-image') {
       setShowStockPicker(true)
       return
     }
     if (source === 'user-media') {
-      setReplaceInPreview(false)
       userMediaInputRef.current?.click()
       return
     }
@@ -969,10 +957,10 @@ export function ComposePage() {
     void generateVideo(false)
   }
 
-  const showImageMediaTools = draftReady && mediaSource === 'ai-image'
-  const showVideoMediaTools = draftReady && mediaSource === 'ai-video'
-  const showStockMediaTools = draftReady && mediaSource === 'stock-image'
-  const showUserMediaTools = draftReady && mediaSource === 'user-media'
+  const showImageMediaTools = mediaSource === 'ai-image'
+  const showVideoMediaTools = mediaSource === 'ai-video'
+  const showStockMediaTools = mediaSource === 'stock-image'
+  const showUserMediaTools = mediaSource === 'user-media'
   const hasImageMedia = media.some((item) => item.type === 'image')
   const hasVideoMedia = media.some((item) => item.type === 'video')
 
@@ -1119,9 +1107,6 @@ export function ComposePage() {
                 <div className="rounded-2xl border bg-muted/20 p-3">
                   <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Media Source</p>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <Badge variant={draftReady ? 'default' : 'secondary'} className={draftReady ? 'alive-soft-pulse' : ''}>
-                      {draftReady ? 'Draft ready' : 'Draft needed'}
-                    </Badge>
                     <Badge variant="outline">
                       {activeMedia ? `${activeMedia.type === 'video' ? 'Video' : 'Image'} attached` : 'No media yet'}
                     </Badge>
@@ -1168,9 +1153,13 @@ export function ComposePage() {
                     </Button>
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {draftReady
-                      ? 'AI Video generates clips with a minimum target duration of 15 seconds.'
-                      : 'Write or generate your post draft first to unlock image and video tools.'}
+                    {mediaSource === 'stock-image'
+                      ? 'Opens the stock library so you can attach a photo right away.'
+                      : mediaSource === 'user-media'
+                        ? 'Upload an image or video from your device.'
+                        : mediaSource === 'ai-video'
+                          ? 'AI Video generates clips with a minimum target duration of 15 seconds.'
+                          : 'Generate an AI image, or add a caption later before publishing.'}
                   </p>
                 </div>
 
@@ -1261,8 +1250,7 @@ export function ComposePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {firstDraftCreated ? (
-              <div className="space-y-3 rounded-2xl border bg-muted/20 p-3">
+            <div className="space-y-3 rounded-2xl border bg-muted/20 p-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {mediaSource === 'ai-image' && 'AI image'}
                   {mediaSource === 'ai-video' && 'AI video'}
@@ -1326,7 +1314,7 @@ export function ComposePage() {
 
                 {showStockMediaTools ? (
                   <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)} className="w-full">
-                    Open stock picker
+                    Browse stock library
                   </Button>
                 ) : null}
 
@@ -1379,11 +1367,6 @@ export function ComposePage() {
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed bg-muted/10 p-4 text-xs text-muted-foreground">
-                Write your draft first — media tools unlock once you have content.
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="compose-link" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1420,21 +1403,25 @@ export function ComposePage() {
             </div>
 
             <div className="space-y-2 border-t pt-3">
-              <Button onClick={() => publish('now')} disabled={loading || !content.trim()} className="w-full">
+              <Button
+                onClick={() => publish('now')}
+                disabled={loading || (!content.trim() && !hasVisual)}
+                className="w-full"
+              >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 {loading ? 'Publishing...' : 'Publish Now'}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => publish('schedule')}
-                disabled={loading || !content.trim() || !scheduleAt}
+                disabled={loading || (!content.trim() && !hasVisual) || !scheduleAt}
                 className="w-full"
                 title={!scheduleAt ? 'Pick a date and time above first.' : undefined}
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
                 {loading ? 'Saving...' : 'Schedule Post'}
               </Button>
-              {firstDraftCreated && hasVisual ? (
+              {hasVisual ? (
                 <Button type="button" variant="ghost" onClick={() => setShowPreview(true)} className="w-full">
                   <Eye className="mr-2 h-4 w-4" />
                   Preview post
@@ -1585,7 +1572,7 @@ export function ComposePage() {
               </div>
             )}
 
-            {firstDraftCreated ? (
+            {hasVisual ? (
               <div className="space-y-2 rounded-xl border p-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Media actions</p>
                 <div className="flex flex-wrap gap-2">
@@ -1620,7 +1607,7 @@ export function ComposePage() {
                     Replace with Stock Image
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">You can switch between image and video regeneration after the first draft is created.</p>
+                <p className="text-xs text-muted-foreground">Replace or regenerate media anytime before you publish.</p>
               </div>
             ) : null}
           </div>
@@ -1628,17 +1615,6 @@ export function ComposePage() {
             <Button variant="outline" onClick={() => setShowPreview(false)}>Close</Button>
           </DialogFooter>
         </div>
-      </Dialog>
-      <Dialog open={showDraftRequired} onOpenChange={setShowDraftRequired}>
-        <DialogHeader>
-          <DialogTitle>Create draft first</DialogTitle>
-          <DialogDescription>
-            Start with post text using Write with AI or typing your own draft. Then image/video tools unlock.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowDraftRequired(false)}>Close</Button>
-        </DialogFooter>
       </Dialog>
       <Dialog
         open={showCompletedPost}
