@@ -1312,7 +1312,7 @@ export function AdsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6 alive-enter">
+    <div className="mx-auto max-w-6xl space-y-6 p-6 alive-enter">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
