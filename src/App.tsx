@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/ConfirmProvider'
+import { CreditProvider } from '@/contexts/CreditContext'
 import { useAuth } from '@/hooks/useAuth'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignupPage } from '@/pages/SignupPage'
@@ -12,6 +13,8 @@ import { AdsPage } from '@/pages/AdsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { HistoryPage } from '@/pages/HistoryPage'
+import { AdminPanelPage } from '@/pages/admin/AdminPanelPage'
+import { AdminRoute } from '@/components/admin/AdminRoute'
 
 function App() {
   const { profile, loading } = useAuth()
@@ -26,6 +29,7 @@ function App() {
 
   return (
     <ConfirmProvider>
+    <CreditProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={profile ? <Navigate to="/" /> : <LoginPage />} />
@@ -39,9 +43,18 @@ function App() {
           <Route path="library" element={<LibraryPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route
+            path="admin"
+            element={
+              <AdminRoute>
+                <AdminPanelPage />
+              </AdminRoute>
+            }
+          />
         </Route>
       </Routes>
     </BrowserRouter>
+    </CreditProvider>
     </ConfirmProvider>
   )
 }

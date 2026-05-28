@@ -13,7 +13,10 @@ import {
   Video,
 } from 'lucide-react'
 import { useConfirm } from '@/components/ConfirmProvider'
+import { AdminAppSettings } from '@/components/settings/AdminAppSettings'
+import { BillingSettings } from '@/components/settings/BillingSettings'
 import { GrowthAdsProfileSettings } from '@/components/settings/GrowthAdsProfileSettings'
+import { useCredits } from '@/contexts/CreditContext'
 import { WorkspaceTeamCard } from '@/components/WorkspaceTeamCard'
 import { APP_PAGE } from '@/lib/app-labels'
 import { useWorkspaceTeam } from '@/hooks/useWorkspaceTeam'
@@ -59,13 +62,15 @@ type SettingsTab =
   | 'regional'
   | 'team'
   | 'accounts'
+  | 'billing'
   | 'growth-ads'
+  | 'app-admin'
   | 'content-ai'
   | 'image-ai'
   | 'video-ai'
   | 'local-ai'
 
-const AI_TABS = new Set<SettingsTab>(['content-ai', 'image-ai', 'video-ai', 'local-ai'])
+const PLATFORM_ADMIN_TABS = new Set<SettingsTab>(['app-admin', 'content-ai', 'image-ai', 'video-ai', 'local-ai'])
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 type WorkspaceAiSettingsRow = Database['public']['Tables']['workspace_ai_settings']['Row']
 type WorkspaceAiSettingsInsert = Database['public']['Tables']['workspace_ai_settings']['Insert']
@@ -127,9 +132,11 @@ export function SettingsPage() {
   const confirm = useConfirm()
   const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
   const { user, profile } = useAuth()
+  const { balance: creditBalance } = useCredits()
   const { canManage: canManageTeam } = useWorkspaceTeam(currentWorkspaceId, user?.id)
   const isWorkspaceOwner = Boolean(user?.id && currentWorkspace?.owner_id === user.id)
   const isWorkspaceAdmin = isDemoMode || isWorkspaceOwner || canManageTeam
+  const isPlatformAdmin = isDemoMode || creditBalance.isAdmin
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
     const tab = (location.state as { tab?: SettingsTab } | null)?.tab
     return tab ?? 'profile'
@@ -160,10 +167,10 @@ export function SettingsPage() {
   }, [location.state])
 
   useEffect(() => {
-    if (!isWorkspaceAdmin && AI_TABS.has(activeTab)) {
+    if (!isPlatformAdmin && PLATFORM_ADMIN_TABS.has(activeTab)) {
       setActiveTab('profile')
     }
-  }, [isWorkspaceAdmin, activeTab])
+  }, [isPlatformAdmin, activeTab])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -550,7 +557,7 @@ export function SettingsPage() {
         <div className="mb-4 flex items-start gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           <Lock className="mt-0.5 h-4 w-4 flex-none" />
           <span>
-            AI model settings (Content, Image, Video, Local) are managed by your workspace admin. Ask an owner or admin if you
+            AI model settings (Content, Image, Video, Local) are managed by your platform administrator. Contact support if you
             need a change to the models your team uses.
           </span>
         </div>
@@ -581,11 +588,17 @@ export function SettingsPage() {
           <TabsTrigger value="accounts" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
             Accounts
           </TabsTrigger>
+          <TabsTrigger value="billing" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+            Billing
+          </TabsTrigger>
           <TabsTrigger value="growth-ads" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
             {APP_PAGE.growthAds}
           </TabsTrigger>
-          {isWorkspaceAdmin ? (
+          {isPlatformAdmin ? (
             <>
+              <TabsTrigger value="app-admin" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
+                App Settings
+              </TabsTrigger>
               <TabsTrigger value="content-ai" activeValue={activeTab} onClick={(value) => setActiveTab(value as SettingsTab)}>
                 Content AI
               </TabsTrigger>
@@ -807,6 +820,10 @@ export function SettingsPage() {
           />
         </TabsContent>
 
+        <TabsContent value="billing" activeValue={activeTab}>
+          <BillingSettings />
+        </TabsContent>
+
         <TabsContent value="growth-ads" activeValue={activeTab}>
           <GrowthAdsProfileSettings
             workspaceId={currentWorkspaceId}
@@ -814,6 +831,12 @@ export function SettingsPage() {
             onMessage={setSettingsMessage}
           />
         </TabsContent>
+
+        {isPlatformAdmin ? (
+          <TabsContent value="app-admin" activeValue={activeTab}>
+            <AdminAppSettings />
+          </TabsContent>
+        ) : null}
 
         <TabsContent value="accounts" activeValue={activeTab}>
           <Card>

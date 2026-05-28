@@ -383,11 +383,95 @@ export interface Database {
           created_at?: string
         }
       }
+      user_credit_accounts: {
+        Row: {
+          user_id: string
+          membership_plan: string
+          monthly_credits_used: number
+          topup_credits_balance: number
+          cycle_start: string
+          cycle_end: string
+          posts_used: number
+          images_used: number
+          videos_used: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          membership_plan?: string
+          monthly_credits_used?: number
+          topup_credits_balance?: number
+          cycle_start?: string
+          cycle_end?: string
+          posts_used?: number
+          images_used?: number
+          videos_used?: number
+        }
+        Update: {
+          membership_plan?: string
+          monthly_credits_used?: number
+          topup_credits_balance?: number
+          cycle_start?: string
+          cycle_end?: string
+          posts_used?: number
+          images_used?: number
+          videos_used?: number
+          updated_at?: string
+        }
+      }
+      credit_usage_logs: {
+        Row: {
+          id: string
+          user_id: string
+          workspace_id: string | null
+          action_type: string
+          credits_used: number
+          balance_after: number | null
+          model_used: string | null
+          account_role: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          workspace_id?: string | null
+          action_type: string
+          credits_used: number
+          balance_after?: number | null
+          model_used?: string | null
+          account_role?: string
+          metadata?: Json
+        }
+        Update: never
+      }
     }
     Functions: {
       has_role: {
         Args: { user_uuid: string; role_name: string }
         Returns: boolean
+      }
+      is_platform_admin: {
+        Args: { p_user_id?: string }
+        Returns: boolean
+      }
+      ensure_user_credit_account: {
+        Args: { p_user_id?: string }
+        Returns: Database['public']['Tables']['user_credit_accounts']['Row']
+      }
+      consume_ai_credits: {
+        Args: {
+          p_action_type: string
+          p_credits: number
+          p_workspace_id?: string | null
+          p_model_used?: string | null
+          p_metadata?: Json
+        }
+        Returns: Json
+      }
+      add_topup_credits: {
+        Args: { p_credits: number }
+        Returns: Json
       }
     }
   }

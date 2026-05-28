@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import {
   Calendar,
@@ -30,6 +30,8 @@ import {
   type ComposePlatform,
 } from '@/lib/compose-copy'
 import { appendDemoVaultItem, saveGeneratedMediaToVault } from '@/lib/ai-library'
+import { invokeAiWithCredits } from '@/lib/ai-invoke'
+import { useCredits } from '@/contexts/CreditContext'
 import { APP_PAGE } from '@/lib/app-labels'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
@@ -159,8 +161,15 @@ export function ComposePage() {
   const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
   const [showCompletedPost, setShowCompletedPost] = useState(false)
   const { integrations, isConnected, refresh: refreshIntegrations } = useWorkspaceIntegrations(currentWorkspaceId)
+  const { consumeCredits } = useCredits()
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
   const [updatingTarget, setUpdatingTarget] = useState(false)
+
+  const invokeAi = useCallback(
+    <T,>(functionName: string, body: Record<string, unknown>) =>
+      invokeAiWithCredits<T>(functionName, body, consumeCredits, { workspaceId: currentWorkspaceId }),
+    [consumeCredits, currentWorkspaceId],
+  )
 
   const facebookIntegration = integrations.find(
     (row) => row.provider === 'facebook' || row.provider === 'meta',
@@ -1714,29 +1723,3 @@ export function ComposePage() {
   )
 }
 
-async function invokeAi<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(functionName, { body })
-  if (error) {
-    const context = (error as { context?: { json?: () => Promise<unknown> } }).context
-    if (context?.json) {
-      try {
-        const errorPayload = (await context.json()) as { error?: string; message?: string }
-        const detailedMessage = errorPayload?.error || errorPayload?.message
-        if (detailedMessage) {
-          throw new Error(detailedMessage)
-        }
-      } catch (contextError) {
-        if (contextError instanceof Error && contextError.message) {
-          throw contextError
-        }
-        // Fall through to default error message when payload parsing fails.
-      }
-    }
-    throw new Error(error.message || 'AI request failed.')
-  }
-  const payload = data as T & { error?: string }
-  if (payload && typeof payload === 'object' && 'error' in payload && payload.error) {
-    throw new Error(payload.error)
-  }
-  return data as T
-}

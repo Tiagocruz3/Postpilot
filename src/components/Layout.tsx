@@ -6,9 +6,6 @@ import { supabase } from '@/lib/supabase'
 import {
   PenTool,
   BarChart3,
-  Settings,
-  LogOut,
-  UserRound,
   ChevronDown,
   CalendarDays,
   Building2,
@@ -19,19 +16,19 @@ import {
   Images,
   History,
 } from 'lucide-react'
+import { AccountMenu } from '@/components/account/AccountMenu'
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { APP_PAGE } from '@/lib/app-labels'
 import { cn } from '@/lib/utils'
 import { isDemoMode } from '@/lib/demo'
-import { getInitials, getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
+import { getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
 
 const SIDEBAR_TRANSITION = 'transition-[width,padding,margin] duration-200 ease-out'
 
@@ -261,73 +258,13 @@ export function Layout() {
             sidebarOpen ? 'px-3' : 'px-2'
           )}
         >
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center rounded-lg text-left transition-colors hover:bg-accent',
-                  sidebarOpen ? 'h-11 gap-3 px-2' : 'h-11 justify-center px-0'
-                )}
-                title={!sidebarOpen ? displayName : undefined}
-              >
-                <Avatar className="h-8 w-8 shrink-0">
-                  {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
-                  <AvatarFallback className="bg-primary text-xs font-bold text-primary-foreground">
-                    {getInitials(displayName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div
-                  className={cn(
-                    'min-w-0 flex-1 overflow-hidden transition-opacity duration-150',
-                    sidebarOpen ? 'opacity-100 delay-100' : 'pointer-events-none w-0 opacity-0'
-                  )}
-                >
-                  <p className="truncate text-sm font-medium leading-tight">{displayName}</p>
-                  <p className="truncate text-[11px] text-muted-foreground leading-tight">
-                    {user?.email ?? 'Account'}
-                  </p>
-                </div>
-                <ChevronDown
-                  className={cn(
-                    'h-4 w-4 shrink-0 text-muted-foreground transition-opacity duration-150',
-                    sidebarOpen ? 'opacity-100 delay-100' : 'opacity-0'
-                  )}
-                />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" className="min-w-[14rem]">
-              <div className="flex items-center gap-3 px-2 py-2">
-                <Avatar className="h-10 w-10">
-                  {userPreferences.avatarUrl ? <AvatarImage src={userPreferences.avatarUrl} alt={displayName} /> : null}
-                  <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
-                    {getInitials(displayName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{displayName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'demo@adguru.app'}</p>
-                  {currentWorkspace ? (
-                    <p className="truncate text-xs text-muted-foreground">{currentWorkspace.name}</p>
-                  ) : null}
-                </div>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/settings', { state: { tab: 'profile' } })}>
-                <UserRound className="mr-2 h-4 w-4" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => void handleSignOut()} className="text-destructive hover:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <AccountMenu
+            displayName={displayName}
+            email={user?.email}
+            avatarUrl={userPreferences.avatarUrl}
+            sidebarOpen={sidebarOpen}
+            onSignOut={() => void handleSignOut()}
+          />
         </div>
       </aside>
 

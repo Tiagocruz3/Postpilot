@@ -12,6 +12,7 @@ import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { APP_PAGE } from '@/lib/app-labels'
 import { isDemoMode } from '@/lib/demo'
+import { useCredits } from '@/contexts/CreditContext'
 import { createDefaultAdsStudioProfile, fetchAdsStudioProfile } from '@/lib/ads-studio-profile'
 import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
@@ -143,6 +144,7 @@ const requiredByStep: Record<number, string[]> = {
 export function AdsPage() {
   const location = useLocation()
   const confirm = useConfirm()
+  const { consumeCredits, consumeForFunction } = useCredits()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const { user } = useAuth()
   const { items: mediaItems, remove: removeMedia, refresh: refreshMedia } = useAiMediaLibrary(currentWorkspaceId)
@@ -421,6 +423,12 @@ export function AdsPage() {
       return setMessage('Select a workspace to use AI suggestions.')
     }
 
+    const gate = await consumeForFunction('suggest-ads-targeting', {}, { workspaceId: currentWorkspaceId })
+    if (!gate.ok) {
+      setSuggestingAudience(false)
+      return setMessage(gate.error ?? 'Insufficient credits.')
+    }
+
     const { data, error } = await supabase.functions.invoke('suggest-ads-targeting', {
       body: {
         workspace_id: currentWorkspaceId,
@@ -459,6 +467,13 @@ export function AdsPage() {
     if (!currentWorkspaceId && !isDemoMode) {
       setGeneratingCopy(false)
       return setMessage('Select a workspace to generate ads.')
+    }
+    if (!isDemoMode) {
+      const gate = await consumeCredits('ad_copy', { workspaceId: currentWorkspaceId })
+      if (!gate.ok) {
+        setGeneratingCopy(false)
+        return setMessage(gate.error ?? 'Insufficient credits.')
+      }
     }
     const { data, error } = await supabase.functions.invoke('generate-ad-copy', {
       body: {
@@ -511,6 +526,10 @@ export function AdsPage() {
   const generateCreative = async (type: 'image' | 'video') => {
     if (!selectedOption || !currentWorkspaceId || !user?.id) return
     const fn = type === 'image' ? 'generate-image' : 'generate-video'
+    if (!isDemoMode) {
+      const gate = await consumeForFunction(fn, { premium: false }, { workspaceId: currentWorkspaceId })
+      if (!gate.ok) return setMessage(gate.error ?? 'Insufficient credits.')
+    }
     const { data, error } = await supabase.functions.invoke(fn, {
       body: {
         prompt: `${selectedOption.headline}. ${selectedOption.primaryText}`,
@@ -846,6 +865,8 @@ export function AdsPage() {
             generatingCopy={generatingCopy}
             suggestingAudience={suggestingAudience}
             aiTip={aiTip}
+            metaReady={Boolean(profile.metaConnection.adAccountId && profile.metaConnection.facebookPageId)}
+            onPublish={() => setMessage('Publishing is next: we will wire this to the Meta Ads edge function when ready.')}
           />
         </TabsContent>
 

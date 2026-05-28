@@ -3,6 +3,7 @@ import { Loader2, Search } from 'lucide-react'
 import { isDemoMode } from '@/lib/demo'
 import type { ComposePlatform } from '@/lib/compose-copy'
 import { platformLabel } from '@/lib/compose-copy'
+import { useCredits } from '@/contexts/CreditContext'
 import {
   captionWithHashtags,
   DEFAULT_RESEARCH_FORM,
@@ -59,6 +60,7 @@ export function ResearchTopicModal({
   onGenerateVisual,
   onSchedulePost,
 }: ResearchTopicModalProps) {
+  const { consumeCredits } = useCredits()
   const [platform, setPlatform] = useState<ComposePlatform>(parentPlatform)
   const [form, setForm] = useState<ResearchFormValues>({ ...DEFAULT_RESEARCH_FORM, topic: initialTopic })
   const [report, setReport] = useState<ResearchReport | null>(null)
@@ -87,7 +89,7 @@ export function ResearchTopicModal({
         setReport(DEMO_REPORT)
         return
       }
-      const { report: next } = await researchPost(platform, brandName, form, workspaceId)
+      const { report: next } = await researchPost(platform, brandName, form, workspaceId, consumeCredits)
       setReport(next)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Research failed.')

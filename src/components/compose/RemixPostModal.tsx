@@ -3,6 +3,7 @@ import { Calendar, Loader2, Sparkles } from 'lucide-react'
 import { isDemoMode } from '@/lib/demo'
 import type { ComposePlatform } from '@/lib/compose-copy'
 import { platformLabel } from '@/lib/compose-copy'
+import { useCredits } from '@/contexts/CreditContext'
 import {
   captionWithHashtags,
   DEFAULT_REMIX_FORM,
@@ -56,6 +57,7 @@ export function RemixPostModal({
   onGenerateVisual,
   onScheduleInspiredPost,
 }: RemixPostModalProps) {
+  const { consumeCredits } = useCredits()
   const [form, setForm] = useState<RemixFormValues>({
     ...DEFAULT_REMIX_FORM,
     original_post_text: initialPostText,
@@ -90,7 +92,7 @@ export function RemixPostModal({
         setReport(DEMO_REMIX)
         return
       }
-      const { report: next } = await remixInspiration(platform, brandName, form, workspaceId)
+      const { report: next } = await remixInspiration(platform, brandName, form, workspaceId, consumeCredits)
       setReport(next)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Remix failed.')

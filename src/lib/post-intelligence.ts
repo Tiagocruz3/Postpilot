@@ -1,3 +1,5 @@
+import { invokeAiWithCredits } from '@/lib/ai-invoke'
+import type { CreditConsumeFn } from '@/lib/ai-invoke'
 import { supabase } from '@/lib/supabase'
 import type { ComposePlatform } from '@/lib/compose-copy'
 
@@ -88,8 +90,9 @@ export function researchPost(
   brandName: string,
   values: ResearchFormValues,
   workspaceId?: string | null,
+  consume?: CreditConsumeFn,
 ) {
-  return invokeEdge<{ report: ResearchReport }>('research-post', {
+  const body = {
     platform,
     brand_name: brandName,
     topic: values.topic,
@@ -100,7 +103,11 @@ export function researchPost(
     location: values.location || undefined,
     web_search: values.web_search,
     workspace_id: workspaceId || undefined,
-  })
+  }
+  if (consume) {
+    return invokeAiWithCredits<{ report: ResearchReport }>('research-post', body, consume, { workspaceId })
+  }
+  return invokeEdge<{ report: ResearchReport }>('research-post', body)
 }
 
 export function remixInspiration(
@@ -108,8 +115,9 @@ export function remixInspiration(
   brandName: string,
   values: RemixFormValues,
   workspaceId?: string | null,
+  consume?: CreditConsumeFn,
 ) {
-  return invokeEdge<{ report: RemixReport }>('remix-inspiration', {
+  const body = {
     platform,
     brand_name: brandName,
     original_post_text: values.original_post_text,
@@ -120,7 +128,11 @@ export function remixInspiration(
     offer: values.offer,
     post_goal: values.post_goal,
     workspace_id: workspaceId || undefined,
-  })
+  }
+  if (consume) {
+    return invokeAiWithCredits<{ report: RemixReport }>('remix-inspiration', body, consume, { workspaceId })
+  }
+  return invokeEdge<{ report: RemixReport }>('remix-inspiration', body)
 }
 
 export function formatHashtags(tags: string[]) {
