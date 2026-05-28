@@ -8,6 +8,7 @@ import {
   Heart,
   Loader2,
   MessageCircle,
+  Play,
   RefreshCw,
   Repeat2,
   Send,
@@ -89,6 +90,29 @@ function statusFor(post: PublishedPost): 'published' | 'failed' | 'pending' {
   if (post.error) return 'failed'
   if (post.published_at) return 'published'
   return 'pending'
+}
+
+function isVideoUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  return /\.(mp4|mov|webm|m4v|qt|avi)(\?|#|$)/i.test(url)
+}
+
+/**
+ * Returns the best thumbnail source for a post.
+ * - prefer preview_image_url when it's clearly an image
+ * - else fall back to the first media URL and treat it as a video if it ends in a known video extension
+ */
+function pickThumbnail(post: PublishedPost): { kind: 'image' | 'video'; src: string } | null {
+  const preview = post.preview_image_url
+  const first = post.media_urls?.[0]
+
+  if (preview && !isVideoUrl(preview)) return { kind: 'image', src: preview }
+  if (first) {
+    if (isVideoUrl(first)) return { kind: 'video', src: first }
+    return { kind: 'image', src: first }
+  }
+  if (preview) return { kind: 'image', src: preview }
+  return null
 }
 
 export function HistoryPage() {
@@ -349,17 +373,43 @@ export function HistoryPage() {
                     className="rounded-2xl border bg-background p-4 transition-colors hover:bg-muted/30"
                   >
                     <div className="flex flex-wrap items-start gap-4">
-                      {post.preview_image_url ? (
-                        <img
-                          src={post.preview_image_url}
-                          alt=""
-                          className="h-20 w-20 shrink-0 rounded-xl border object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border bg-muted text-xs text-muted-foreground">
-                          No media
-                        </div>
-                      )}
+                      {(() => {
+                        const thumb = pickThumbnail(post)
+                        if (!thumb) {
+                          return (
+                            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border bg-muted text-xs text-muted-foreground">
+                              No media
+                            </div>
+                          )
+                        }
+                        if (thumb.kind === 'video') {
+                          // `#t=0.1` forces the browser to render the frame at 0.1s, giving us a real thumbnail.
+                          const src = thumb.src.includes('#') ? thumb.src : `${thumb.src}#t=0.1`
+                          return (
+                            <div className="relative h-20 w-20 shrink-0">
+                              <video
+                                src={src}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                className="h-20 w-20 rounded-xl border bg-black object-cover"
+                              />
+                              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                <span className="rounded-full bg-black/55 p-1.5 text-white">
+                                  <Play className="h-4 w-4 fill-current" />
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return (
+                          <img
+                            src={thumb.src}
+                            alt=""
+                            className="h-20 w-20 shrink-0 rounded-xl border object-cover"
+                          />
+                        )
+                      })()}
 
                       <div className="min-w-0 flex-1 space-y-2">
                         <div className="flex flex-wrap items-center gap-2">

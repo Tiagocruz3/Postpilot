@@ -18,7 +18,9 @@ import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
   findFacebookIntegration,
   findMetaAdsIntegration,
+  parseFacebookPages,
   parseMetaAdAccounts,
+  type MetaPageOption,
 } from '@/lib/meta-integration-options'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +29,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Pagination } from '@/components/ui/pagination'
 import { Select } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
@@ -129,6 +132,7 @@ function createDefaultCampaignDraft(): CampaignDraftState {
 const PERSIST_KEY_PREFIX = 'adguru:campaign-draft:'
 // Drafts older than this are considered stale and cleared on load.
 const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000
+const ADS_MEDIA_PAGE_SIZE = 9
 
 type PersistedCampaignDraft = {
   draft?: Partial<CampaignDraftState>
@@ -221,6 +225,8 @@ export function AdsPage() {
   const [aiTip, setAiTip] = useState('')
   const [suggestingAudience, setSuggestingAudience] = useState(false)
   const [generatingCopy, setGeneratingCopy] = useState(false)
+  const [mediaPage, setMediaPage] = useState(1)
+  const [updatingPostingTarget, setUpdatingPostingTarget] = useState(false)
   const [profile, setProfile] = useState<AdsStudioProfile>(() => createDefaultAdsStudioProfile(user?.id ?? ''))
   const [draft, setDraft] = useState<CampaignDraftState>(() => createDefaultCampaignDraft())
   const [options, setOptions] = useState<AdOption[]>([])
@@ -441,7 +447,39 @@ export function AdsPage() {
   ])
 
   const selectedOption = options.find((o) => o.id === selectedId) ?? null
-  const adsMedia = mediaItems.filter((m) => m.source === 'ads' || m.source === 'other')
+  const adsMedia = useMemo(
+    () => mediaItems.filter((m) => m.source === 'ads' || m.source === 'other'),
+    [mediaItems],
+  )
+  // Clamp the page in render so the user never lands on an empty page when
+  // assets are deleted or the workspace switches. Pure computation, no effect.
+  const safeMediaPage = Math.min(
+    Math.max(1, mediaPage),
+    Math.max(1, Math.ceil(adsMedia.length / ADS_MEDIA_PAGE_SIZE)),
+  )
+  const visibleAdsMedia = useMemo(
+    () => adsMedia.slice((safeMediaPage - 1) * ADS_MEDIA_PAGE_SIZE, safeMediaPage * ADS_MEDIA_PAGE_SIZE),
+    [adsMedia, safeMediaPage],
+  )
+
+  // Available Facebook Pages parsed from the active integration. Demo mode
+  // (or a missing integration) falls back to whatever is on the saved profile,
+  // so the studio still works without a connected Page list.
+  const facebookPagesForToggle = useMemo<MetaPageOption[]>(() => {
+    const fb = findFacebookIntegration(integrations)
+    const pages = parseFacebookPages(fb)
+    if (pages.length > 0) return pages
+    if (profile.metaConnection.facebookPageId) {
+      return [
+        {
+          id: profile.metaConnection.facebookPageId,
+          name: profile.businessProfile.businessName || 'Connected Page',
+        },
+      ]
+    }
+    return []
+  }, [integrations, profile.metaConnection.facebookPageId, profile.businessProfile.businessName])
+
   const recommendedTypes = useMemo(() => {
     if (draft.goal === 'Get leads' && profile.leadDestination.type === 'meta_lead_form') return ['Lead Form Ad', 'Video Ad', 'Single Image Ad']
     if (draft.goal === 'Send traffic to website' && (profile.leadDestination.defaultUrl || profile.businessProfile.websiteUrl)) {
@@ -509,6 +547,61 @@ export function AdsPage() {
     if (showProfile) {
       setShowProfile(false)
       setMessage('AI Profile saved.')
+    }
+  }
+
+  /**
+   * Switch the Facebook Page used for ads from this workspace. Updates two
+   * places in lockstep so the studio preview, the saved profile, and the
+   * `meta-ads` edge function (which reads `integration.metadata.page_id`)
+   * all agree on the new posting target.
+   */
+  const changeFacebookPostingPage = async (pageId: string) => {
+    if (!pageId || pageId === profile.metaConnection.facebookPageId) return
+    const nextPage = facebookPagesForToggle.find((page) => page.id === pageId)
+    if (isDemoMode) {
+      setProfile((prev) => ({
+        ...prev,
+        metaConnection: {
+          ...prev.metaConnection,
+          facebookPageId: pageId,
+          connectedAt: new Date().toISOString(),
+        },
+      }))
+      setMessage(`Posting from ${nextPage?.name ?? pageId} (demo).`)
+      return
+    }
+
+    setUpdatingPostingTarget(true)
+    try {
+      const facebookIntegration = findFacebookIntegration(integrations)
+      if (facebookIntegration) {
+        const nextMetadata = {
+          ...(facebookIntegration.metadata ?? {}),
+          selected_page_id: pageId,
+          page_id: pageId,
+          page_name: nextPage?.name ?? pageId,
+        }
+        const { error: integrationError } = await supabase
+          .from('user_integrations')
+          .update({ metadata: nextMetadata } as never)
+          .eq('id', facebookIntegration.id)
+        if (integrationError) {
+          setMessage(`Could not switch Page: ${integrationError.message}`)
+          return
+        }
+        void refreshIntegrations()
+      }
+      await saveProfile({
+        metaConnection: {
+          ...profile.metaConnection,
+          facebookPageId: pageId,
+          connectedAt: new Date().toISOString(),
+        },
+      })
+      setMessage(`Now posting from ${nextPage?.name ?? pageId}.`)
+    } finally {
+      setUpdatingPostingTarget(false)
     }
   }
 
@@ -1159,6 +1252,53 @@ export function AdsPage() {
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div className="alive-shimmer h-full rounded-full bg-primary/35" style={{ width: `${Math.max(8, completion)}%` }} />
       </div>
+
+      {onboardingDone && facebookPagesForToggle.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/20 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Posting from
+            </p>
+            <p className="text-sm">
+              Ads published from this studio will appear on the Facebook Page you choose here.
+            </p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <Label htmlFor="ads-posting-page" className="text-xs text-muted-foreground">
+              Facebook Page
+            </Label>
+            <Select
+              id="ads-posting-page"
+              value={profile.metaConnection.facebookPageId || ''}
+              onChange={(event) => void changeFacebookPostingPage(event.target.value)}
+              disabled={updatingPostingTarget || facebookPagesForToggle.length <= 1}
+              className="min-w-[12rem]"
+            >
+              {profile.metaConnection.facebookPageId ? null : (
+                <option value="">Select a Page</option>
+              )}
+              {facebookPagesForToggle.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {page.name}
+                </option>
+              ))}
+            </Select>
+            {facebookPagesForToggle.length <= 1 ? (
+              <p className="text-[11px] text-muted-foreground">
+                Only one Page connected.{' '}
+                <button
+                  type="button"
+                  onClick={refreshMetaConnections}
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Refresh
+                </button>
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {message ? <div className="rounded-xl border bg-primary/5 px-4 py-3 text-sm">{message}</div> : null}
 
       <Dialog
@@ -1644,21 +1784,33 @@ export function AdsPage() {
               <CardDescription>Reusable AI and uploaded ad assets.</CardDescription>
             </CardHeader>
             <CardContent>
-              {adsMedia.length === 0 ? <p className="text-sm text-muted-foreground">No assets yet.</p> : (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {adsMedia.map((asset) => (
-                    <Card key={asset.id}>
-                      <CardContent className="space-y-2 p-3">
-                        {asset.media_type === 'video'
-                          ? <video src={asset.public_url} controls className="h-40 w-full rounded object-cover" />
-                          : <img src={asset.public_url} alt="" className="h-40 w-full rounded object-cover" />}
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(asset.public_url)}>Reuse</Button>
-                          <Button size="sm" variant="destructive" onClick={() => void handleRemoveMedia(asset.id)}>Delete</Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+              {adsMedia.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No assets yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {visibleAdsMedia.map((asset) => (
+                      <Card key={asset.id}>
+                        <CardContent className="space-y-2 p-3">
+                          {asset.media_type === 'video'
+                            ? <video src={asset.public_url} controls className="h-40 w-full rounded object-cover" />
+                            : <img src={asset.public_url} alt="" className="h-40 w-full rounded object-cover" />}
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(asset.public_url)}>Reuse</Button>
+                            <Button size="sm" variant="destructive" onClick={() => void handleRemoveMedia(asset.id)}>Delete</Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <Pagination
+                    totalItems={adsMedia.length}
+                    pageSize={ADS_MEDIA_PAGE_SIZE}
+                    page={safeMediaPage}
+                    onPageChange={setMediaPage}
+                    itemLabel="assets"
+                  />
                 </div>
               )}
             </CardContent>
@@ -1697,22 +1849,102 @@ export function AdsPage() {
       </Tabs>
       )}
 
-      <Dialog open={showProfile} onOpenChange={setShowProfile}>
-        <DialogHeader>
-          <DialogTitle>Edit AI Profile</DialogTitle>
-          <DialogDescription>Short and simple profile context for better ads.</DialogDescription>
+      <Dialog
+        open={showProfile}
+        onOpenChange={setShowProfile}
+        panelClassName="flex w-full max-w-2xl flex-col"
+      >
+        <DialogHeader className="border-b px-6 pb-4 pt-6 text-left">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogTitle>Edit AI Profile</DialogTitle>
+              <DialogDescription>
+                Short context AI Guru uses to write better ads. Fill out as much or as little as you want — you can
+                always finish it later from the onboarding flow.
+              </DialogDescription>
+            </div>
+            <Badge variant="outline" className="shrink-0">
+              {completion}% complete
+            </Badge>
+          </div>
         </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Business name" value={profile.businessProfile.businessName} onChange={(v) => setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, businessName: v } }))} />
-          <Field label="Audience" value={profile.audienceProfile.description} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, description: v } }))} />
-          <Field label="Location" value={profile.audienceProfile.locations} onChange={(v) => setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, locations: v } }))} />
-          <Field label="Tone" value={profile.brandVoice.tone} onChange={(v) => setProfile((p) => ({ ...p, brandVoice: { ...p.brandVoice, tone: v } }))} />
-          <Field label="Offer / product" value={profile.offerProfile.mainOffer} onChange={(v) => setProfile((p) => ({ ...p, offerProfile: { ...p.offerProfile, mainOffer: v } }))} />
-          <Field label="Landing URL" value={profile.leadDestination.defaultUrl} onChange={(v) => setProfile((p) => ({ ...p, leadDestination: { ...p.leadDestination, defaultUrl: v } }))} />
+
+        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <section className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Business</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label="Business name"
+                value={profile.businessProfile.businessName}
+                onChange={(v) =>
+                  setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, businessName: v } }))
+                }
+              />
+              <Field
+                label="Website"
+                value={profile.businessProfile.websiteUrl}
+                onChange={(v) =>
+                  setProfile((p) => ({ ...p, businessProfile: { ...p.businessProfile, websiteUrl: v } }))
+                }
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Audience</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label="Audience description"
+                value={profile.audienceProfile.description}
+                onChange={(v) =>
+                  setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, description: v } }))
+                }
+                multiline
+              />
+              <Field
+                label="Location"
+                value={profile.audienceProfile.locations}
+                onChange={(v) =>
+                  setProfile((p) => ({ ...p, audienceProfile: { ...p.audienceProfile, locations: v } }))
+                }
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Offer & Voice</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field
+                label="Offer / product"
+                value={profile.offerProfile.mainOffer}
+                onChange={(v) =>
+                  setProfile((p) => ({ ...p, offerProfile: { ...p.offerProfile, mainOffer: v } }))
+                }
+              />
+              <Field
+                label="Tone"
+                value={profile.brandVoice.tone}
+                onChange={(v) => setProfile((p) => ({ ...p, brandVoice: { ...p.brandVoice, tone: v } }))}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Destination</p>
+            <Field
+              label="Landing URL"
+              value={profile.leadDestination.defaultUrl}
+              onChange={(v) =>
+                setProfile((p) => ({ ...p, leadDestination: { ...p.leadDestination, defaultUrl: v } }))
+              }
+            />
+          </section>
         </div>
-        <DialogFooter>
-          <Badge variant="outline">{completion}% complete</Badge>
-          <Button variant="outline" onClick={() => setShowProfile(false)}>Cancel</Button>
+
+        <DialogFooter className="gap-2 border-t bg-muted/20 px-6 py-3 sm:gap-2">
+          <Button variant="ghost" onClick={() => setShowProfile(false)}>
+            Cancel
+          </Button>
           <Button onClick={() => void saveProfile()}>Save Profile</Button>
         </DialogFooter>
       </Dialog>

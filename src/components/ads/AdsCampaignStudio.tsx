@@ -123,7 +123,7 @@ const STUDIO_STEPS = [
   { id: 5, label: 'Targeting', meta: 'Audience, budget, schedule' },
   { id: 6, label: 'Destination', meta: 'Form or website link' },
   { id: 7, label: 'Preview', meta: 'Single placement preview' },
-  { id: 8, label: 'Placements', meta: 'See all 6 placements at once' },
+  { id: 8, label: 'Placements', meta: 'Switch between every Meta surface' },
   { id: 9, label: 'Publish', meta: 'Send to Meta Ads' },
 ] as const
 
@@ -934,9 +934,9 @@ export function AdsCampaignStudio({
         {step === 8 ? (
           <Card className="border-0 shadow-sm ring-1 ring-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">All placements</CardTitle>
+              <CardTitle className="text-lg">Placements</CardTitle>
               <CardDescription>
-                Pixel-honest previews across every Meta surface. Toggle mobile / desktop to compare.
+                Pixel-honest previews for every Meta surface. Pick a placement and toggle mobile / desktop.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -946,10 +946,28 @@ export function AdsCampaignStudio({
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between gap-2 rounded-xl border bg-muted/10 px-3 py-2">
-                    <p className="text-xs text-muted-foreground">
-                      Showing all 6 placements on {previewDevice === 'mobile' ? 'mobile' : 'desktop'}.
-                    </p>
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/10 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {AD_PLACEMENTS.map(({ id, label, icon }) => {
+                        const active = previewPlacement === id
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => setPreviewPlacement(id)}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                              active
+                                ? 'border-[#1877F2] bg-[#1877F2] text-white shadow-sm'
+                                : 'border-border bg-background text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            {icon}
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
                     <div className="inline-flex rounded-full border p-0.5">
                       {(['mobile', 'desktop'] as const).map((value) => (
                         <button
@@ -969,27 +987,31 @@ export function AdsCampaignStudio({
                     </div>
                   </div>
 
-                  <div className="grid items-start gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3">
-                    {AD_PLACEMENTS.map(({ id }) => (
-                      <div key={id} className="flex justify-center">
-                        <FacebookAdPreview
-                          data={{
-                            pageName: businessName || 'Your Page',
-                            pageAvatarUrl: facebookPageAvatarUrl,
-                            primaryText: selectedOption.primaryText,
-                            headline: selectedOption.headline,
-                            description: selectedOption.description,
-                            cta: selectedOption.cta,
-                            mediaUrl: selectedOption.previewUrl,
-                            mediaType: selectedOption.previewType,
-                            destinationDomain,
-                          }}
-                          placement={id}
-                          device={previewDevice}
-                        />
-                      </div>
-                    ))}
+                  <div className="flex justify-center overflow-x-auto rounded-xl bg-muted/20 px-4 py-6">
+                    <FacebookAdPreview
+                      data={{
+                        pageName: businessName || 'Your Page',
+                        pageAvatarUrl: facebookPageAvatarUrl,
+                        primaryText: selectedOption.primaryText,
+                        headline: selectedOption.headline,
+                        description: selectedOption.description,
+                        cta: selectedOption.cta,
+                        mediaUrl: selectedOption.previewUrl,
+                        mediaType: selectedOption.previewType,
+                        destinationDomain,
+                      }}
+                      placement={previewPlacement}
+                      device={previewDevice}
+                    />
                   </div>
+
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    Showing{' '}
+                    <span className="font-medium text-foreground">
+                      {AD_PLACEMENTS.find((p) => p.id === previewPlacement)?.label}
+                    </span>{' '}
+                    on {previewDevice === 'mobile' ? 'mobile' : 'desktop'}. Click any pill above to switch surface.
+                  </p>
                 </>
               )}
             </CardContent>

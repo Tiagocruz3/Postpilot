@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Pagination } from '@/components/ui/pagination'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { FacebookAdPreview } from '@/components/ads/FacebookAdPreview'
 import {
@@ -16,6 +17,8 @@ import {
   type AdCreativeStatus,
 } from '@/lib/ads-creatives'
 import { cn } from '@/lib/utils'
+
+const AD_LIBRARY_PAGE_SIZE = 9
 
 const STATUS_FILTERS: Array<{ value: AdCreativeStatus | 'all'; label: string }> = [
   { value: 'all', label: 'All' },
@@ -56,6 +59,7 @@ export function AdLibraryPanel({
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<AdCreativeStatus | 'all'>('all')
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return
@@ -74,6 +78,21 @@ export function AdLibraryPanel({
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  // Clamp the requested page during render rather than via setState in an
+  // effect, so list shrinks (deletes, status filter changes that reduce the
+  // result count) never leave us on an empty page and we don't trigger
+  // cascading renders. We DO still reset to page 1 on filter changes via
+  // setPage from the click handlers (see status / search inputs below).
+  const safePage = Math.min(
+    Math.max(1, page),
+    Math.max(1, Math.ceil(items.length / AD_LIBRARY_PAGE_SIZE)),
+  )
+
+  const visibleItems = useMemo(
+    () => items.slice((safePage - 1) * AD_LIBRARY_PAGE_SIZE, safePage * AD_LIBRARY_PAGE_SIZE),
+    [items, safePage],
+  )
 
   const counts = useMemo(() => {
     const byStatus: Record<string, number> = { all: items.length }
@@ -149,7 +168,10 @@ export function AdLibraryPanel({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
               placeholder="Search headlines, primary text, campaigns…"
               className="pl-9"
             />
@@ -164,7 +186,10 @@ export function AdLibraryPanel({
               <button
                 key={f.value}
                 type="button"
-                onClick={() => setStatus(f.value)}
+                onClick={() => {
+                  setStatus(f.value)
+                  setPage(1)
+                }}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                   active ? 'border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]' : 'hover:bg-muted',
@@ -188,20 +213,30 @@ export function AdLibraryPanel({
         ) : items.length === 0 && !loading ? (
           <EmptyState message="No ads yet. Generate your first campaign in the Studio." />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((creative) => (
-              <AdLibraryCard
-                key={creative.id}
-                creative={creative}
-                businessName={businessName}
-                facebookPageId={facebookPageId}
-                onArchive={() => void handleArchive(creative)}
-                onDelete={() => void handleDelete(creative)}
-                onStatusChange={(next) => void handleStatusChange(creative, next)}
-                onOpen={onOpenInStudio ? () => onOpenInStudio(creative) : undefined}
-                onOpenDetail={() => navigate(`/app/ads/library/${creative.id}`)}
-              />
-            ))}
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleItems.map((creative) => (
+                <AdLibraryCard
+                  key={creative.id}
+                  creative={creative}
+                  businessName={businessName}
+                  facebookPageId={facebookPageId}
+                  onArchive={() => void handleArchive(creative)}
+                  onDelete={() => void handleDelete(creative)}
+                  onStatusChange={(next) => void handleStatusChange(creative, next)}
+                  onOpen={onOpenInStudio ? () => onOpenInStudio(creative) : undefined}
+                  onOpenDetail={() => navigate(`/app/ads/library/${creative.id}`)}
+                />
+              ))}
+            </div>
+
+            <Pagination
+              totalItems={items.length}
+              pageSize={AD_LIBRARY_PAGE_SIZE}
+              page={safePage}
+              onPageChange={setPage}
+              itemLabel="ads"
+            />
           </div>
         )}
       </CardContent>
