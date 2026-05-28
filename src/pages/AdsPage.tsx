@@ -5,6 +5,7 @@ import { AdsAudienceFields } from '@/components/ads/AdsAudienceFields'
 import { AdsCampaignStudio } from '@/components/ads/AdsCampaignStudio'
 import { AdsSelectField } from '@/components/ads/AdsSelectField'
 import { MetaConnectionFields } from '@/components/ads/MetaConnectionFields'
+import type { AdsTargetingSuggestion } from '@/components/ads/AdsTargetingSuggestions'
 import { INDUSTRY_OPTIONS } from '@/lib/ads-targeting-options'
 import { useAuth } from '@/hooks/useAuth'
 import { useAiMediaLibrary } from '@/hooks/useAiMediaLibrary'
@@ -63,6 +64,24 @@ type CampaignDraftState = {
   destinationUrl: string
   dailyBudget: string
   placements: string
+  /** Lower bound age (inclusive). 13–65. */
+  ageMin: number
+  /** Upper bound age (inclusive). 13–65. */
+  ageMax: number
+  /** Selected genders. Empty array = all genders. */
+  genders: string[]
+  /** Selected behaviour segments. */
+  behaviours: string[]
+  /** Campaign start date (YYYY-MM-DD). Empty = start now. */
+  scheduleStart: string
+  /** Campaign end date (YYYY-MM-DD). Empty = run continuously. */
+  scheduleEnd: string
+  /** Whether to use a daily or lifetime budget. */
+  budgetType: 'daily' | 'lifetime'
+  /** Lifetime budget (USD) when budgetType === 'lifetime'. */
+  lifetimeBudget: string
+  /** Audience size preset hint when the user picks one manually. */
+  audienceSize: 'narrow' | 'balanced' | 'broad'
 }
 
 function createDefaultCampaignDraft(): CampaignDraftState {
@@ -77,6 +96,15 @@ function createDefaultCampaignDraft(): CampaignDraftState {
     destinationUrl: '',
     dailyBudget: '35',
     placements: 'advantage',
+    ageMin: 25,
+    ageMax: 54,
+    genders: [],
+    behaviours: [],
+    scheduleStart: '',
+    scheduleEnd: '',
+    budgetType: 'daily',
+    lifetimeBudget: '',
+    audienceSize: 'balanced',
   }
 }
 
@@ -181,7 +209,23 @@ export function AdsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [studioStep, setStudioStep] = useState<StudioStep>(1)
   const [resumedDraft, setResumedDraft] = useState(false)
+  const [targetingSuggestions, setTargetingSuggestions] = useState<AdsTargetingSuggestion[]>([])
   const draftHydrated = useRef(false)
+  /** Parsed targeting suggestion payload (raw values to apply when the user accepts a card). */
+  const pendingApply = useRef<{
+    ageMin?: number
+    ageMax?: number
+    genders?: string[]
+    behaviours?: string[]
+    audienceSize?: 'narrow' | 'balanced' | 'broad'
+    objective?: string
+    placements?: string
+    adFormat?: string
+    dailyBudget?: string
+    lifetimeBudget?: string
+    locations?: string
+    interests?: string
+  }>({})
 
   // Hydrate any saved campaign-in-progress for this workspace on mount.
   useEffect(() => {
@@ -449,18 +493,71 @@ export function AdsPage() {
     setSuggestingAudience(true)
     setMessage('')
     const applySuggestion = (data: Record<string, unknown>) => {
-      const interests = Array.isArray(data.interests)
-        ? (data.interests as string[]).join(', ')
+      const interestList = Array.isArray(data.interests)
+        ? (data.interests as string[])
         : typeof data.interests === 'string'
-          ? data.interests
-          : ''
+          ? (data.interests as string)
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : []
+      const interests = interestList.join(', ')
+
+      const behaviourList = Array.isArray(data.behaviours)
+        ? (data.behaviours as string[])
+        : typeof data.behaviours === 'string'
+          ? (data.behaviours as string)
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean)
+          : []
+
+      const ageRangeText = String(data.age_range || '')
+      const ageMinRaw = Number(data.age_min)
+      const ageMaxRaw = Number(data.age_max)
+      const [parsedMin, parsedMax] = ageRangeText.split(/[-–]/).map((n) => Number(n.replace(/[^\d]/g, '')))
+      const ageMin = Number.isFinite(ageMinRaw) && ageMinRaw > 0
+        ? ageMinRaw
+        : Number.isFinite(parsedMin) && parsedMin > 0
+          ? parsedMin
+          : undefined
+      const ageMax = Number.isFinite(ageMaxRaw) && ageMaxRaw > 0
+        ? ageMaxRaw
+        : Number.isFinite(parsedMax) && parsedMax > 0
+          ? parsedMax
+          : undefined
+
+      const genderRaw = String(data.gender || '').toLowerCase()
+      const genders =
+        genderRaw === 'women' || genderRaw === 'female'
+          ? ['Women']
+          : genderRaw === 'men' || genderRaw === 'male'
+            ? ['Men']
+            : []
+
+      const audienceSize = (() => {
+        const raw = String(data.audience_size || '').toLowerCase()
+        if (raw === 'narrow' || raw === 'broad' || raw === 'balanced') return raw
+        return undefined
+      })()
+
+      const placements = typeof data.placements === 'string' ? data.placements : undefined
+      const objective = typeof data.objective === 'string' ? data.objective : undefined
+      const adFormat = typeof data.ad_format === 'string' ? data.ad_format : undefined
+      const dailyBudgetSuggestion = Number(data.daily_budget)
+      const lifetimeBudgetSuggestion = Number(data.lifetime_budget)
+      const durationDays = Number(data.duration_days)
+      const reasons = (data.reasons && typeof data.reasons === 'object'
+        ? (data.reasons as Record<string, string>)
+        : {})
+
       setProfile((prev) => ({
         ...prev,
         audienceProfile: {
           ...prev.audienceProfile,
           description: String(data.audience_description || prev.audienceProfile.description),
           locations: String(data.locations || prev.audienceProfile.locations),
-          ageRange: String(data.age_range || prev.audienceProfile.ageRange),
+          ageRange: ageRangeText || prev.audienceProfile.ageRange,
           gender: String(data.gender || prev.audienceProfile.gender),
           interests: interests || prev.audienceProfile.interests,
           painPoints: String(data.pain_points || prev.audienceProfile.painPoints),
@@ -473,7 +570,105 @@ export function AdsPage() {
         location: String(data.locations || prev.location),
       }))
       if (typeof data.ai_tip === 'string') setAiTip(data.ai_tip)
-      setMessage('AI updated your audience targeting.')
+
+      // Build per-field suggestion cards with reasoning.
+      const suggestions: AdsTargetingSuggestion[] = []
+      if (ageMin && ageMax) {
+        suggestions.push({
+          field: 'age',
+          title: 'Recommended age range',
+          value: `${ageMin}–${ageMax}`,
+          reasoning: reasons.age || 'Best fit based on who is most likely to buy this offer.',
+        })
+      }
+      suggestions.push({
+        field: 'gender',
+        title: 'Recommended gender targeting',
+        value: genders.length === 0 ? 'All genders' : genders.join(', '),
+        reasoning: reasons.gender || 'Broad gender targeting unless your offer is gender-specific.',
+      })
+      if (typeof data.locations === 'string' && data.locations) {
+        suggestions.push({
+          field: 'locations',
+          title: 'Recommended locations',
+          value: String(data.locations),
+          reasoning: reasons.locations || 'Targets your active service area first; you can expand later.',
+        })
+      }
+      if (interestList.length > 0) {
+        suggestions.push({
+          field: 'interests',
+          title: 'Recommended interests',
+          value: interestList.slice(0, 6).join(', '),
+          reasoning: reasons.interests || 'Picked to match your offer and customer mindset.',
+        })
+      }
+      if (behaviourList.length > 0) {
+        suggestions.push({
+          field: 'behaviours',
+          title: 'Recommended behaviours',
+          value: behaviourList.slice(0, 4).join(', '),
+          reasoning: reasons.behaviours || 'Behaviour segments most likely to act on this offer.',
+        })
+      }
+      if (audienceSize) {
+        suggestions.push({
+          field: 'audienceSize',
+          title: 'Recommended audience size',
+          value: audienceSize.charAt(0).toUpperCase() + audienceSize.slice(1),
+          reasoning: reasons.audience_size || 'Best balance between specificity and reach for your goal.',
+        })
+      }
+      if (objective) {
+        suggestions.push({
+          field: 'objective',
+          title: 'Recommended objective',
+          value: objective,
+          reasoning: reasons.objective || 'Aligned with your business model and offer type.',
+        })
+      }
+      if (placements) {
+        suggestions.push({
+          field: 'placements',
+          title: 'Recommended placements',
+          value: placements,
+          reasoning: reasons.placements || 'Where your audience is most active and converts best.',
+        })
+      }
+      if (Number.isFinite(dailyBudgetSuggestion) && dailyBudgetSuggestion > 0) {
+        const dur = Number.isFinite(durationDays) && durationDays > 0 ? durationDays : 7
+        suggestions.push({
+          field: 'budget',
+          title: 'Recommended starting budget',
+          value: `$${Math.round(dailyBudgetSuggestion)}/day for ${dur} days`,
+          reasoning: reasons.budget || 'Enough volume to collect learning data without overspending early.',
+        })
+      } else if (Number.isFinite(lifetimeBudgetSuggestion) && lifetimeBudgetSuggestion > 0) {
+        suggestions.push({
+          field: 'budget',
+          title: 'Recommended starting budget',
+          value: `$${Math.round(lifetimeBudgetSuggestion)} lifetime`,
+          reasoning: reasons.budget || 'Total spend that should produce useful learnings for this campaign.',
+        })
+      }
+      setTargetingSuggestions(suggestions)
+
+      // Stash parsed structured values for apply handlers to consume.
+      pendingApply.current = {
+        ageMin,
+        ageMax,
+        genders,
+        behaviours: behaviourList,
+        audienceSize,
+        objective,
+        placements,
+        adFormat,
+        dailyBudget: Number.isFinite(dailyBudgetSuggestion) && dailyBudgetSuggestion > 0 ? String(Math.round(dailyBudgetSuggestion)) : undefined,
+        lifetimeBudget: Number.isFinite(lifetimeBudgetSuggestion) && lifetimeBudgetSuggestion > 0 ? String(Math.round(lifetimeBudgetSuggestion)) : undefined,
+        locations: typeof data.locations === 'string' ? data.locations : undefined,
+        interests,
+      }
+      setMessage('AI targeting recommendations ready. Apply any individually or all at once.')
     }
 
     if (isDemoMode) {
@@ -514,6 +709,74 @@ export function AdsPage() {
     if (error) return setMessage(error.message)
     if (data?.error) return setMessage(String(data.error))
     applySuggestion(data as Record<string, unknown>)
+  }
+
+  const markSuggestionApplied = (field: AdsTargetingSuggestion['field']) => {
+    setTargetingSuggestions((list) =>
+      list.map((s) => (s.field === field ? { ...s, applied: true } : s)),
+    )
+  }
+
+  const applyTargetingSuggestion = (suggestion: AdsTargetingSuggestion) => {
+    const pending = pendingApply.current
+    switch (suggestion.field) {
+      case 'age':
+        if (pending.ageMin && pending.ageMax) {
+          setDraft((prev) => ({ ...prev, ageMin: pending.ageMin!, ageMax: pending.ageMax! }))
+        }
+        break
+      case 'gender':
+        setDraft((prev) => ({ ...prev, genders: pending.genders ?? [] }))
+        break
+      case 'locations':
+        if (pending.locations) {
+          setDraft((prev) => ({ ...prev, location: pending.locations! }))
+          setProfile((prev) => ({
+            ...prev,
+            audienceProfile: { ...prev.audienceProfile, locations: pending.locations! },
+          }))
+        }
+        break
+      case 'interests':
+        if (pending.interests) {
+          setProfile((prev) => ({
+            ...prev,
+            audienceProfile: { ...prev.audienceProfile, interests: pending.interests! },
+          }))
+        }
+        break
+      case 'behaviours':
+        setDraft((prev) => ({ ...prev, behaviours: pending.behaviours ?? [] }))
+        break
+      case 'audienceSize':
+        if (pending.audienceSize) {
+          setDraft((prev) => ({ ...prev, audienceSize: pending.audienceSize! }))
+        }
+        break
+      case 'objective':
+        if (pending.objective) {
+          setDraft((prev) => ({ ...prev, goal: pending.objective as Goal }))
+        }
+        break
+      case 'placements':
+        if (pending.placements) {
+          setDraft((prev) => ({ ...prev, placements: pending.placements! }))
+        }
+        break
+      case 'budget':
+        if (pending.dailyBudget) {
+          setDraft((prev) => ({ ...prev, budgetType: 'daily', dailyBudget: pending.dailyBudget! }))
+        } else if (pending.lifetimeBudget) {
+          setDraft((prev) => ({ ...prev, budgetType: 'lifetime', lifetimeBudget: pending.lifetimeBudget! }))
+        }
+        break
+    }
+    markSuggestionApplied(suggestion.field)
+  }
+
+  const applyAllTargetingSuggestions = () => {
+    targetingSuggestions.forEach((suggestion) => applyTargetingSuggestion(suggestion))
+    setMessage('AI targeting applied. You can still edit any field manually.')
   }
 
   const generateOptions = async () => {
@@ -988,6 +1251,15 @@ export function AdsPage() {
               destinationUrl: draft.destinationUrl,
               dailyBudget: draft.dailyBudget,
               placements: draft.placements,
+              ageMin: draft.ageMin,
+              ageMax: draft.ageMax,
+              genders: draft.genders,
+              behaviours: draft.behaviours,
+              scheduleStart: draft.scheduleStart,
+              scheduleEnd: draft.scheduleEnd,
+              budgetType: draft.budgetType,
+              lifetimeBudget: draft.lifetimeBudget,
+              audienceSize: draft.audienceSize,
             }}
             onDraftChange={(patch) =>
               setDraft((d) => {
@@ -1017,6 +1289,9 @@ export function AdsPage() {
             onGenerateOptions={generateOptions}
             onGenerateCreative={generateCreative}
             onSuggestAudience={() => suggestAudienceWithAi()}
+            targetingSuggestions={targetingSuggestions}
+            onApplyTargetingSuggestion={applyTargetingSuggestion}
+            onApplyAllTargetingSuggestions={applyAllTargetingSuggestions}
             onEditProfile={() => setShowProfile(true)}
             generatingCopy={generatingCopy}
             suggestingAudience={suggestingAudience}

@@ -1,13 +1,19 @@
 import { ChevronLeft, ChevronRight, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
+import { AdsReachPanel } from '@/components/ads/AdsReachPanel'
 import { AdsSelectField } from '@/components/ads/AdsSelectField'
+import {
+  AdsTargetingSuggestions,
+  type AdsTargetingSuggestion,
+} from '@/components/ads/AdsTargetingSuggestions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { parseInterestList } from '@/lib/ads-targeting-options'
 import {
   DAILY_BUDGET_OPTIONS,
   META_AD_FORMATS,
@@ -27,6 +33,15 @@ export type CampaignDraft = {
   destinationUrl: string
   dailyBudget: string
   placements: string
+  ageMin?: number
+  ageMax?: number
+  genders?: string[]
+  behaviours?: string[]
+  scheduleStart?: string
+  scheduleEnd?: string
+  budgetType?: 'daily' | 'lifetime'
+  lifetimeBudget?: string
+  audienceSize?: 'narrow' | 'balanced' | 'broad'
 }
 
 type AdOption = {
@@ -59,6 +74,12 @@ type AdsCampaignStudioProps = {
   onGenerateOptions: () => Promise<void>
   onGenerateCreative: (type: 'image' | 'video') => Promise<void>
   onSuggestAudience: () => Promise<void>
+  /** AI-recommended targeting suggestions with reasoning per field. */
+  targetingSuggestions?: AdsTargetingSuggestion[]
+  /** Apply a single suggestion. */
+  onApplyTargetingSuggestion?: (suggestion: AdsTargetingSuggestion) => void
+  /** Apply every suggestion in one shot. */
+  onApplyAllTargetingSuggestions?: () => void
   onEditProfile: () => void
   metaReady?: boolean
   onPublish?: () => Promise<void> | void
@@ -101,6 +122,9 @@ export function AdsCampaignStudio({
   onGenerateOptions,
   onGenerateCreative,
   onSuggestAudience,
+  targetingSuggestions,
+  onApplyTargetingSuggestion,
+  onApplyAllTargetingSuggestions,
   onEditProfile,
   metaReady = false,
   onPublish,
@@ -125,6 +149,66 @@ export function AdsCampaignStudio({
     () => META_CAMPAIGN_OBJECTIVES.find((item) => item.value === draft.goal),
     [draft.goal]
   )
+
+  const ageMin = draft.ageMin ?? 25
+  const ageMax = draft.ageMax ?? 54
+  const genders = draft.genders ?? []
+  const budgetType = draft.budgetType ?? 'daily'
+  const lifetimeBudget = draft.lifetimeBudget ?? ''
+  const audienceSize = draft.audienceSize ?? 'balanced'
+  const behaviours = draft.behaviours ?? []
+  const scheduleStart = draft.scheduleStart ?? ''
+  const scheduleEnd = draft.scheduleEnd ?? ''
+
+  const durationDays = useMemo(() => {
+    if (!scheduleStart || !scheduleEnd) return 7
+    const start = new Date(scheduleStart).getTime()
+    const end = new Date(scheduleEnd).getTime()
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 7
+    return Math.max(1, Math.round((end - start) / (24 * 60 * 60 * 1000)))
+  }, [scheduleStart, scheduleEnd])
+
+  const reachInputs = useMemo(
+    () => ({
+      dailyBudget: Number(draft.dailyBudget || 0) || 0,
+      lifetimeBudget: Number(lifetimeBudget || 0) || 0,
+      budgetType,
+      durationDays,
+      location: draft.location,
+      ageMin,
+      ageMax,
+      genders,
+      interests: parseInterestList(audienceProfile.interests ?? ''),
+      behaviours,
+      objective: draft.goal,
+      placements: draft.placements,
+      adFormat: draft.adType,
+      audienceSize,
+    }),
+    [
+      draft.dailyBudget,
+      lifetimeBudget,
+      budgetType,
+      durationDays,
+      draft.location,
+      ageMin,
+      ageMax,
+      genders,
+      audienceProfile.interests,
+      behaviours,
+      draft.goal,
+      draft.placements,
+      draft.adType,
+      audienceSize,
+    ],
+  )
+
+  const toggleGender = (value: string) => {
+    const set = new Set(genders)
+    if (set.has(value)) set.delete(value)
+    else set.add(value)
+    onDraftChange({ genders: Array.from(set) })
+  }
 
   // Auto-advance from "Generate" to "Edit" the first time options appear (after AI generation),
   // so users don't have to click Continue separately.
@@ -379,47 +463,201 @@ export function AdsCampaignStudio({
         ) : null}
 
         {step === 5 ? (
-          <Card className="border-0 shadow-sm ring-1 ring-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Who should see this ad?</CardTitle>
-              <CardDescription>Keep it simple. Start broad, then narrow based on results.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <AdsAudienceFields
-                value={audienceProfile}
-                onChange={(next) => {
-                  onAudienceProfileChange(next)
-                  onDraftChange({
-                    audience: next.description,
-                    location: next.locations,
-                  })
-                }}
-                onSuggestAi={onSuggestAudience}
-                aiLoading={suggestingAudience}
+          <div className="space-y-4">
+            {onApplyTargetingSuggestion && onApplyAllTargetingSuggestions ? (
+              <AdsTargetingSuggestions
+                loading={suggestingAudience}
+                suggestions={targetingSuggestions ?? []}
+                onApply={onApplyTargetingSuggestion}
+                onApplyAll={onApplyAllTargetingSuggestions}
+                onRefresh={() => void onSuggestAudience()}
               />
+            ) : null}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <AdsSelectField
-                  label="Daily budget"
-                  value={draft.dailyBudget}
-                  onChange={(dailyBudget) => onDraftChange({ dailyBudget })}
-                  options={DAILY_BUDGET_OPTIONS}
+            <Card className="border-0 shadow-sm ring-1 ring-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Targeting</CardTitle>
+                <CardDescription>
+                  Edit any field. Estimated reach in the sidebar updates as you change targeting or budget.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <AdsAudienceFields
+                  value={audienceProfile}
+                  onChange={(next) => {
+                    onAudienceProfileChange(next)
+                    onDraftChange({
+                      audience: next.description,
+                      location: next.locations,
+                    })
+                  }}
+                  onSuggestAi={onSuggestAudience}
+                  aiLoading={suggestingAudience}
                 />
-                <AdsSelectField
-                  label="Placements (recommended)"
-                  value={draft.placements}
-                  onChange={(placements) => onDraftChange({ placements })}
-                  options={PLACEMENT_OPTIONS}
-                />
-              </div>
-              <div className="rounded-xl border bg-primary/5 p-4 text-sm">
-                <p className="font-medium">AI recommendation</p>
-                <p className="text-muted-foreground">
-                  Start with <strong>${draft.dailyBudget || 20}/day</strong> for <strong>7 days</strong> to find the best-performing angle.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+
+                <div className="grid gap-4 rounded-xl border bg-muted/15 p-4">
+                  <div>
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Age range
+                    </Label>
+                    <div className="mt-2 flex items-center gap-3">
+                      <Input
+                        type="number"
+                        min={13}
+                        max={ageMax}
+                        value={ageMin}
+                        onChange={(event) => {
+                          const next = Math.max(13, Math.min(ageMax, Number(event.target.value) || 13))
+                          onDraftChange({ ageMin: next })
+                        }}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">to</span>
+                      <Input
+                        type="number"
+                        min={ageMin}
+                        max={65}
+                        value={ageMax}
+                        onChange={(event) => {
+                          const next = Math.max(ageMin, Math.min(65, Number(event.target.value) || 65))
+                          onDraftChange({ ageMax: next })
+                        }}
+                        className="w-20"
+                      />
+                      <span className="ml-1 text-xs text-muted-foreground">years</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Gender
+                    </Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(['Women', 'Men'] as const).map((value) => {
+                        const selected = genders.includes(value)
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => toggleGender(value)}
+                            className={cn(
+                              'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                              selected
+                                ? 'border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]'
+                                : 'hover:bg-muted',
+                            )}
+                          >
+                            {value}
+                          </button>
+                        )
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => onDraftChange({ genders: [] })}
+                        className={cn(
+                          'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                          genders.length === 0 ? 'border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]' : 'hover:bg-muted',
+                        )}
+                      >
+                        All genders
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Audience size
+                    </Label>
+                    <div className="mt-2 inline-flex rounded-full border p-0.5">
+                      {(['narrow', 'balanced', 'broad'] as const).map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => onDraftChange({ audienceSize: size })}
+                          className={cn(
+                            'rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors',
+                            audienceSize === size ? 'bg-[#1877F2] text-white' : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Narrow = highly specific, broad = let Meta find buyers across a wide pool.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 rounded-xl border bg-muted/15 p-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Budget type
+                    </Label>
+                    <div className="mt-2 inline-flex rounded-full border p-0.5">
+                      {(['daily', 'lifetime'] as const).map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => onDraftChange({ budgetType: value })}
+                          className={cn(
+                            'rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors',
+                            budgetType === value ? 'bg-[#1877F2] text-white' : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {value} budget
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {budgetType === 'daily' ? (
+                    <AdsSelectField
+                      label="Daily budget"
+                      value={draft.dailyBudget}
+                      onChange={(dailyBudget) => onDraftChange({ dailyBudget })}
+                      options={DAILY_BUDGET_OPTIONS}
+                    />
+                  ) : (
+                    <div className="grid gap-1.5">
+                      <Label>Lifetime budget (USD)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={lifetimeBudget}
+                        onChange={(event) => onDraftChange({ lifetimeBudget: event.target.value })}
+                        placeholder="e.g. 500"
+                      />
+                    </div>
+                  )}
+
+                  <AdsSelectField
+                    label="Placements"
+                    value={draft.placements}
+                    onChange={(placements) => onDraftChange({ placements })}
+                    options={PLACEMENT_OPTIONS}
+                  />
+
+                  <div className="grid gap-1.5">
+                    <Label>Start date</Label>
+                    <Input
+                      type="date"
+                      value={scheduleStart}
+                      onChange={(event) => onDraftChange({ scheduleStart: event.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>End date (optional)</Label>
+                    <Input
+                      type="date"
+                      value={scheduleEnd}
+                      onChange={(event) => onDraftChange({ scheduleEnd: event.target.value })}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ) : null}
 
         {step === 6 ? (
@@ -606,17 +844,7 @@ export function AdsCampaignStudio({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Estimated reach</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <p className="text-2xl font-semibold text-foreground">
-              {draft.location ? '12K – 48K' : '—'}
-            </p>
-            <p className="mt-1 text-xs">Indicative range based on location and interests (not live Meta data).</p>
-          </CardContent>
-        </Card>
+        <AdsReachPanel inputs={reachInputs} />
       </aside>
     </div>
   )
