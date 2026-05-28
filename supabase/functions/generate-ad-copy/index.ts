@@ -1,8 +1,9 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 import { completeChat, parseJsonFromModel } from '../_shared/ai-complete.ts'
+import { withCors } from '../_shared/cors.ts'
 
-serve(async (req) => {
+serve(withCors(async (req) => {
   const body = await req.json().catch(() => ({}))
   const { brief, workspace_id } = body
 
@@ -35,4 +36,4 @@ Return ONLY a JSON array with objects: {headline, primary_text, description, cta
   }
 
   return new Response(JSON.stringify({ variants }), { headers: { 'Content-Type': 'application/json' } })
-})
+}))

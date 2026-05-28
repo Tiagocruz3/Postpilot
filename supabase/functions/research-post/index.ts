@@ -6,12 +6,13 @@ import {
   type ResearchInput,
 } from '../_shared/post-intelligence-prompts.ts'
 import { sanitizeComposeCopy, type ComposePlatform } from '../_shared/compose-ai.ts'
+import { withCors } from '../_shared/cors.ts'
 
 function isPlatform(value: unknown): value is ComposePlatform {
   return value === 'facebook' || value === 'linkedin' || value === 'x'
 }
 
-serve(async (req) => {
+serve(withCors(async (req) => {
   try {
     const body = await req.json().catch(() => ({}))
 
@@ -63,4 +64,4 @@ serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     })
   }
-})
+}))

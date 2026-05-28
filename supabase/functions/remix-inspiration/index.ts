@@ -6,12 +6,13 @@ import {
   buildInspirationUserPrompt,
   type RemixInput,
 } from '../_shared/post-intelligence-prompts.ts'
+import { withCors } from '../_shared/cors.ts'
 
 function isPlatform(value: unknown): value is ComposePlatform {
   return value === 'facebook' || value === 'linkedin' || value === 'x'
 }
 
-serve(async (req) => {
+serve(withCors(async (req) => {
   try {
     const body = await req.json().catch(() => ({}))
     const original_post_text = typeof body.original_post_text === 'string' ? body.original_post_text.trim() : ''
@@ -64,4 +65,4 @@ serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     })
   }
-})
+}))

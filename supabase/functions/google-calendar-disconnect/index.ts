@@ -1,7 +1,8 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
+import { withCors } from '../_shared/cors.ts'
 
-serve(async (req) => {
+serve(withCors(async (req) => {
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
   const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.replace('Bearer ', '') || '')
   if (!user) return new Response('Unauthorized', { status: 401 })
@@ -19,4 +20,4 @@ serve(async (req) => {
     .eq('external_source', 'google-calendar')
 
   return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } })
-})
+}))
