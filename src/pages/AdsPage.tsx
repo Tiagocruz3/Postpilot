@@ -42,6 +42,7 @@ import {
   type AdCreativeInsert,
   type AdCreativeUpdate,
 } from '@/lib/ads-creatives'
+import { publishCreativeToMeta } from '@/lib/ads-publish'
 
 interface OutletContext {
   currentWorkspaceId: string | null
@@ -1531,7 +1532,38 @@ export function AdsPage() {
             suggestingAudience={suggestingAudience}
             aiTip={aiTip}
             metaReady={Boolean(profile.metaConnection.adAccountId && profile.metaConnection.facebookPageId)}
-            onPublish={() => setMessage('Publishing is next: we will wire this to the Meta Ads edge function when ready.')}
+            onPublish={async () => {
+              const creativeId = selectedId ? creativeIdByOption.current[selectedId] : null
+              if (!creativeId) {
+                setMessage('Generate or select an ad variant before publishing.')
+                return
+              }
+              if (!currentWorkspaceId) {
+                setMessage('Pick a workspace before publishing.')
+                return
+              }
+              const adAccountId = profile.metaConnection.adAccountId
+              if (!adAccountId) {
+                setMessage('Connect a Meta ad account in Settings → Connections before publishing.')
+                return
+              }
+              setMessage('Publishing to Meta Ads…')
+              const result = await publishCreativeToMeta({
+                creativeId,
+                workspaceId: currentWorkspaceId,
+                metaAccountId: `act_${adAccountId.replace(/^act_/, '')}`,
+              })
+              if (!result.ok) {
+                setMessage(`Publish failed: ${result.error ?? 'Unknown error'}`)
+                return
+              }
+              const warnings = (result.warnings ?? []).join(' ')
+              setMessage(
+                `Ad created on Meta as PAUSED. Ad ID ${result.ad_id}. Activate it in Meta Ads Manager to go live.${
+                  warnings ? ` ${warnings}` : ''
+                }`,
+              )
+            }}
             step={studioStep}
             onStepChange={setStudioStep}
             onReset={async () => {

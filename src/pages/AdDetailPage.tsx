@@ -16,6 +16,9 @@ import {
   type AdCreative,
   type AdCreativeStatus,
 } from '@/lib/ads-creatives'
+import { publishCreativeToMeta, setMetaAdStatus } from '@/lib/ads-publish'
+import { fetchAdsStudioProfile } from '@/lib/ads-studio-profile'
+import { useAuth } from '@/hooks/useAuth'
 import {
   DATE_RANGE_OPTIONS,
   fmtCurrency,
@@ -64,6 +67,7 @@ const IMPACT_STYLE: Record<AiSuggestion['impact'], string> = {
 export function AdDetailPage() {
   const { creativeId } = useParams<{ creativeId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const [creative, setCreative] = useState<AdCreative | null>(null)
   const [metrics, setMetrics] = useState<AdMetrics | null>(null)
@@ -74,6 +78,17 @@ export function AdDetailPage() {
   const [device, setDevice] = useState<AdDevice>('mobile')
   const [insights, setInsights] = useState<AiInsights | null>(null)
   const [insightsLoading, setInsightsLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<'publish' | 'pause' | 'resume' | null>(null)
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [metaAccountId, setMetaAccountId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!currentWorkspaceId || !user?.id) return
+    void fetchAdsStudioProfile(currentWorkspaceId, user.id).then((profile) => {
+      const id = profile?.metaConnection?.adAccountId
+      setMetaAccountId(id ? `act_${id.replace(/^act_/, '')}` : null)
+    })
+  }, [currentWorkspaceId, user?.id])
 
   const reload = useCallback(async () => {
     if (!currentWorkspaceId || !creativeId) return
@@ -131,6 +146,51 @@ export function AdDetailPage() {
     }
   }, [creative, currentWorkspaceId, metrics])
 
+  const handlePublish = useCallback(async () => {
+    if (!creative || !currentWorkspaceId) return
+    if (!metaAccountId) {
+      setActionMessage('Connect a Meta ad account in Settings → Connections before publishing.')
+      return
+    }
+    setActionLoading('publish')
+    setActionMessage(null)
+    const result = await publishCreativeToMeta({
+      creativeId: creative.id,
+      workspaceId: currentWorkspaceId,
+      metaAccountId,
+    })
+    setActionLoading(null)
+    if (!result.ok) {
+      setActionMessage(`Publish failed: ${result.error ?? 'Unknown error'}`)
+      return
+    }
+    const note = result.warnings && result.warnings.length > 0 ? ` ${result.warnings.join(' ')}` : ''
+    setActionMessage(`Ad created on Meta as PAUSED (id ${result.ad_id}). Activate from Meta Ads Manager.${note}`)
+    void reload()
+  }, [creative, currentWorkspaceId, metaAccountId, reload])
+
+  const handleSetStatus = useCallback(
+    async (next: 'ACTIVE' | 'PAUSED') => {
+      if (!creative?.meta_ad_id || !currentWorkspaceId) return
+      setActionLoading(next === 'ACTIVE' ? 'resume' : 'pause')
+      setActionMessage(null)
+      const result = await setMetaAdStatus({
+        workspaceId: currentWorkspaceId,
+        creativeId: creative.id,
+        metaAdId: creative.meta_ad_id,
+        status: next,
+      })
+      setActionLoading(null)
+      if (!result.ok) {
+        setActionMessage(`Failed to update Meta status: ${result.error ?? 'Unknown error'}`)
+        return
+      }
+      setActionMessage(next === 'ACTIVE' ? 'Ad activated on Meta.' : 'Ad paused on Meta.')
+      void reload()
+    },
+    [creative, currentWorkspaceId, reload],
+  )
+
   const destinationDomain = useMemo(() => {
     if (!creative?.destination_url) return ''
     try {
@@ -169,7 +229,44 @@ export function AdDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Ads
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {creative.meta_ad_id ? (
+            <>
+              {creative.status === 'paused' ? (
+                <Button
+                  size="sm"
+                  onClick={() => void handleSetStatus('ACTIVE')}
+                  disabled={actionLoading !== null}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {actionLoading === 'resume' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Activate on Meta
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleSetStatus('PAUSED')}
+                  disabled={actionLoading !== null}
+                >
+                  {actionLoading === 'pause' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Pause on Meta
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => void handlePublish()}
+              disabled={actionLoading !== null}
+              className="bg-[#1877F2] hover:bg-[#166fe0]"
+            >
+              {actionLoading === 'publish' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Publish to Meta
+            </Button>
+          )}
           <select
             value={preset}
             onChange={(e) => setPreset(e.target.value as DateRangePreset)}
@@ -183,6 +280,12 @@ export function AdDetailPage() {
           </select>
         </div>
       </div>
+
+      {actionMessage ? (
+        <div className="rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/5 px-4 py-3 text-sm">
+          {actionMessage}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
         <div className="space-y-4">
