@@ -513,24 +513,26 @@ export function AdsPage() {
     return true
   }
 
-  const nextOnboarding = async () => {
+  const nextOnboarding = () => {
     if (!validateCurrentStep()) return
     const nextStep = Math.min(8, onboardingStep + 1)
-    await saveProfile({ onboardingStep: nextStep })
     setOnboardingStep(nextStep)
+    setMessage('')
+    void saveProfile({ onboardingStep: nextStep })
   }
 
-  const skipOnboarding = async () => {
+  const skipOnboarding = () => {
     const nextStep = Math.min(8, onboardingStep + 1)
-    await saveProfile({ onboardingStep: nextStep })
     setOnboardingStep(nextStep)
+    setMessage('')
+    void saveProfile({ onboardingStep: nextStep })
   }
 
-  const completeOnboarding = async () => {
-    await saveProfile({ onboardingCompleted: true, onboardingStep: 8 })
+  const completeOnboarding = () => {
     setOnboardingDone(true)
     setShowOnboardingComplete(true)
     setMessage('')
+    void saveProfile({ onboardingCompleted: true, onboardingStep: 8 })
   }
 
   return (
@@ -796,11 +798,11 @@ export function AdsPage() {
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => void saveProfile()}>Save</Button>
-                <Button variant="outline" onClick={() => void skipOnboarding()}>Skip</Button>
+                <Button variant="outline" onClick={skipOnboarding}>Skip</Button>
                 {onboardingStep < 8 ? (
-                  <Button onClick={() => void nextOnboarding()}>Next</Button>
+                  <Button onClick={nextOnboarding}>Next</Button>
                 ) : (
-                  <Button onClick={() => void completeOnboarding()}>Build My Growth Ads Profile</Button>
+                  <Button onClick={completeOnboarding}>Build My Growth Ads Profile</Button>
                 )}
               </div>
             </div>

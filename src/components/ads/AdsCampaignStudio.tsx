@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, Wand2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
 import { AdsSelectField } from '@/components/ads/AdsSelectField'
 import { Badge } from '@/components/ui/badge'
@@ -110,15 +110,29 @@ export function AdsCampaignStudio({
     [draft.goal]
   )
 
-  const canNext =
-    (step === 1 && Boolean(draft.goal)) ||
-    (step === 2 && Boolean(draft.promoting.trim())) ||
-    (step === 3 && options.length > 0) ||
-    (step === 4 && Boolean(selectedOption)) ||
-    (step === 5 && Boolean(draft.location) && Boolean(draft.dailyBudget)) ||
-    (step === 6 && (destinationType === 'meta_lead_form' || Boolean(draft.destinationUrl.trim()))) ||
-    step === 7 ||
-    step === 8
+  // Auto-advance from "Generate" to "Edit" the first time options appear (after AI generation),
+  // so users don't have to click Continue separately.
+  const prevOptionsCount = useRef(options.length)
+  useEffect(() => {
+    const prev = prevOptionsCount.current
+    prevOptionsCount.current = options.length
+    if (step === 3 && prev === 0 && options.length > 0) {
+      setStep(4)
+    }
+  }, [options.length, step])
+
+  const nextReason = (() => {
+    if (step === 1 && !draft.goal) return 'Choose a goal first.'
+    if (step === 2 && !draft.promoting.trim()) return 'Tell us what you’re promoting.'
+    if (step === 3 && options.length === 0) return 'Click “Generate ads” to create 3 options.'
+    if (step === 4 && !selectedOption) return 'Pick an ad option from the previous step.'
+    if (step === 5 && (!draft.location || !draft.dailyBudget)) return 'Add a location and daily budget.'
+    if (step === 6 && destinationType !== 'meta_lead_form' && !draft.destinationUrl.trim()) {
+      return 'Add a destination URL or use a Meta lead form.'
+    }
+    return ''
+  })()
+  const canNext = !nextReason
 
   return (
     <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
@@ -478,7 +492,7 @@ export function AdsCampaignStudio({
           </Card>
         ) : null}
 
-        <div className="flex justify-between gap-2">
+        <div className="flex items-center justify-between gap-3">
           <Button
             variant="outline"
             disabled={step === 1}
@@ -487,18 +501,25 @@ export function AdsCampaignStudio({
             <ChevronLeft className="mr-1 h-4 w-4" />
             Back
           </Button>
-          {step < 8 ? (
-            <Button
-              disabled={!canNext}
-              onClick={() =>
-                setStep((s) => (Math.min(8, s + 1) as (typeof STUDIO_STEPS)[number]['id']))
-              }
-              className="bg-[#1877F2] hover:bg-[#166fe0]"
-            >
-              Continue
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          ) : null}
+
+          <div className="flex items-center gap-3">
+            {nextReason && step < 8 ? (
+              <p className="hidden text-xs text-muted-foreground sm:block">{nextReason}</p>
+            ) : null}
+            {step < 8 ? (
+              <Button
+                disabled={!canNext}
+                onClick={() =>
+                  setStep((s) => (Math.min(8, s + 1) as (typeof STUDIO_STEPS)[number]['id']))
+                }
+                className="bg-[#1877F2] hover:bg-[#166fe0]"
+                title={nextReason || undefined}
+              >
+                Continue
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
