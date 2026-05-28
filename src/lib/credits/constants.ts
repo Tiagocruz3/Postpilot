@@ -1,4 +1,4 @@
-export const PLATFORM_ADMIN_EMAIL = 'tiagoruz3@gmail.com'
+export const PLATFORM_ADMIN_EMAIL = 'tiagocruz3@gmail.com'
 
 export type MembershipPlanId = 'free' | 'starter' | 'pro' | 'growth' | 'agency'
 
