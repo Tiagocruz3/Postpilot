@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Loader2, Sparkles, Wand2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
 import { AdsSelectField } from '@/components/ads/AdsSelectField'
@@ -39,6 +39,8 @@ type AdOption = {
   previewType: 'image' | 'video'
 }
 
+export type StudioStepId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
 type AdsCampaignStudioProps = {
   draft: CampaignDraft
   onDraftChange: (patch: Partial<CampaignDraft>) => void
@@ -63,6 +65,11 @@ type AdsCampaignStudioProps = {
   generatingCopy?: boolean
   suggestingAudience?: boolean
   aiTip?: string
+  /** Optional controlled step. If omitted the studio manages its own step locally. */
+  step?: StudioStepId
+  onStepChange?: (step: StudioStepId) => void
+  /** Optional reset handler. When provided, a "Start over" button is shown in the side nav. */
+  onReset?: () => void | Promise<void>
 }
 
 const STUDIO_STEPS = [
@@ -100,8 +107,17 @@ export function AdsCampaignStudio({
   generatingCopy = false,
   suggestingAudience = false,
   aiTip,
+  step: controlledStep,
+  onStepChange,
+  onReset,
 }: AdsCampaignStudioProps) {
-  const [step, setStep] = useState<(typeof STUDIO_STEPS)[number]['id']>(1)
+  const [internalStep, setInternalStep] = useState<StudioStepId>(1)
+  const step = controlledStep ?? internalStep
+  const setStep = (next: StudioStepId | ((prev: StudioStepId) => StudioStepId)) => {
+    const nextValue = typeof next === 'function' ? (next as (prev: StudioStepId) => StudioStepId)(step) : next
+    if (onStepChange) onStepChange(nextValue)
+    if (controlledStep === undefined) setInternalStep(nextValue)
+  }
   const [assistantPrompt, setAssistantPrompt] = useState('')
   const selectedOption = options.find((option) => option.id === selectedId) ?? null
 
@@ -152,6 +168,20 @@ export function AdsCampaignStudio({
             <span className="text-xs text-muted-foreground">{item.meta}</span>
           </button>
         ))}
+        {onReset ? (
+          <div className="mt-3 border-t pt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-xs text-muted-foreground hover:text-destructive"
+              onClick={() => void onReset()}
+              title="Clear the current campaign draft and start a new one"
+            >
+              <RotateCcw className="mr-2 h-3.5 w-3.5" />
+              Start over
+            </Button>
+          </div>
+        ) : null}
         <div className="mt-3 border-t pt-3 px-2">
           <p className="text-xs text-muted-foreground">Business</p>
           <p className="text-sm font-medium truncate">{businessName || 'Your business'}</p>

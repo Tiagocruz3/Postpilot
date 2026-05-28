@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { AdsAudienceFields } from '@/components/ads/AdsAudienceFields'
@@ -50,6 +50,86 @@ type AdOption = {
   previewType: 'image' | 'video'
 }
 
+type StudioStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
+type CampaignDraftState = {
+  campaignName: string
+  promoting: string
+  goal: Goal
+  adType: AdType
+  audience: string
+  location: string
+  tone: string
+  destinationUrl: string
+  dailyBudget: string
+  placements: string
+}
+
+function createDefaultCampaignDraft(): CampaignDraftState {
+  return {
+    campaignName: '',
+    promoting: '',
+    goal: 'Build awareness',
+    adType: 'Single Image Ad',
+    audience: '',
+    location: '',
+    tone: 'Professional and clear',
+    destinationUrl: '',
+    dailyBudget: '35',
+    placements: 'advantage',
+  }
+}
+
+const PERSIST_KEY_PREFIX = 'adguru:campaign-draft:'
+// Drafts older than this are considered stale and cleared on load.
+const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+type PersistedCampaignDraft = {
+  draft?: Partial<CampaignDraftState>
+  options?: AdOption[]
+  selectedId?: string | null
+  step?: StudioStep
+  savedAt?: number
+}
+
+function persistKey(workspaceId: string): string {
+  return `${PERSIST_KEY_PREFIX}${workspaceId}`
+}
+
+function readPersistedCampaignDraft(workspaceId: string): PersistedCampaignDraft | null {
+  if (typeof window === 'undefined') return null
+  const raw = window.localStorage.getItem(persistKey(workspaceId))
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as PersistedCampaignDraft
+    if (parsed.savedAt && Date.now() - parsed.savedAt > DRAFT_TTL_MS) {
+      window.localStorage.removeItem(persistKey(workspaceId))
+      return null
+    }
+    return parsed
+  } catch {
+    window.localStorage.removeItem(persistKey(workspaceId))
+    return null
+  }
+}
+
+function writePersistedCampaignDraft(workspaceId: string, value: PersistedCampaignDraft): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(
+      persistKey(workspaceId),
+      JSON.stringify({ ...value, savedAt: Date.now() }),
+    )
+  } catch {
+    // localStorage may be full or unavailable; ignore.
+  }
+}
+
+function clearPersistedCampaignDraft(workspaceId: string): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(persistKey(workspaceId))
+}
+
 const ONBOARDING_STEPS = [
   'Welcome',
   'Business Profile',
@@ -96,20 +176,56 @@ export function AdsPage() {
   const [suggestingAudience, setSuggestingAudience] = useState(false)
   const [generatingCopy, setGeneratingCopy] = useState(false)
   const [profile, setProfile] = useState<AdsStudioProfile>(() => createDefaultAdsStudioProfile(user?.id ?? ''))
-  const [draft, setDraft] = useState({
-    campaignName: '',
-    promoting: '',
-    goal: 'Build awareness' as Goal,
-    adType: 'Single Image Ad' as AdType,
-    audience: '',
-    location: '',
-    tone: 'Professional and clear',
-    destinationUrl: '',
-    dailyBudget: '35',
-    placements: 'advantage',
-  })
+  const [draft, setDraft] = useState<CampaignDraftState>(() => createDefaultCampaignDraft())
   const [options, setOptions] = useState<AdOption[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [studioStep, setStudioStep] = useState<StudioStep>(1)
+  const [resumedDraft, setResumedDraft] = useState(false)
+  const draftHydrated = useRef(false)
+
+  // Hydrate any saved campaign-in-progress for this workspace on mount.
+  useEffect(() => {
+    draftHydrated.current = false
+    if (!currentWorkspaceId) return
+    try {
+      const saved = readPersistedCampaignDraft(currentWorkspaceId)
+      if (saved) {
+        if (saved.draft) setDraft({ ...createDefaultCampaignDraft(), ...saved.draft })
+        if (saved.options) setOptions(saved.options)
+        if (saved.selectedId !== undefined) setSelectedId(saved.selectedId)
+        if (saved.step) setStudioStep(saved.step)
+        const isMeaningful =
+          (saved.options && saved.options.length > 0) ||
+          (saved.draft?.promoting?.trim()?.length ?? 0) > 0 ||
+          (saved.step ?? 1) > 1
+        if (isMeaningful) setResumedDraft(true)
+      }
+    } catch (err) {
+      console.warn('[AdsPage] failed to hydrate campaign draft', err)
+    } finally {
+      draftHydrated.current = true
+    }
+  }, [currentWorkspaceId])
+
+  // Persist the in-flight campaign draft so users can come back without losing progress.
+  useEffect(() => {
+    if (!currentWorkspaceId || !draftHydrated.current) return
+    writePersistedCampaignDraft(currentWorkspaceId, {
+      draft,
+      options,
+      selectedId,
+      step: studioStep,
+    })
+  }, [currentWorkspaceId, draft, options, selectedId, studioStep])
+
+  const resetCampaignDraft = () => {
+    setDraft(createDefaultCampaignDraft())
+    setOptions([])
+    setSelectedId(null)
+    setStudioStep(1)
+    setResumedDraft(false)
+    if (currentWorkspaceId) clearPersistedCampaignDraft(currentWorkspaceId)
+  }
 
   useEffect(() => {
     if (!user?.id) return
@@ -836,6 +952,30 @@ export function AdsPage() {
         </TabsList>
 
         <TabsContent value="studio" activeValue={activeTab}>
+          {resumedDraft ? (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-primary/5 px-4 py-3 text-sm">
+              <p>
+                <span className="font-medium">Resumed your campaign in progress.</span>{' '}
+                Pick up where you left off or start fresh.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: 'Start a new campaign?',
+                    description:
+                      'This will clear your current campaign draft, ad options, and any AI-generated creatives for this workspace. This action cannot be undone.',
+                    confirmLabel: 'Start over',
+                    variant: 'destructive',
+                  })
+                  if (ok) resetCampaignDraft()
+                }}
+              >
+                Start over
+              </Button>
+            </div>
+          ) : null}
           <AdsCampaignStudio
             draft={{
               campaignName: draft.campaignName,
@@ -883,6 +1023,18 @@ export function AdsPage() {
             aiTip={aiTip}
             metaReady={Boolean(profile.metaConnection.adAccountId && profile.metaConnection.facebookPageId)}
             onPublish={() => setMessage('Publishing is next: we will wire this to the Meta Ads edge function when ready.')}
+            step={studioStep}
+            onStepChange={setStudioStep}
+            onReset={async () => {
+              const ok = await confirm({
+                title: 'Start a new campaign?',
+                description:
+                  'This will clear your current campaign draft, ad options, and any AI-generated creatives for this workspace.',
+                confirmLabel: 'Start over',
+                variant: 'destructive',
+              })
+              if (ok) resetCampaignDraft()
+            }}
           />
         </TabsContent>
 
