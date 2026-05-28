@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, RotateCcw, Sparkles, Trophy, Wand2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
 import { AdsReachPanel } from '@/components/ads/AdsReachPanel'
 import { AdsSelectField } from '@/components/ads/AdsSelectField'
@@ -264,17 +264,6 @@ export function AdsCampaignStudio({
     onDraftChange({ genders: Array.from(set) })
   }
 
-  // Auto-advance from "Generate" to "Edit" the first time options appear (after AI generation),
-  // so users don't have to click Continue separately.
-  const prevOptionsCount = useRef(options.length)
-  useEffect(() => {
-    const prev = prevOptionsCount.current
-    prevOptionsCount.current = options.length
-    if (step === 3 && prev === 0 && options.length > 0) {
-      setStep(4)
-    }
-  }, [options.length, step])
-
   const nextReason = (() => {
     if (step === 1 && !draft.goal) return 'Choose a goal first.'
     if (step === 2 && !draft.promoting.trim()) return 'Tell us what you’re promoting.'
@@ -465,7 +454,7 @@ export function AdsCampaignStudio({
                 ) : null}
 
                 {options.length === 0 && generatingCopy ? (
-                  <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="grid gap-6 sm:grid-cols-2">
                     {[0, 1].map((index) => (
                       <VariantSkeletonCard
                         key={`skeleton-${index}`}
@@ -477,7 +466,7 @@ export function AdsCampaignStudio({
                 ) : null}
 
                 {options.length > 0 ? (
-                  <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="grid items-start gap-6 sm:grid-cols-2">
                     {options.map((option) => {
                       const isSelected = selectedId === option.id
                       const isRecommended =
@@ -574,6 +563,24 @@ export function AdsCampaignStudio({
                     })}
                   </div>
                 ) : null}
+
+                {options.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2.5 text-sm">
+                    {selectedOption ? (
+                      <p className="text-muted-foreground">
+                        Selected{' '}
+                        <span className="font-semibold text-foreground">{selectedOption.name}</span>. Click{' '}
+                        <span className="font-semibold text-foreground">Continue</span> below to edit it — or pick the
+                        other variant first.
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        Choose the ad you want to run with <span className="font-medium text-foreground">Use this ad</span>,
+                        then click Continue.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>
@@ -593,115 +600,142 @@ export function AdsCampaignStudio({
                   Select an ad variant in the previous step.
                 </div>
               ) : (
-                <div className="grid gap-4 lg:grid-cols-[1fr_minmax(0,320px)]">
-                  <div className="space-y-3 rounded-xl border p-4">
-                    <div className="grid gap-1.5">
-                      <Label>Headline</Label>
-                      <Input
-                        value={selectedOption.headline}
-                        onChange={(event) => onUpdateOption(selectedOption.id, { headline: event.target.value })}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label>Primary text</Label>
-                      <Textarea
-                        value={selectedOption.primaryText}
-                        onChange={(event) => onUpdateOption(selectedOption.id, { primaryText: event.target.value })}
-                        rows={4}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label>Description (sub-text under headline)</Label>
-                      <Input
-                        value={selectedOption.description ?? ''}
-                        onChange={(event) => onUpdateOption(selectedOption.id, { description: event.target.value })}
-                        placeholder="Optional secondary line"
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label>Call to action</Label>
-                      <Input
-                        value={selectedOption.cta}
-                        onChange={(event) => onUpdateOption(selectedOption.id, { cta: event.target.value })}
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-2 border-t pt-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          onUpdateOption(selectedOption.id, {
-                            primaryText: `${selectedOption.primaryText}\n\n${brandTone} tone · CTA: ${brandCta}.`,
-                          })
-                        }
-                      >
-                        <Wand2 className="mr-2 h-4 w-4" />
-                        Rewrite
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void onGenerateCreative('image')}
-                        disabled={generatingMediaIds?.includes(selectedOption.id) ?? false}
-                      >
-                        {generatingMediaIds?.includes(selectedOption.id) && selectedOption.previewType === 'image' ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : null}
-                        Regenerate image
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void onGenerateCreative('video')}
-                        disabled={generatingMediaIds?.includes(selectedOption.id) ?? false}
-                      >
-                        {generatingMediaIds?.includes(selectedOption.id) && selectedOption.previewType === 'video' ? (
-                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                        ) : null}
-                        Regenerate video
-                      </Button>
-                      {onRegenerateVariant ? (
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
+                  {/* Editor column */}
+                  <div className="space-y-5">
+                    {/* Copy */}
+                    <section className="space-y-3 rounded-xl border p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold">Ad copy</h3>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() =>
+                            onUpdateOption(selectedOption.id, {
+                              primaryText: `${selectedOption.primaryText}\n\n${brandTone} tone · CTA: ${brandCta}.`,
+                            })
+                          }
+                        >
+                          <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                          Rewrite tone
+                        </Button>
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>Headline</Label>
+                        <Input
+                          value={selectedOption.headline}
+                          onChange={(event) => onUpdateOption(selectedOption.id, { headline: event.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>Primary text</Label>
+                        <Textarea
+                          value={selectedOption.primaryText}
+                          onChange={(event) => onUpdateOption(selectedOption.id, { primaryText: event.target.value })}
+                          rows={4}
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-1.5">
+                          <Label>Description</Label>
+                          <Input
+                            value={selectedOption.description ?? ''}
+                            onChange={(event) => onUpdateOption(selectedOption.id, { description: event.target.value })}
+                            placeholder="Optional secondary line"
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label>Call to action</Label>
+                          <Input
+                            value={selectedOption.cta}
+                            onChange={(event) => onUpdateOption(selectedOption.id, { cta: event.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Creative */}
+                    <section className="space-y-3 rounded-xl border p-4">
+                      <div>
+                        <h3 className="text-sm font-semibold">Creative</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Regenerate the visual, or spin up a brand-new variant with a different angle.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => void handleRegenerateVariant(selectedOption.id)}
-                          disabled={regeneratingVariantId === selectedOption.id}
+                          onClick={() => void onGenerateCreative('image')}
+                          disabled={generatingMediaIds?.includes(selectedOption.id) ?? false}
                         >
-                          {regeneratingVariantId === selectedOption.id ? (
+                          {generatingMediaIds?.includes(selectedOption.id) && selectedOption.previewType === 'image' ? (
                             <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                           ) : (
                             <RefreshCw className="mr-2 h-3.5 w-3.5" />
                           )}
-                          Regenerate this variant
+                          Regenerate image
                         </Button>
-                      ) : null}
-                    </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void onGenerateCreative('video')}
+                          disabled={generatingMediaIds?.includes(selectedOption.id) ?? false}
+                        >
+                          {generatingMediaIds?.includes(selectedOption.id) && selectedOption.previewType === 'video' ? (
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                          )}
+                          Regenerate video
+                        </Button>
+                        {onRegenerateVariant ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleRegenerateVariant(selectedOption.id)}
+                            disabled={regeneratingVariantId === selectedOption.id}
+                          >
+                            {regeneratingVariantId === selectedOption.id ? (
+                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Wand2 className="mr-2 h-3.5 w-3.5" />
+                            )}
+                            New angle
+                          </Button>
+                        ) : null}
+                      </div>
+                    </section>
                   </div>
 
-                  <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Live preview</p>
-                    <PreviewPlacementSwitcher
-                      placement={previewPlacement}
-                      device={previewDevice}
-                      onPlacementChange={setPreviewPlacement}
-                      onDeviceChange={setPreviewDevice}
-                    />
-                    <FacebookAdPreview
-                      data={{
-                        pageName: businessName || 'Your Page',
-                        pageAvatarUrl: facebookPageAvatarUrl,
-                        primaryText: selectedOption.primaryText,
-                        headline: selectedOption.headline,
-                        description: selectedOption.description,
-                        cta: selectedOption.cta,
-                        mediaUrl: selectedOption.previewUrl,
-                        mediaType: selectedOption.previewType,
-                        destinationDomain,
-                      }}
-                      placement={previewPlacement}
-                      device={previewDevice}
-                      mediaLoading={generatingMediaIds?.includes(selectedOption.id) ?? false}
-                    />
+                  {/* Preview column */}
+                  <div className="lg:sticky lg:top-4 lg:self-start">
+                    <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Live preview</p>
+                      <PreviewPlacementSwitcher
+                        placement={previewPlacement}
+                        device={previewDevice}
+                        onPlacementChange={setPreviewPlacement}
+                        onDeviceChange={setPreviewDevice}
+                      />
+                      <FacebookAdPreview
+                        data={{
+                          pageName: businessName || 'Your Page',
+                          pageAvatarUrl: facebookPageAvatarUrl,
+                          primaryText: selectedOption.primaryText,
+                          headline: selectedOption.headline,
+                          description: selectedOption.description,
+                          cta: selectedOption.cta,
+                          mediaUrl: selectedOption.previewUrl,
+                          mediaType: selectedOption.previewType,
+                          destinationDomain,
+                        }}
+                        placement={previewPlacement}
+                        device={previewDevice}
+                        mediaLoading={generatingMediaIds?.includes(selectedOption.id) ?? false}
+                      />
+                    </div>
                   </div>
                 </div>
               )}

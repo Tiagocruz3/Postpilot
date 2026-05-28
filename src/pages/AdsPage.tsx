@@ -29,6 +29,7 @@ import {
   type MetaPageOption,
 } from '@/lib/meta-integration-options'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
+import { Loader2, Upload, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -237,6 +238,8 @@ export function AdsPage() {
    * a real ad card once both the copy and media have finished generating.
    */
   const [generatingMediaIds, setGeneratingMediaIds] = useState<string[]>([])
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const [mediaPage, setMediaPage] = useState(1)
   const [updatingPostingTarget, setUpdatingPostingTarget] = useState(false)
   /**
@@ -1405,6 +1408,68 @@ export function AdsPage() {
     void saveProfile({ onboardingStep: nextStep })
   }
 
+  /**
+   * Upload a brand logo from the user's device, store it in the AI library
+   * (so it shows up in the AI Vault under Pictures), and save its public URL
+   * onto the Ads profile's creative preferences.
+   */
+  const uploadLogoToLibrary = async (file: File | undefined | null) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setMessage('Please choose an image file for your logo.')
+      return
+    }
+
+    if (isDemoMode) {
+      const localUrl = URL.createObjectURL(file)
+      setProfile((p) => ({
+        ...p,
+        creativePreferences: { ...p.creativePreferences, logoUrl: localUrl },
+      }))
+      setMessage('Logo added (demo).')
+      return
+    }
+
+    if (!currentWorkspaceId || !user?.id) {
+      setMessage('Select a workspace before uploading a logo.')
+      return
+    }
+
+    setUploadingLogo(true)
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `${currentWorkspaceId}/${user.id}/${Date.now()}_${safeName}`
+      const { error: uploadError } = await supabase.storage.from('ai_library').upload(path, file)
+      if (uploadError) {
+        setMessage(uploadError.message)
+        return
+      }
+      const { data } = supabase.storage.from('ai_library').getPublicUrl(path)
+      const publicUrl = data.publicUrl
+      const { error: insertError } = await supabase.from('workspace_ai_media').insert({
+        workspace_id: currentWorkspaceId,
+        created_by: user.id,
+        media_type: 'image',
+        storage_bucket: 'ai_library',
+        storage_path: path,
+        public_url: publicUrl,
+        prompt: 'Brand logo',
+        source: 'ads',
+        metadata: { kind: 'logo', source: 'upload' },
+      } as never)
+      if (insertError) {
+        setMessage(insertError.message)
+        return
+      }
+      const nextCreative = { ...profile.creativePreferences, logoUrl: publicUrl }
+      await saveProfile({ creativePreferences: nextCreative })
+      void refreshMedia()
+      setMessage('Logo uploaded and saved to your library under Pictures.')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
   const completeOnboarding = () => {
     setOnboardingDone(true)
     setShowOnboardingComplete(true)
@@ -1746,7 +1811,76 @@ export function AdsPage() {
                     </Select>
                   </div>
                   <Field label="Brand colours (optional)" value={profile.creativePreferences.brandColors} onChange={(v) => setProfile((p) => ({ ...p, creativePreferences: { ...p.creativePreferences, brandColors: v } }))} />
-                  <Field label="Logo URL (optional)" value={profile.creativePreferences.logoUrl} onChange={(v) => setProfile((p) => ({ ...p, creativePreferences: { ...p.creativePreferences, logoUrl: v } }))} />
+                  <div className="grid gap-1.5">
+                    <Label>Logo (optional)</Label>
+                    <div className="flex items-center gap-3">
+                      {profile.creativePreferences.logoUrl ? (
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border bg-muted/30">
+                          <img
+                            src={profile.creativePreferences.logoUrl}
+                            alt="Brand logo"
+                            className="h-full w-full object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProfile((p) => ({
+                                ...p,
+                                creativePreferences: { ...p.creativePreferences, logoUrl: '' },
+                              }))
+                            }
+                            className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                            aria-label="Remove logo"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-dashed bg-muted/20 text-[10px] text-muted-foreground">
+                          No logo
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            void uploadLogoToLibrary(e.target.files?.[0])
+                            e.target.value = ''
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={uploadingLogo}
+                          onClick={() => logoInputRef.current?.click()}
+                        >
+                          {uploadingLogo ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="mr-2 h-4 w-4" />
+                          )}
+                          {uploadingLogo ? 'Uploading…' : 'Upload logo'}
+                        </Button>
+                        <Input
+                          placeholder="…or paste a logo URL"
+                          value={profile.creativePreferences.logoUrl}
+                          onChange={(e) =>
+                            setProfile((p) => ({
+                              ...p,
+                              creativePreferences: { ...p.creativePreferences, logoUrl: e.target.value },
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Uploads are saved to your AI Vault under Pictures.
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : null}
