@@ -156,21 +156,26 @@ export function CreditProvider({ children }: { children: ReactNode }) {
         return { ok: true }
       }
 
-      const result = await rpcConsumeCredits({
-        action,
-        credits: cost,
-        workspaceId: options?.workspaceId,
-        modelUsed: options?.modelUsed,
-        metadata: {
-          label: ACTION_LABELS[action],
-          ...(options?.metadata ?? {}),
-        },
-      })
-      if (!result?.success) {
-        return { ok: false, error: EMPTY_CREDIT_MESSAGE }
+      try {
+        const result = await rpcConsumeCredits({
+          action,
+          credits: cost,
+          workspaceId: options?.workspaceId,
+          modelUsed: options?.modelUsed,
+          metadata: {
+            label: ACTION_LABELS[action],
+            ...(options?.metadata ?? {}),
+          },
+        })
+        if (!result?.success) {
+          return { ok: false, error: result?.error || EMPTY_CREDIT_MESSAGE }
+        }
+        await refresh()
+        return { ok: true }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not record AI usage.'
+        return { ok: false, error: message }
       }
-      await refresh()
-      return { ok: true }
     },
     [checkCredits, isAdmin, refresh, user?.id],
   )

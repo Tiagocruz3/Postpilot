@@ -987,33 +987,33 @@ export function ComposePage() {
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <Card className="alive-enter">
-        <CardHeader className="flex-row items-center justify-between gap-4">
-          <div>
+        <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+          <div className="space-y-1">
             <CardTitle className="text-base">Studio post</CardTitle>
-            <CardDescription className="mt-1">One draft for every channel. Pick the platform and posting profile below.</CardDescription>
+            <CardDescription>One draft, every channel.</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={resetForm}
-              disabled={!hasComposerContent || isGenerating}
-              title={hasComposerContent ? 'Clear draft and start over' : 'Nothing to clear yet'}
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Clear
-            </Button>
             {isPlatformConnected(activeTab) ? (
-              <Button size="sm" variant="outline" disabled className="cursor-default opacity-90">
-                <Check className="mr-2 h-4 w-4 text-emerald-500" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <Check className="h-3.5 w-3.5" />
                 {platformLabel(activeTab)} connected
-              </Button>
+              </span>
             ) : (
               <Button size="sm" variant="outline" onClick={() => connect(activeTab)}>
                 Connect {platformLabel(activeTab)}
               </Button>
             )}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={resetForm}
+              disabled={!hasComposerContent || isGenerating}
+              title={hasComposerContent ? 'Clear draft and start over' : 'Nothing to clear yet'}
+            >
+              <RotateCcw className="mr-1.5 h-4 w-4" />
+              Clear
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -1114,86 +1114,82 @@ export function ComposePage() {
           ) : null}
 
                 <div className="rounded-2xl border bg-muted/20 p-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Media Source</p>
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">
-                      {activeMedia ? `${activeMedia.type === 'video' ? 'Video' : 'Image'} attached` : 'No media yet'}
-                    </Badge>
-                    <Badge variant="outline">{platformLabel(activeTab)} mode</Badge>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Media source</p>
+                    {activeMedia ? (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {activeMedia.type === 'video' ? 'Video attached' : 'Image attached'}
+                      </Badge>
+                    ) : null}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={mediaSource === 'ai-image' ? 'default' : 'outline'}
-                      className={mediaSource === 'ai-image' ? 'alive-ring' : ''}
-                      onClick={() => onSelectMediaSource('ai-image')}
-                      disabled={imageLoading}
-                    >
-                      AI Image
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={mediaSource === 'ai-video' ? 'default' : 'outline'}
-                      className={mediaSource === 'ai-video' ? 'alive-ring' : ''}
-                      onClick={() => onSelectMediaSource('ai-video')}
-                      disabled={videoLoading}
-                    >
-                      AI Video
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={mediaSource === 'stock-image' ? 'default' : 'outline'}
-                      className={mediaSource === 'stock-image' ? 'alive-ring' : ''}
-                      onClick={() => onSelectMediaSource('stock-image')}
-                    >
-                      Stock Image
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={mediaSource === 'user-media' ? 'default' : 'outline'}
-                      className={mediaSource === 'user-media' ? 'alive-ring' : ''}
-                      onClick={() => onSelectMediaSource('user-media')}
-                    >
-                      User Media
-                    </Button>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {(
+                      [
+                        { id: 'ai-image', label: 'AI Image', disabled: imageLoading },
+                        { id: 'ai-video', label: 'AI Video', disabled: videoLoading },
+                        { id: 'stock-image', label: 'Stock', disabled: false },
+                        { id: 'user-media', label: 'Upload', disabled: false },
+                      ] as { id: MediaSourceType; label: string; disabled: boolean }[]
+                    ).map((opt) => (
+                      <Button
+                        key={opt.id}
+                        type="button"
+                        size="sm"
+                        variant={mediaSource === opt.id ? 'default' : 'outline'}
+                        className={mediaSource === opt.id ? 'alive-ring' : ''}
+                        onClick={() => onSelectMediaSource(opt.id)}
+                        disabled={opt.disabled}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {mediaSource === 'stock-image'
-                      ? 'Opens the stock library so you can attach a photo right away.'
+                      ? 'Browse a stock library and attach a photo.'
                       : mediaSource === 'user-media'
                         ? 'Upload an image or video from your device.'
                         : mediaSource === 'ai-video'
-                          ? 'AI Video generates clips with a minimum target duration of 15 seconds.'
-                          : 'Generate an AI image, or add a caption later before publishing.'}
+                          ? 'AI Video clips target a 15-second minimum.'
+                          : 'Generate an AI image, or attach media later.'}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your post</p>
-                  <div className="relative">
-                    <Textarea
-                      placeholder="What's on your mind?"
-                      value={content}
-                      onChange={(event) => setContent(event.target.value)}
-                      onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
-                      className="min-h-[180px] resize-none border-primary/20 bg-background text-base leading-relaxed shadow-sm"
-                    />
-                    <div className="absolute bottom-3 right-3">
-                      <Badge variant={charCount > maxChars ? 'destructive' : 'secondary'}>
-                        {charCount}/{maxChars}
-                      </Badge>
-                    </div>
+                  <div className="flex items-end justify-between gap-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your post</p>
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        charCount > maxChars
+                          ? 'text-destructive'
+                          : charCount > maxChars * 0.9
+                            ? 'text-amber-600'
+                            : 'text-muted-foreground'
+                      }`}
+                      aria-live="polite"
+                    >
+                      {charCount.toLocaleString()} / {maxChars.toLocaleString()} for {platformLabel(activeTab)}
+                    </span>
                   </div>
+                  <Textarea
+                    placeholder="What's on your mind?"
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                    onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
+                    className="min-h-[180px] resize-none border-primary/20 bg-background text-base leading-relaxed shadow-sm"
+                  />
                   <div className="h-1 overflow-hidden rounded-full bg-muted">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${charCount > maxChars ? 'bg-destructive' : 'bg-primary'}`}
-                      style={{ width: `${Math.min(100, Math.max(4, (charCount / maxChars) * 100))}%` }}
+                      style={{ width: `${Math.min(100, Math.max(2, (charCount / maxChars) * 100))}%` }}
                     />
                   </div>
+                  {charCount > maxChars ? (
+                    <p className="text-xs text-destructive">
+                      Over the {platformLabel(activeTab)} limit by {(charCount - maxChars).toLocaleString()} character
+                      {charCount - maxChars === 1 ? '' : 's'}. Trim before publishing.
+                    </p>
+                  ) : null}
                 </div>
 
                 {media.length ? (
