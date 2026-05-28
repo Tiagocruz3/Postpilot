@@ -30,8 +30,8 @@ function App() {
 
   return (
     <ConfirmProvider>
-    <CreditProvider>
     <BrowserRouter>
+    <CreditProvider>
       <Routes>
         <Route path="/" element={profile ? <Navigate to="/app" /> : <LandingPage />} />
         <Route path="/login" element={profile ? <Navigate to="/app" /> : <LoginPage />} />
@@ -56,8 +56,8 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to={profile ? '/app' : '/'} />} />
       </Routes>
-    </BrowserRouter>
     </CreditProvider>
+    </BrowserRouter>
     </ConfirmProvider>
   )
 }

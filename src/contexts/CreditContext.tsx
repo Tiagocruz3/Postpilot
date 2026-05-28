@@ -21,9 +21,17 @@ import {
   ACTION_LABELS,
   creditActionForFunction,
   EMPTY_CREDIT_MESSAGE,
+  getRequiredPlan,
+  MEMBERSHIP_PLANS,
+  meetsPlanRequirement,
   type CreditActionType,
   type MembershipPlanId,
 } from '@/lib/credits/constants'
+import {
+  UpgradePromptModal,
+  type UpgradePromptReason,
+  type UpgradePromptState,
+} from '@/components/account/UpgradePromptModal'
 import { addDemoTopup, consumeDemoCredits, getDemoCreditAccount } from '@/lib/credits/demo'
 import {
   rpcAddTopupCredits,
@@ -44,6 +52,16 @@ export type CreditUsageLog = {
   metadata: Record<string, unknown>
 }
 
+export type GateReason = UpgradePromptReason
+
+export type GateResult = {
+  ok: boolean
+  reason?: GateReason
+  error?: string
+  minPlan?: MembershipPlanId
+  action?: CreditActionType
+}
+
 type CreditContextValue = {
   loading: boolean
   balance: CreditBalanceView
@@ -53,13 +71,15 @@ type CreditContextValue = {
   consumeCredits: (
     action: CreditActionType,
     options?: { workspaceId?: string | null; modelUsed?: string; metadata?: Record<string, unknown> },
-  ) => Promise<{ ok: boolean; error?: string }>
+  ) => Promise<GateResult>
   consumeForFunction: (
     functionName: string,
     body?: Record<string, unknown>,
     options?: { workspaceId?: string | null; modelUsed?: string },
-  ) => Promise<{ ok: boolean; error?: string }>
-  checkCredits: (action: CreditActionType) => { ok: boolean; error?: string }
+  ) => Promise<GateResult>
+  checkCredits: (action: CreditActionType) => GateResult
+  gateAction: (action: CreditActionType) => GateResult
+  showUpgradePrompt: (reason: GateReason, action?: CreditActionType) => void
   addTopUp: (credits: number) => Promise<void>
   setMembershipPlan: (plan: MembershipPlanId) => Promise<void>
 }
@@ -72,6 +92,10 @@ export function CreditProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [account, setAccount] = useState<UserCreditAccountRow | null>(null)
   const [usageLogs, setUsageLogs] = useState<CreditUsageLog[]>([])
+  const [promptState, setPromptState] = useState<UpgradePromptState>({
+    open: false,
+    reason: 'insufficient_credits',
+  })
 
   const refresh = useCallback(async () => {
     if (!user?.id) {
@@ -131,22 +155,66 @@ export function CreditProvider({ children }: { children: ReactNode }) {
     [account, isAdmin],
   )
 
-  const checkCredits = useCallback(
-    (action: CreditActionType) => {
-      if (canAfford(balance, action)) return { ok: true }
-      return { ok: false, error: EMPTY_CREDIT_MESSAGE }
+  const showUpgradePrompt = useCallback((reason: GateReason, action?: CreditActionType) => {
+    setPromptState({
+      open: true,
+      reason,
+      action,
+      minPlan: action ? getRequiredPlan(action) : undefined,
+    })
+  }, [])
+
+  const gateAction = useCallback(
+    (action: CreditActionType): GateResult => {
+      if (balance.isAdmin) return { ok: true }
+
+      if (!meetsPlanRequirement(balance.planId, action)) {
+        const minPlan = getRequiredPlan(action)
+        return {
+          ok: false,
+          reason: 'plan_locked',
+          action,
+          minPlan,
+          error: `${ACTION_LABELS[action]} requires the ${MEMBERSHIP_PLANS[minPlan].name} plan or higher.`,
+        }
+      }
+
+      if (!canAfford(balance, action)) {
+        return {
+          ok: false,
+          reason: 'insufficient_credits',
+          action,
+          error: EMPTY_CREDIT_MESSAGE,
+        }
+      }
+
+      return { ok: true }
     },
     [balance],
+  )
+
+  const checkCredits = useCallback(
+    (action: CreditActionType): GateResult => {
+      const result = gateAction(action)
+      if (!result.ok && result.reason) {
+        showUpgradePrompt(result.reason, result.action)
+      }
+      return result
+    },
+    [gateAction, showUpgradePrompt],
   )
 
   const consumeCredits = useCallback(
     async (
       action: CreditActionType,
       options?: { workspaceId?: string | null; modelUsed?: string; metadata?: Record<string, unknown> },
-    ) => {
+    ): Promise<GateResult> => {
       const cost = getCreditCost(action)
-      const check = checkCredits(action)
-      if (!check.ok) return check
+      const gate = gateAction(action)
+      if (!gate.ok) {
+        if (gate.reason) showUpgradePrompt(gate.reason, gate.action)
+        return gate
+      }
 
       if (!user?.id) return { ok: false, error: 'Sign in to use AI credits.' }
 
@@ -168,7 +236,13 @@ export function CreditProvider({ children }: { children: ReactNode }) {
           },
         })
         if (!result?.success) {
-          return { ok: false, error: result?.error || EMPTY_CREDIT_MESSAGE }
+          showUpgradePrompt('insufficient_credits', action)
+          return {
+            ok: false,
+            reason: 'insufficient_credits',
+            action,
+            error: result?.error || EMPTY_CREDIT_MESSAGE,
+          }
         }
         await refresh()
         return { ok: true }
@@ -177,7 +251,7 @@ export function CreditProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: message }
       }
     },
-    [checkCredits, isAdmin, refresh, user?.id],
+    [gateAction, isAdmin, refresh, showUpgradePrompt, user?.id],
   )
 
   const consumeForFunction = useCallback(
@@ -222,6 +296,11 @@ export function CreditProvider({ children }: { children: ReactNode }) {
     [refresh, user?.id],
   )
 
+  const closePrompt = useCallback(
+    (open: boolean) => setPromptState((prev) => ({ ...prev, open })),
+    [],
+  )
+
   const value = useMemo(
     () => ({
       loading,
@@ -232,6 +311,8 @@ export function CreditProvider({ children }: { children: ReactNode }) {
       consumeCredits,
       consumeForFunction,
       checkCredits,
+      gateAction,
+      showUpgradePrompt,
       addTopUp,
       setMembershipPlan,
     }),
@@ -244,12 +325,19 @@ export function CreditProvider({ children }: { children: ReactNode }) {
       consumeCredits,
       consumeForFunction,
       checkCredits,
+      gateAction,
+      showUpgradePrompt,
       addTopUp,
       setMembershipPlan,
     ],
   )
 
-  return <CreditContext.Provider value={value}>{children}</CreditContext.Provider>
+  return (
+    <CreditContext.Provider value={value}>
+      {children}
+      <UpgradePromptModal state={promptState} balance={balance} onOpenChange={closePrompt} />
+    </CreditContext.Provider>
+  )
 }
 
 export function useCredits() {

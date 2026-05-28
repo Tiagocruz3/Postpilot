@@ -5,12 +5,14 @@ import {
   Check,
   CheckCircle2,
   Eye,
+  Image as ImageIcon,
   Loader2,
   Link,
   RefreshCw,
   RotateCcw,
   Send,
   Sparkles,
+  Video as VideoIcon,
 } from 'lucide-react'
 import { ComposeAiWriteSection } from '@/components/compose/ComposeAiWriteSection'
 import { ComposeFlowProgressModal } from '@/components/compose/ComposeFlowProgressModal'
@@ -1179,41 +1181,81 @@ export function ComposePage() {
                   ) : null}
                 </div>
 
-                {media.length ? (
+                {media.length || imageLoading || videoLoading ? (
                   <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Attached media</p>
-                    <div className="flex flex-wrap gap-2">
-                      {media.map((item, index) => (
-                        <div key={`${item.url}-${index}`} className="relative h-28 w-28 overflow-hidden rounded-xl border">
-                          <button
-                            type="button"
-                            className="block h-full w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                            onClick={() => setAttachmentPreview(item)}
-                            aria-label={`Preview attached ${item.type}`}
-                          >
-                            {item.type === 'video' ? (
-                              <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {imageLoading
+                        ? 'Generating image…'
+                        : videoLoading
+                          ? 'Generating video…'
+                          : 'Attached media'}
+                    </p>
+                    {imageLoading || videoLoading ? (
+                      <div
+                        className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10"
+                        aria-live="polite"
+                        aria-busy="true"
+                      >
+                        <div className="alive-shimmer absolute inset-0" />
+                        <div className="relative z-10 flex h-full w-full flex-col items-center justify-center gap-3 p-4 text-center">
+                          <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-background/80 shadow-sm backdrop-blur">
+                            {videoLoading ? (
+                              <VideoIcon className="h-6 w-6 text-primary" />
                             ) : (
-                              <img src={item.url} alt="" className="h-full w-full object-cover" />
+                              <ImageIcon className="h-6 w-6 text-primary" />
                             )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))
-                              if (attachmentPreview?.url === item.url) {
-                                setAttachmentPreview(null)
-                              }
-                            }}
-                            className="absolute right-1 top-1 z-10 rounded-full bg-black/60 px-1.5 text-xs text-white hover:bg-black/80"
-                            aria-label="Remove attachment"
-                          >
-                            ×
-                          </button>
+                            <Loader2 className="absolute -bottom-1 -right-1 h-5 w-5 animate-spin rounded-full bg-background p-0.5 text-primary shadow-sm" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {videoLoading ? 'Rendering your video' : 'Designing your image'}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {videoLoading
+                                ? 'This can take up to a minute.'
+                                : 'Usually ready in 10–20 seconds.'}
+                            </p>
+                          </div>
+                          <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+                            <div className="alive-shimmer h-full w-2/3 rounded-full bg-primary/50" />
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : null}
+                    {media.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {media.map((item, index) => (
+                          <div key={`${item.url}-${index}`} className="relative h-28 w-28 overflow-hidden rounded-xl border">
+                            <button
+                              type="button"
+                              className="block h-full w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                              onClick={() => setAttachmentPreview(item)}
+                              aria-label={`Preview attached ${item.type}`}
+                            >
+                              {item.type === 'video' ? (
+                                <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                              ) : (
+                                <img src={item.url} alt="" className="h-full w-full object-cover" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setMedia((prev) => prev.filter((_, currentIndex) => currentIndex !== index))
+                                if (attachmentPreview?.url === item.url) {
+                                  setAttachmentPreview(null)
+                                }
+                              }}
+                              className="absolute right-1 top-1 z-10 rounded-full bg-black/60 px-1.5 text-xs text-white hover:bg-black/80"
+                              aria-label="Remove attachment"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 

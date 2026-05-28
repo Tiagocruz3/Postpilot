@@ -120,6 +120,42 @@ export const ACTION_LABELS: Record<CreditActionType, string> = {
   audience_suggest: 'Suggest audience',
 }
 
+export const PLAN_ORDER: Record<MembershipPlanId, number> = {
+  free: 0,
+  starter: 1,
+  pro: 2,
+  growth: 3,
+  agency: 4,
+}
+
+/**
+ * Minimum membership plan required to perform each action. Used to gate features
+ * before consuming credits (e.g. AI Video is not available on the Free plan).
+ */
+export const MIN_PLAN_FOR_ACTION: Record<CreditActionType, MembershipPlanId> = {
+  caption: 'free',
+  hashtags: 'free',
+  post_idea: 'free',
+  ad_copy: 'free',
+  image: 'free',
+  research: 'free',
+  remix: 'free',
+  audience_suggest: 'free',
+  video_short: 'starter',
+  video_premium: 'pro',
+}
+
+export function getRequiredPlan(action: CreditActionType): MembershipPlanId {
+  return MIN_PLAN_FOR_ACTION[action] ?? 'free'
+}
+
+export function meetsPlanRequirement(
+  currentPlan: MembershipPlanId,
+  action: CreditActionType,
+): boolean {
+  return PLAN_ORDER[currentPlan] >= PLAN_ORDER[getRequiredPlan(action)]
+}
+
 /** Map edge function names to credit actions. */
 export function creditActionForFunction(functionName: string, body?: Record<string, unknown>): CreditActionType {
   switch (functionName) {
