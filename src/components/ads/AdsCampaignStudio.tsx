@@ -286,43 +286,67 @@ export function AdsCampaignStudio({
   const canNext = !nextReason
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[220px_1fr_280px]">
-      <nav className="space-y-1 rounded-xl border bg-card p-2 lg:sticky lg:top-4 lg:self-start">
-        <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ad Studio</p>
-        {STUDIO_STEPS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setStep(item.id)}
-            className={cn(
-              'flex w-full flex-col rounded-lg px-3 py-2 text-left text-sm transition-colors',
-              step === item.id ? 'bg-[#1877F2]/10 text-[#1877F2]' : 'hover:bg-muted'
-            )}
-          >
-            <span className="font-medium">{item.label}</span>
-            <span className="text-xs text-muted-foreground">{item.meta}</span>
-          </button>
-        ))}
-        {onReset ? (
-          <div className="mt-3 border-t pt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-xs text-muted-foreground hover:text-destructive"
-              onClick={() => void onReset()}
-              title="Clear the current campaign draft and start a new one"
-            >
-              <RotateCcw className="mr-2 h-3.5 w-3.5" />
-              Start over
-            </Button>
+    <div className="space-y-4">
+      <nav className="rounded-xl border bg-card p-2 lg:sticky lg:top-4 lg:z-20">
+        <div className="flex items-center gap-2">
+          <p className="hidden shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:block">
+            Ad Studio
+          </p>
+
+          {/* Horizontal scroller for the step pills so the row never wraps and
+              stays responsive on narrow viewports. */}
+          <div className="-mx-1 flex flex-1 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {STUDIO_STEPS.map((item) => {
+              const active = step === item.id
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setStep(item.id)}
+                  className={cn(
+                    'group flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
+                    active ? 'bg-[#1877F2]/10 text-[#1877F2]' : 'text-foreground/80 hover:bg-muted',
+                  )}
+                  title={item.meta}
+                >
+                  <span
+                    className={cn(
+                      'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+                      active
+                        ? 'bg-[#1877F2] text-white'
+                        : 'bg-muted text-muted-foreground group-hover:bg-muted-foreground/20',
+                    )}
+                  >
+                    {item.id}
+                  </span>
+                  <span className="whitespace-nowrap font-medium">{item.label}</span>
+                </button>
+              )
+            })}
           </div>
-        ) : null}
-        <div className="mt-3 border-t pt-3 px-2">
-          <p className="text-xs text-muted-foreground">Business</p>
-          <p className="text-sm font-medium truncate">{businessName || 'Your business'}</p>
+
+          <div className="ml-1 hidden shrink-0 items-center gap-2 border-l pl-2 lg:flex">
+            <div className="text-right leading-tight">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Business</p>
+              <p className="max-w-[180px] truncate text-xs font-medium">{businessName || 'Your business'}</p>
+            </div>
+            {onReset ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-destructive"
+                onClick={() => void onReset()}
+                title="Clear the current campaign draft and start a new one"
+              >
+                <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                Reset
+              </Button>
+            ) : null}
+          </div>
         </div>
       </nav>
 
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-4">
         {step === 1 ? (
           <Card className="border-0 shadow-sm ring-1 ring-border">
@@ -1135,6 +1159,7 @@ export function AdsCampaignStudio({
 
         <AdsReachPanel inputs={reachInputs} />
       </aside>
+      </div>
     </div>
   )
 }
