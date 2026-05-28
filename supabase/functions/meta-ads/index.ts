@@ -19,15 +19,60 @@ serve(async (req) => {
 
   if (!integration) return new Response('No Meta integration', { status: 400 })
   const token = integration.access_token_encrypted
+  const apiBase = 'https://graph.facebook.com/v18.0'
+
+  async function fetchJson(url: string) {
+    const res = await fetch(url)
+    const json = await res.json()
+    return { res, json }
+  }
 
   if (action === 'list_accounts') {
-    const res = await fetch(`https://graph.facebook.com/v18.0/me/adaccounts?access_token=${token}`)
-    return new Response(JSON.stringify(await res.json()), { headers: { 'Content-Type': 'application/json' } })
+    const { json } = await fetchJson(`${apiBase}/me/adaccounts?access_token=${token}`)
+    return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
   }
 
   if (action === 'list_campaigns') {
-    const res = await fetch(`https://graph.facebook.com/v18.0/${params.account_id}/campaigns?access_token=${token}`)
-    return new Response(JSON.stringify(await res.json()), { headers: { 'Content-Type': 'application/json' } })
+    const { json } = await fetchJson(`${apiBase}/${params.account_id}/campaigns?access_token=${token}`)
+    return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
+  }
+
+  if (action === 'list_ads') {
+    const accountId = String(params.account_id || '').replace(/^act_/, '')
+    if (!accountId) return new Response(JSON.stringify({ error: 'Missing account_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+
+    const { json: adsJson } = await fetchJson(
+      `${apiBase}/act_${accountId}/ads?fields=id,name,status,campaign_id,adset_id,creative{id}&limit=50&access_token=${token}`,
+    )
+
+    const ads = Array.isArray(adsJson?.data) ? adsJson.data : []
+    const campaignFilter = typeof params.campaign_id === 'string' ? params.campaign_id : null
+    const filtered = campaignFilter ? ads.filter((a: { campaign_id?: string }) => a?.campaign_id === campaignFilter) : ads
+
+    // Fetch creative thumbnails for a small subset.
+    const creativeIds = Array.from(
+      new Set(
+        filtered
+          .map((a: { creative?: { id?: string } }) => a?.creative?.id)
+          .filter(Boolean),
+      ),
+    ).slice(0, 30) as string[]
+
+    const creativeById: Record<string, unknown> = {}
+    for (const creativeId of creativeIds) {
+      const { json: creativeJson } = await fetchJson(
+        `${apiBase}/${creativeId}?fields=thumbnail_url,object_story_spec&thumbnail_width=400&thumbnail_height=400&access_token=${token}`,
+      )
+      creativeById[creativeId] = creativeJson
+    }
+
+    const merged = filtered.map((ad: { creative?: { id?: string } }) => {
+      const creativeId = ad?.creative?.id
+      const creative = creativeId ? creativeById[creativeId] : null
+      return { ...ad, creative }
+    })
+
+    return new Response(JSON.stringify({ data: merged }), { headers: { 'Content-Type': 'application/json' } })
   }
 
   if (action === 'create_campaign') {
@@ -100,8 +145,8 @@ serve(async (req) => {
   }
 
   if (action === 'insights') {
-    const res = await fetch(`https://graph.facebook.com/v18.0/${params.campaign_id}/insights?fields=impressions,clicks,spend,ctr,cpc,roas&access_token=${token}`)
-    return new Response(JSON.stringify(await res.json()), { headers: { 'Content-Type': 'application/json' } })
+    const { json } = await fetchJson(`${apiBase}/${params.campaign_id}/insights?fields=impressions,clicks,spend,ctr,cpc,roas&access_token=${token}`)
+    return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
   }
 
   return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { 'Content-Type': 'application/json' } })

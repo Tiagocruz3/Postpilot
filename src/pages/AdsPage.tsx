@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useOutletContext } from 'react-router-dom'
-import { Link } from 'lucide-react'
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { AdsAudienceFields } from '@/components/ads/AdsAudienceFields'
 import { AdsCampaignStudio } from '@/components/ads/AdsCampaignStudio'
@@ -31,6 +30,7 @@ import { Select } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { Json } from '@/types/database'
+import { PublishedAdsPanel } from '@/components/ads/PublishedAdsPanel'
 
 interface OutletContext {
   currentWorkspaceId: string | null
@@ -69,6 +69,8 @@ const CREATIVE_FORMATS = ['Image ads', 'Video ads', 'Carousel ads', 'Story ads',
 
 type AdsStudioProfile = {
   userId: string
+  /** Once true, never show onboarding again unless reset from Settings. */
+  onboardingCompleted?: boolean
   metaConnection: {
     facebookPageId: string
     instagramAccountId: string
@@ -143,6 +145,7 @@ const requiredByStep: Record<number, string[]> = {
 
 export function AdsPage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const confirm = useConfirm()
   const { consumeCredits, consumeForFunction } = useCredits()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
@@ -190,7 +193,9 @@ export function AdsPage() {
         if (!active) return
         if (saved) {
           setProfile(saved)
-          setOnboardingDone((saved.completionScore ?? 0) >= 70)
+          const locked = Boolean(saved.onboardingCompleted)
+          const legacyComplete = (saved.completionScore ?? 0) >= 70
+          setOnboardingDone(locked || legacyComplete)
         }
       } catch {
         if (!active) return
@@ -250,6 +255,12 @@ export function AdsPage() {
     if (!wantsOnboarding && !wantsEditProfile) return
 
     if (wantsOnboarding) {
+      // Do not allow forcing onboarding from the URL after it has been completed.
+      if (profile.onboardingCompleted) {
+        setMessage('Onboarding is already completed. Use Settings → Growth Ads to reset and re-onboard.')
+        window.history.replaceState({}, '', location.pathname)
+        return
+      }
       setOnboardingDone(false)
       setOnboardingStep(1)
       setStudioStep(1)
@@ -569,6 +580,7 @@ export function AdsPage() {
   }
 
   const completeOnboarding = async () => {
+    setProfile((prev) => ({ ...prev, onboardingCompleted: true }))
     await saveProfile()
     setOnboardingDone(true)
     setMessage('Your Growth Ads AI Profile is ready.')
@@ -581,10 +593,14 @@ export function AdsPage() {
           <h1 className="text-2xl font-bold">{APP_PAGE.growthAds}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Facebook-style campaign builder with AI audience, copy, and creative help.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={profile.metaConnection.adAccountId ? 'default' : 'secondary'}>
+            {profile.metaConnection.adAccountId ? 'Meta connected' : 'Meta not connected'}
+          </Badge>
           <Button variant="outline" onClick={() => setShowProfile(true)}>Edit AI Profile</Button>
-          <Button variant="outline" onClick={connectFacebook}><Link className="mr-2 h-4 w-4" />Connect Facebook</Button>
-          <Button variant="outline" onClick={connectMeta}><Link className="mr-2 h-4 w-4" />Connect Meta Ads</Button>
+          <Button variant="outline" onClick={() => navigate('/settings', { state: { tab: 'accounts' } })}>
+            Manage connections
+          </Button>
         </div>
       </div>
 
@@ -899,26 +915,32 @@ export function AdsPage() {
         </TabsContent>
 
         <TabsContent value="analytics" activeValue={activeTab}>
-          <Card>
-            <CardHeader>
-              <CardTitle>Analytics</CardTitle>
-              <CardDescription>Performance with profile-based recommendations.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Metric label="Spend" value={`$${(Number(draft.dailyBudget || 35) * 7).toFixed(0)}`} />
-              <Metric label="Impressions" value={`${Math.round(Number(draft.dailyBudget || 35) * 120 * 7)}`} />
-              <Metric label="Clicks" value={`${Math.round(Number(draft.dailyBudget || 35) * 1.8 * 7)}`} />
-              <Metric label="CTR" value="1.8%" />
-              <Metric label="CPC" value="$1.90" />
-              <Metric label="Leads" value={`${Math.max(1, Math.round(Number(draft.dailyBudget || 35) / 18))}`} />
-              <Metric label="ROAS" value="2.4x" />
-              <Metric label="Video views" value={`${Math.round(Number(draft.dailyBudget || 35) * 15)}`} />
-              <Metric label="AI suggestion" value="Test a pain-point hook" />
-              <Metric label="AI suggestion" value="Narrow interests 15%" />
-              <Metric label="AI suggestion" value="Use stronger CTA overlay" />
-              <Metric label="AI suggestion" value={profile.leadDestination.type === 'custom_url' ? 'Try Meta Lead Form test' : 'Test faster follow-up CTA'} />
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <PublishedAdsPanel
+              workspaceId={currentWorkspaceId}
+              metaAccountId={profile?.metaConnection?.adAccountId ? `act_${profile.metaConnection.adAccountId.replace(/^act_/, '')}` : null}
+            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Analytics</CardTitle>
+                <CardDescription>Quick estimates + profile-based recommendations.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric label="Est. spend (7d)" value={`$${(Number(draft.dailyBudget || 35) * 7).toFixed(0)}`} />
+                <Metric label="Est. impressions" value={`${Math.round(Number(draft.dailyBudget || 35) * 120 * 7)}`} />
+                <Metric label="Est. clicks" value={`${Math.round(Number(draft.dailyBudget || 35) * 1.8 * 7)}`} />
+                <Metric label="CTR" value="1.8%" />
+                <Metric label="CPC" value="$1.90" />
+                <Metric label="Leads" value={`${Math.max(1, Math.round(Number(draft.dailyBudget || 35) / 18))}`} />
+                <Metric label="ROAS" value="2.4x" />
+                <Metric label="Video views" value={`${Math.round(Number(draft.dailyBudget || 35) * 15)}`} />
+                <Metric label="AI suggestion" value="Test a pain-point hook" />
+                <Metric label="AI suggestion" value="Narrow interests 15%" />
+                <Metric label="AI suggestion" value="Use stronger CTA overlay" />
+                <Metric label="AI suggestion" value={profile.leadDestination.type === 'custom_url' ? 'Try Meta Lead Form test' : 'Test faster follow-up CTA'} />
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
       )}

@@ -6,6 +6,8 @@ export type AdsDestinationType = 'custom_url' | 'meta_lead_form'
 
 export type AdsStudioProfile = {
   userId: string
+  /** Once true, never show onboarding again unless reset from Settings. */
+  onboardingCompleted?: boolean
   metaConnection: {
     facebookPageId: string
     instagramAccountId: string
