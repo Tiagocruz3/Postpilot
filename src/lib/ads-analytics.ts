@@ -217,6 +217,109 @@ export async function loadAdAnalytics({
   return rows
 }
 
+/**
+ * Aggregates daily trends across multiple ads by summing same-date rows.
+ * Used to power workspace-wide sparkline charts on the dashboard.
+ */
+export async function loadAggregatedTrends(params: {
+  workspaceId: string
+  creatives: AdCreative[]
+  preset: DateRangePreset
+  maxAds?: number
+}): Promise<TrendPoint[]> {
+  const { workspaceId, creatives, preset, maxAds = 6 } = params
+  const linked = creatives
+    .filter((c) => Boolean(c.meta_ad_id || c.meta_adset_id || c.meta_campaign_id))
+    .slice(0, maxAds)
+  if (linked.length === 0) return []
+  const allSeries = await Promise.all(
+    linked.map((c) =>
+      loadAdTrends({
+        workspaceId,
+        target: { meta_ad_id: c.meta_ad_id, meta_adset_id: c.meta_adset_id, meta_campaign_id: c.meta_campaign_id },
+        preset,
+      }),
+    ),
+  )
+  const byDate = new Map<string, TrendPoint>()
+  for (const series of allSeries) {
+    for (const point of series) {
+      const existing = byDate.get(point.date)
+      if (existing) {
+        existing.spend += point.spend
+        existing.impressions += point.impressions
+        existing.reach += point.reach
+        existing.clicks += point.clicks
+        existing.leads += point.leads
+        existing.conversions += point.conversions
+      } else {
+        byDate.set(point.date, { ...point })
+      }
+    }
+  }
+  return Array.from(byDate.values())
+    .map((p) => ({
+      ...p,
+      ctr: p.impressions > 0 ? (p.clicks / p.impressions) * 100 : 0,
+      cpc: p.clicks > 0 ? p.spend / p.clicks : 0,
+      cpm: p.impressions > 0 ? (p.spend / p.impressions) * 1000 : 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export type TrendPoint = {
+  date: string
+  spend: number
+  impressions: number
+  reach: number
+  clicks: number
+  ctr: number
+  cpc: number
+  cpm: number
+  leads: number
+  conversions: number
+}
+
+export async function loadAdTrends(params: {
+  workspaceId: string
+  target: { meta_ad_id?: string | null; meta_adset_id?: string | null; meta_campaign_id?: string | null }
+  preset: DateRangePreset
+}): Promise<TrendPoint[]> {
+  const { workspaceId, target, preset } = params
+  const body: Record<string, unknown> = {
+    action: 'ad_trends',
+    workspace_id: workspaceId,
+    date_preset: preset === 'lifetime' ? 'maximum' : preset,
+  }
+  if (target.meta_ad_id) body.ad_id = target.meta_ad_id
+  else if (target.meta_adset_id) body.adset_id = target.meta_adset_id
+  else if (target.meta_campaign_id) body.campaign_id = target.meta_campaign_id
+  else return []
+  try {
+    const { data, error } = await supabase.functions.invoke('meta-ads', { body })
+    if (error) throw error
+    const rows = Array.isArray(data?.data) ? (data.data as Array<Record<string, unknown>>) : []
+    return rows.map((row) => {
+      const norm = normalizeInsight(row)
+      return {
+        date: String(row.date_start ?? row.date_stop ?? ''),
+        spend: norm.spend,
+        impressions: norm.impressions,
+        reach: norm.reach,
+        clicks: norm.clicks,
+        ctr: norm.ctr,
+        cpc: norm.cpc,
+        cpm: norm.cpm,
+        leads: norm.leads,
+        conversions: norm.conversions,
+      }
+    })
+  } catch (err) {
+    console.warn('[ads-analytics] loadAdTrends failed', err)
+    return []
+  }
+}
+
 export function fmtCurrency(value: number, currency = 'USD'): string {
   if (!Number.isFinite(value)) return '—'
   return value.toLocaleString(undefined, { style: 'currency', currency, maximumFractionDigits: value >= 100 ? 0 : 2 })

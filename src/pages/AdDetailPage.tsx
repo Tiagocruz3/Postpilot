@@ -26,9 +26,12 @@ import {
   fmtPercent,
   fmtRatio,
   loadAdAnalytics,
+  loadAdTrends,
   type AdMetrics,
   type DateRangePreset,
+  type TrendPoint,
 } from '@/lib/ads-analytics'
+import { Sparkline } from '@/components/ads/Sparkline'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -71,6 +74,7 @@ export function AdDetailPage() {
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const [creative, setCreative] = useState<AdCreative | null>(null)
   const [metrics, setMetrics] = useState<AdMetrics | null>(null)
+  const [trends, setTrends] = useState<TrendPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [preset, setPreset] = useState<DateRangePreset>('last_30d')
@@ -107,6 +111,21 @@ export function AdDetailPage() {
       const analytics = await loadAdAnalytics({ workspaceId: currentWorkspaceId, preset, maxEnriched: 1 })
       const row = analytics.find((r) => r.creative.id === creativeId)
       setMetrics(row?.metrics ?? null)
+      const hasMeta = Boolean(found.meta_ad_id || found.meta_adset_id || found.meta_campaign_id)
+      if (hasMeta) {
+        const series = await loadAdTrends({
+          workspaceId: currentWorkspaceId,
+          target: {
+            meta_ad_id: found.meta_ad_id,
+            meta_adset_id: found.meta_adset_id,
+            meta_campaign_id: found.meta_campaign_id,
+          },
+          preset,
+        })
+        setTrends(series)
+      } else {
+        setTrends([])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ad')
     } finally {
@@ -338,16 +357,16 @@ export function AdDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                <Kpi label="Spend" value={fmtCurrency(metrics?.spend ?? 0)} accent="text-[#1877F2]" />
-                <Kpi label="Reach" value={fmtNumber(metrics?.reach ?? 0)} />
-                <Kpi label="Impressions" value={fmtNumber(metrics?.impressions ?? 0)} />
-                <Kpi label="Clicks" value={fmtNumber(metrics?.clicks ?? 0)} />
-                <Kpi label="CTR" value={fmtPercent(metrics?.ctr ?? 0)} />
-                <Kpi label="CPC" value={fmtCurrency(metrics?.cpc ?? 0)} />
-                <Kpi label="CPM" value={fmtCurrency(metrics?.cpm ?? 0)} />
+                <Kpi label="Spend" value={fmtCurrency(metrics?.spend ?? 0)} accent="text-[#1877F2]" trend={trends.map((t) => t.spend)} />
+                <Kpi label="Reach" value={fmtNumber(metrics?.reach ?? 0)} trend={trends.map((t) => t.reach)} />
+                <Kpi label="Impressions" value={fmtNumber(metrics?.impressions ?? 0)} trend={trends.map((t) => t.impressions)} />
+                <Kpi label="Clicks" value={fmtNumber(metrics?.clicks ?? 0)} trend={trends.map((t) => t.clicks)} />
+                <Kpi label="CTR" value={fmtPercent(metrics?.ctr ?? 0)} trend={trends.map((t) => t.ctr)} />
+                <Kpi label="CPC" value={fmtCurrency(metrics?.cpc ?? 0)} trend={trends.map((t) => t.cpc)} />
+                <Kpi label="CPM" value={fmtCurrency(metrics?.cpm ?? 0)} trend={trends.map((t) => t.cpm)} />
                 <Kpi label="Frequency" value={metrics?.frequency ? metrics.frequency.toFixed(2) : '—'} />
-                <Kpi label="Leads" value={fmtNumber(metrics?.leads ?? 0)} />
-                <Kpi label="Conversions" value={fmtNumber(metrics?.conversions ?? 0)} />
+                <Kpi label="Leads" value={fmtNumber(metrics?.leads ?? 0)} trend={trends.map((t) => t.leads)} />
+                <Kpi label="Conversions" value={fmtNumber(metrics?.conversions ?? 0)} trend={trends.map((t) => t.conversions)} />
                 <Kpi label="Purchases" value={fmtNumber(metrics?.purchases ?? 0)} />
                 <Kpi label="ROAS" value={fmtRatio(metrics?.roas ?? 0)} accent="text-emerald-600" />
                 <Kpi label="Video 25%" value={fmtNumber(metrics?.videoViews25 ?? 0)} />
@@ -539,11 +558,25 @@ function StatusBadge({ status }: { status: AdCreativeStatus }) {
   return <Badge variant="outline">{AD_CREATIVE_STATUS_LABELS[status]}</Badge>
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function Kpi({
+  label,
+  value,
+  accent,
+  trend,
+}: {
+  label: string
+  value: string
+  accent?: string
+  trend?: number[]
+}) {
+  const hasTrend = Array.isArray(trend) && trend.length >= 2 && trend.some((v) => v > 0)
   return (
     <div className="rounded-xl border bg-card p-3">
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn('mt-1 text-lg font-semibold tabular-nums', accent ?? 'text-foreground')}>{value}</p>
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <p className={cn('text-lg font-semibold tabular-nums', accent ?? 'text-foreground')}>{value}</p>
+        {hasTrend ? <Sparkline values={trend!} width={64} height={20} /> : null}
+      </div>
     </div>
   )
 }

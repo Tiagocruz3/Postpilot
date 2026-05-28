@@ -12,11 +12,14 @@ import {
   fmtPercent,
   fmtRatio,
   loadAdAnalytics,
+  loadAggregatedTrends,
   sumMetrics,
   type AdMetrics,
   type AnalyticsRow,
   type DateRangePreset,
+  type TrendPoint,
 } from '@/lib/ads-analytics'
+import { Sparkline } from '@/components/ads/Sparkline'
 import { AD_CREATIVE_STATUS_LABELS, type AdCreativeStatus } from '@/lib/ads-creatives'
 import { cn } from '@/lib/utils'
 
@@ -74,6 +77,8 @@ export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProp
   const [sortKey, setSortKey] = useState<SortKey>('spend')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
+  const [trends, setTrends] = useState<TrendPoint[]>([])
+
   const refresh = useCallback(async () => {
     if (!workspaceId) return
     setLoading(true)
@@ -81,6 +86,12 @@ export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProp
     try {
       const data = await loadAdAnalytics({ workspaceId, preset })
       setRows(data)
+      const aggregated = await loadAggregatedTrends({
+        workspaceId,
+        creatives: data.map((r) => r.creative),
+        preset,
+      })
+      setTrends(aggregated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics')
     } finally {
@@ -189,16 +200,16 @@ export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProp
           ) : null}
 
           <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-            <KpiCard label="Spend" value={fmtCurrency(totals.spend)} accent="text-[#1877F2]" />
-            <KpiCard label="Reach" value={fmtNumber(totals.reach)} />
-            <KpiCard label="Impressions" value={fmtNumber(totals.impressions)} />
-            <KpiCard label="Clicks" value={fmtNumber(totals.clicks)} />
-            <KpiCard label="CTR" value={fmtPercent(totals.ctr)} />
-            <KpiCard label="CPC" value={fmtCurrency(totals.cpc)} />
-            <KpiCard label="CPM" value={fmtCurrency(totals.cpm)} />
+            <KpiCard label="Spend" value={fmtCurrency(totals.spend)} accent="text-[#1877F2]" trend={trends.map((t) => t.spend)} />
+            <KpiCard label="Reach" value={fmtNumber(totals.reach)} trend={trends.map((t) => t.reach)} />
+            <KpiCard label="Impressions" value={fmtNumber(totals.impressions)} trend={trends.map((t) => t.impressions)} />
+            <KpiCard label="Clicks" value={fmtNumber(totals.clicks)} trend={trends.map((t) => t.clicks)} />
+            <KpiCard label="CTR" value={fmtPercent(totals.ctr)} trend={trends.map((t) => t.ctr)} />
+            <KpiCard label="CPC" value={fmtCurrency(totals.cpc)} trend={trends.map((t) => t.cpc)} />
+            <KpiCard label="CPM" value={fmtCurrency(totals.cpm)} trend={trends.map((t) => t.cpm)} />
             <KpiCard label="Freq." value={totals.frequency ? totals.frequency.toFixed(2) : '—'} />
-            <KpiCard label="Leads" value={fmtNumber(totals.leads)} />
-            <KpiCard label="Conversions" value={fmtNumber(totals.conversions)} />
+            <KpiCard label="Leads" value={fmtNumber(totals.leads)} trend={trends.map((t) => t.leads)} />
+            <KpiCard label="Conversions" value={fmtNumber(totals.conversions)} trend={trends.map((t) => t.conversions)} />
             <KpiCard label="Purchases" value={fmtNumber(totals.purchases)} />
             <KpiCard label="ROAS" value={fmtRatio(totals.roas)} accent="text-emerald-600" />
           </div>
@@ -335,11 +346,25 @@ export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProp
   )
 }
 
-function KpiCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function KpiCard({
+  label,
+  value,
+  accent,
+  trend,
+}: {
+  label: string
+  value: string
+  accent?: string
+  trend?: number[]
+}) {
+  const hasTrend = Array.isArray(trend) && trend.length >= 2 && trend.some((v) => v > 0)
   return (
     <div className="rounded-xl border bg-card p-3">
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn('mt-1 text-lg font-semibold tabular-nums', accent ?? 'text-foreground')}>{value}</p>
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <p className={cn('text-lg font-semibold tabular-nums', accent ?? 'text-foreground')}>{value}</p>
+        {hasTrend ? <Sparkline values={trend!} width={64} height={20} /> : null}
+      </div>
     </div>
   )
 }

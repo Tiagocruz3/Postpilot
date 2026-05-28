@@ -189,6 +189,22 @@ serve(withCors(async (req) => {
     return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
   }
 
+  if (action === 'ad_trends') {
+    const target = String(params.ad_id || params.adset_id || params.campaign_id || '')
+    if (!target) {
+      return new Response(JSON.stringify({ error: 'Missing ad_id / adset_id / campaign_id' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const datePreset = typeof params.date_preset === 'string' ? params.date_preset : 'last_30d'
+    const fields = ['spend', 'impressions', 'reach', 'clicks', 'ctr', 'cpc', 'cpm', 'actions'].join(',')
+    const { json } = await fetchJson(
+      `${apiBase}/${target}/insights?fields=${fields}&time_increment=1&date_preset=${encodeURIComponent(datePreset)}&access_token=${token}`,
+    )
+    return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
+  }
+
   if (action === 'set_ad_status') {
     const { ad_id, status } = params as { ad_id?: string; status?: string }
     if (!ad_id || !status) {

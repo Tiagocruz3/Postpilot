@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ExternalLink, Loader2, RefreshCcw, Search, Trash2 } from 'lucide-react'
+import { Archive, Calendar, ExternalLink, Loader2, RefreshCcw, Search, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -126,10 +126,16 @@ export function AdLibraryPanel({ workspaceId, businessName, onOpenInStudio }: Ad
             Every variant you've generated or saved. Filter, edit, archive, or send back into the studio.
           </CardDescription>
         </div>
-        <Button size="sm" variant="outline" onClick={() => void refresh()} disabled={loading || !workspaceId}>
-          {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
-          Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => navigate('/app/ads/history')}>
+            <Calendar className="mr-2 h-4 w-4" />
+            View timeline
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => void refresh()} disabled={loading || !workspaceId}>
+            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
