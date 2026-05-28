@@ -72,6 +72,7 @@ export type AdsStudioProfile = {
 export function createDefaultAdsStudioProfile(userId: string): AdsStudioProfile {
   return {
     userId,
+    onboardingCompleted: false,
     metaConnection: {
       facebookPageId: '',
       instagramAccountId: '',
@@ -185,9 +186,26 @@ export async function fetchAdsStudioProfile(
     .maybeSingle()
 
   if (error) throw error
-  const saved = (data as { answers?: AdsStudioProfile } | null)?.answers ?? null
-  if (!saved?.userId) return null
-  return saved
+  const raw = (data as { answers?: Partial<AdsStudioProfile> } | null)?.answers ?? null
+  if (!raw) return null
+
+  // Older rows may not include every field (or even userId). Normalize to the latest schema
+  // so onboarding-complete flags and defaults survive across updates.
+  const base = createDefaultAdsStudioProfile(userId)
+  return {
+    ...base,
+    ...raw,
+    userId,
+    metaConnection: { ...base.metaConnection, ...(raw.metaConnection ?? {}) },
+    businessProfile: { ...base.businessProfile, ...(raw.businessProfile ?? {}) },
+    offerProfile: { ...base.offerProfile, ...(raw.offerProfile ?? {}) },
+    audienceProfile: { ...base.audienceProfile, ...(raw.audienceProfile ?? {}) },
+    brandVoice: { ...base.brandVoice, ...(raw.brandVoice ?? {}) },
+    leadDestination: { ...base.leadDestination, ...(raw.leadDestination ?? {}) },
+    creativePreferences: { ...base.creativePreferences, ...(raw.creativePreferences ?? {}) },
+    aiPreferences: { ...base.aiPreferences, ...(raw.aiPreferences ?? {}) },
+    onboardingCompleted: Boolean(raw.onboardingCompleted),
+  }
 }
 
 export async function saveAdsStudioProfile(

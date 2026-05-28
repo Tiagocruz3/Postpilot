@@ -83,7 +83,7 @@ export function GrowthAdsProfileSettings({ workspaceId, userId, onMessage }: Gro
         setProfile(fresh)
       }
       onMessage?.('Growth Ads profile reset. Opening onboarding…')
-      navigate('/ads?onboarding=1')
+      navigate('/app/ads?onboarding=1')
     } catch (err) {
       onMessage?.(err instanceof Error ? err.message : 'Could not reset Growth Ads profile.')
     } finally {
@@ -92,11 +92,11 @@ export function GrowthAdsProfileSettings({ workspaceId, userId, onMessage }: Gro
   }
 
   const openOnboarding = () => {
-    navigate('/ads?onboarding=1')
+    navigate('/app/ads?onboarding=1')
   }
 
   const openProfileEditor = () => {
-    navigate('/ads?editProfile=1')
+    navigate('/app/ads?editProfile=1')
   }
 
   if (!workspaceId) {

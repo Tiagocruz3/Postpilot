@@ -335,7 +335,7 @@ export function AdsPage() {
     if (isDemoMode) return setMessage('Demo mode: Meta connected.')
     void redirectToEdgeFunction('meta-oauth-start', {
       workspace_id: currentWorkspaceId,
-      return_to: '/ads?oauth=meta&status=connected',
+      return_to: '/app/ads?oauth=meta&status=connected',
     })
   }
 
@@ -343,7 +343,7 @@ export function AdsPage() {
     if (isDemoMode) return setMessage('Demo mode: Facebook connected.')
     void redirectToEdgeFunction('facebook-oauth-start', {
       workspace_id: currentWorkspaceId,
-      return_to: '/ads?oauth=facebook&status=connected',
+      return_to: '/app/ads?oauth=facebook&status=connected',
     })
   }
 

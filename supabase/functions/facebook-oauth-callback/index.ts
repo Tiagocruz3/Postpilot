@@ -113,13 +113,42 @@ serve(async (req) => {
     const adAccounts = await fetchMetaAdAccounts(userAccessToken)
 
     const supabase = getAdminClient()
+
+    // Preserve the user's posting target across reconnects.
+    // Create Studio posting uses metadata.selected_page_id; Ads Studio may prompt reconnects,
+    // so we should not reset a previously chosen Page unless it's no longer available.
+    const { data: existingIntegration } = await supabase
+      .from('user_integrations')
+      .select('metadata')
+      .eq('user_id', userId)
+      .eq('workspace_id', workspaceId)
+      .eq('provider', 'facebook')
+      .maybeSingle()
+
+    const existingMeta = (existingIntegration as { metadata?: Record<string, unknown> } | null)?.metadata ?? null
+    const existingSelectedPageId =
+      typeof existingMeta?.selected_page_id === 'string' ? (existingMeta.selected_page_id as string) : ''
+    const allowedPageIds = new Set(validPages.map((page) => page.id))
+    const selectedPageId =
+      existingSelectedPageId && allowedPageIds.has(existingSelectedPageId) ? existingSelectedPageId : primary.id
+
+    const selectedInstagramId = (() => {
+      const raw = existingMeta?.selected_instagram_account_id
+      const existingSelectedIg = typeof raw === 'string' ? raw : null
+      if (existingSelectedIg && instagramAccounts.some((account) => account.id === existingSelectedIg)) {
+        return existingSelectedIg
+      }
+      const igForSelectedPage = instagramAccounts.filter((account) => account.page_id === selectedPageId)
+      return igForSelectedPage[0]?.id ?? instagramAccounts[0]?.id ?? null
+    })()
+
     const facebookMetadata = {
       page_id: primary.id,
       page_name: primary.name,
-      selected_page_id: primary.id,
+      selected_page_id: selectedPageId,
       pages: validPages.map((p) => ({ id: p.id, name: p.name, access_token: p.access_token })),
       instagram_accounts: instagramAccounts,
-      selected_instagram_account_id: instagramAccounts[0]?.id ?? null,
+      selected_instagram_account_id: selectedInstagramId,
       ad_accounts: adAccounts,
     }
 

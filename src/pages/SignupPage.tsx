@@ -24,7 +24,7 @@ export function SignupPage() {
       password,
       options: {
         data: { display_name: displayName },
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/app`,
       },
     })
     setLoading(false)
@@ -35,7 +35,7 @@ export function SignupPage() {
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/app` },
     })
     if (error) setError(error.message)
   }

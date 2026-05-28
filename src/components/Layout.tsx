@@ -66,12 +66,12 @@ export function Layout() {
   }, [sidebarOpen])
 
   const navItems = [
-    { path: '/', label: APP_PAGE.commandCenter, icon: LayoutDashboard, hint: 'Overview + quick actions' },
-    { path: '/planner', label: APP_PAGE.contentCalendar, icon: CalendarDays, hint: 'Calendar + Google sync' },
-    { path: '/compose', label: APP_PAGE.createStudio, icon: PenTool, hint: 'Write, research, remix' },
-    { path: '/library', label: APP_PAGE.aiVault, icon: Images, hint: 'Generated images & video' },
-    { path: '/ads', label: APP_PAGE.growthAds, icon: BarChart3, hint: 'Meta AI ad campaigns' },
-    { path: '/history', label: APP_PAGE.activityLog, icon: History, hint: 'Published posts + metrics' },
+    { path: '/app', label: APP_PAGE.commandCenter, icon: LayoutDashboard, hint: 'Overview + quick actions' },
+    { path: '/app/planner', label: APP_PAGE.contentCalendar, icon: CalendarDays, hint: 'Calendar + Google sync' },
+    { path: '/app/compose', label: APP_PAGE.createStudio, icon: PenTool, hint: 'Write, research, remix' },
+    { path: '/app/library', label: APP_PAGE.aiVault, icon: Images, hint: 'Generated images & video' },
+    { path: '/app/ads', label: APP_PAGE.growthAds, icon: BarChart3, hint: 'Meta AI ad campaigns' },
+    { path: '/app/history', label: APP_PAGE.activityLog, icon: History, hint: 'Published posts + metrics' },
   ]
 
   const handleSignOut = async () => {
@@ -222,7 +222,9 @@ export function Layout() {
           )}
         >
           {navItems.map((item) => {
-            const active = location.pathname === item.path
+            const active =
+              location.pathname === item.path ||
+              (item.path === '/app' ? location.pathname === '/app' : location.pathname.startsWith(`${item.path}/`))
             const Icon = item.icon
             return (
               <button
