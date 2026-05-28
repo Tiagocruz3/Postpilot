@@ -10,6 +10,13 @@ export type AdsStudioProfile = {
   onboardingCompleted?: boolean
   /** Resume onboarding where the user left off (1-8). */
   onboardingStep?: number
+  /**
+   * Facebook Page ids the user has completed onboarding for, within this
+   * workspace. Used by the Ads Studio "Posting from" toggle to detect when
+   * the user is switching to a Page that hasn't been onboarded yet so we can
+   * walk them through onboarding before they publish ads to that Page.
+   */
+  onboardedPageIds?: string[]
   metaConnection: {
     facebookPageId: string
     instagramAccountId: string
@@ -76,6 +83,7 @@ export function createDefaultAdsStudioProfile(userId: string): AdsStudioProfile 
     userId,
     onboardingCompleted: false,
     onboardingStep: 1,
+    onboardedPageIds: [],
     metaConnection: {
       facebookPageId: '',
       instagramAccountId: '',
@@ -197,6 +205,19 @@ export async function fetchAdsStudioProfile(
   const base = createDefaultAdsStudioProfile(userId)
   const rawStep = typeof raw.onboardingStep === 'number' ? raw.onboardingStep : Number(raw.onboardingStep)
   const normalizedStep = Number.isFinite(rawStep) ? Math.max(1, Math.min(8, Math.round(rawStep))) : 1
+  // Migrate older rows that completed onboarding before we tracked per-Page
+  // status: if onboarding is marked complete and we know the Page id used at
+  // the time, treat that Page as already onboarded so the user isn't prompted
+  // to redo onboarding for the Page they are already publishing from.
+  const rawOnboardedPageIds = Array.isArray(raw.onboardedPageIds)
+    ? raw.onboardedPageIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : []
+  const fallbackPageId = raw.metaConnection?.facebookPageId
+  const onboardedPageIds =
+    rawOnboardedPageIds.length === 0 && raw.onboardingCompleted && fallbackPageId
+      ? [fallbackPageId]
+      : rawOnboardedPageIds
+
   return {
     ...base,
     ...raw,
@@ -211,6 +232,7 @@ export async function fetchAdsStudioProfile(
     aiPreferences: { ...base.aiPreferences, ...(raw.aiPreferences ?? {}) },
     onboardingCompleted: Boolean(raw.onboardingCompleted),
     onboardingStep: normalizedStep,
+    onboardedPageIds,
   }
 }
 

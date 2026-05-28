@@ -227,6 +227,16 @@ export function AdsPage() {
   const [generatingCopy, setGeneratingCopy] = useState(false)
   const [mediaPage, setMediaPage] = useState(1)
   const [updatingPostingTarget, setUpdatingPostingTarget] = useState(false)
+  /**
+   * Set when the user picks a Page from the studio "Posting from" toggle that
+   * hasn't been onboarded for ads yet. Holds the candidate Page so we can show
+   * a confirmation modal before switching, and so the user can choose to
+   * either start onboarding for it or cancel the switch.
+   */
+  const [pendingPageSwitch, setPendingPageSwitch] = useState<{
+    pageId: string
+    pageName: string
+  } | null>(null)
   const [profile, setProfile] = useState<AdsStudioProfile>(() => createDefaultAdsStudioProfile(user?.id ?? ''))
   const [draft, setDraft] = useState<CampaignDraftState>(() => createDefaultCampaignDraft())
   const [options, setOptions] = useState<AdOption[]>([])
@@ -480,6 +490,16 @@ export function AdsPage() {
     return []
   }, [integrations, profile.metaConnection.facebookPageId, profile.businessProfile.businessName])
 
+  /**
+   * Name shown in the studio sidebar / preview as the posting Page label.
+   * We prefer the live Facebook Page name from the integration so it reflects
+   * the "Posting from" toggle in real time; we only fall back to the saved
+   * brand business name when no Page is connected.
+   */
+  const selectedFacebookPageName =
+    facebookPagesForToggle.find((page) => page.id === profile.metaConnection.facebookPageId)?.name ??
+    profile.businessProfile.businessName
+
   const recommendedTypes = useMemo(() => {
     if (draft.goal === 'Get leads' && profile.leadDestination.type === 'meta_lead_form') return ['Lead Form Ad', 'Video Ad', 'Single Image Ad']
     if (draft.goal === 'Send traffic to website' && (profile.leadDestination.defaultUrl || profile.businessProfile.websiteUrl)) {
@@ -551,14 +571,16 @@ export function AdsPage() {
   }
 
   /**
-   * Switch the Facebook Page used for ads from this workspace. Updates two
-   * places in lockstep so the studio preview, the saved profile, and the
-   * `meta-ads` edge function (which reads `integration.metadata.page_id`)
-   * all agree on the new posting target.
+   * Persist the page switch to both the saved profile and the integration
+   * metadata used by the `meta-ads` edge function. Optionally enters the
+   * onboarding flow for the new Page when `restartOnboarding` is true.
    */
-  const changeFacebookPostingPage = async (pageId: string) => {
-    if (!pageId || pageId === profile.metaConnection.facebookPageId) return
-    const nextPage = facebookPagesForToggle.find((page) => page.id === pageId)
+  const applyFacebookPageSwitch = async (
+    pageId: string,
+    pageName: string,
+    options: { restartOnboarding?: boolean } = {},
+  ) => {
+    const restartOnboarding = options.restartOnboarding ?? false
     if (isDemoMode) {
       setProfile((prev) => ({
         ...prev,
@@ -568,7 +590,15 @@ export function AdsPage() {
           connectedAt: new Date().toISOString(),
         },
       }))
-      setMessage(`Posting from ${nextPage?.name ?? pageId} (demo).`)
+      if (restartOnboarding) {
+        setOnboardingDone(false)
+        setOnboardingStep(1)
+      }
+      setMessage(
+        restartOnboarding
+          ? `Switched to ${pageName} (demo). Complete onboarding to start posting ads.`
+          : `Posting from ${pageName} (demo).`,
+      )
       return
     }
 
@@ -580,7 +610,7 @@ export function AdsPage() {
           ...(facebookIntegration.metadata ?? {}),
           selected_page_id: pageId,
           page_id: pageId,
-          page_name: nextPage?.name ?? pageId,
+          page_name: pageName,
         }
         const { error: integrationError } = await supabase
           .from('user_integrations')
@@ -598,11 +628,57 @@ export function AdsPage() {
           facebookPageId: pageId,
           connectedAt: new Date().toISOString(),
         },
+        ...(restartOnboarding
+          ? { onboardingCompleted: false, onboardingStep: 1 }
+          : {}),
       })
-      setMessage(`Now posting from ${nextPage?.name ?? pageId}.`)
+      if (restartOnboarding) {
+        setOnboardingDone(false)
+        setOnboardingStep(1)
+      }
+      setMessage(
+        restartOnboarding
+          ? `Switched to ${pageName}. Complete onboarding to start posting ads from this Page.`
+          : `Now posting from ${pageName}.`,
+      )
     } finally {
       setUpdatingPostingTarget(false)
     }
+  }
+
+  /**
+   * Top-level handler wired to the studio "Posting from" dropdown. Routes the
+   * user through a confirmation modal when they pick a Page that has not been
+   * onboarded yet so they can't publish ads from a Page that hasn't gone
+   * through the brand / audience / offer setup.
+   */
+  const changeFacebookPostingPage = async (pageId: string) => {
+    if (!pageId || pageId === profile.metaConnection.facebookPageId) return
+    const nextPage = facebookPagesForToggle.find((page) => page.id === pageId)
+    const pageName = nextPage?.name ?? pageId
+    const onboardedPageIds = profile.onboardedPageIds ?? []
+    const isOnboarded = onboardedPageIds.includes(pageId)
+
+    // First-ever onboarding hasn't even been completed, so just let them move
+    // around — they're still in the wizard for whatever Page they were on.
+    if (!profile.onboardingCompleted) {
+      await applyFacebookPageSwitch(pageId, pageName)
+      return
+    }
+
+    if (!isOnboarded) {
+      setPendingPageSwitch({ pageId, pageName })
+      return
+    }
+
+    await applyFacebookPageSwitch(pageId, pageName)
+  }
+
+  const confirmStartOnboardingForPendingPage = async () => {
+    if (!pendingPageSwitch) return
+    const { pageId, pageName } = pendingPageSwitch
+    setPendingPageSwitch(null)
+    await applyFacebookPageSwitch(pageId, pageName, { restartOnboarding: true })
   }
 
   const suggestAudienceWithAi = async (goalOverride?: string) => {
@@ -1220,7 +1296,19 @@ export function AdsPage() {
     setOnboardingDone(true)
     setShowOnboardingComplete(true)
     setMessage('')
-    void saveProfile({ onboardingCompleted: true, onboardingStep: 8 })
+    // Track the Page this onboarding was completed for so the "Posting from"
+    // toggle can detect when the user later switches to a Page that hasn't
+    // been onboarded yet.
+    const currentPageId = profile.metaConnection.facebookPageId
+    const existingOnboardedPageIds = profile.onboardedPageIds ?? []
+    const onboardedPageIds = currentPageId && !existingOnboardedPageIds.includes(currentPageId)
+      ? [...existingOnboardedPageIds, currentPageId]
+      : existingOnboardedPageIds
+    void saveProfile({
+      onboardingCompleted: true,
+      onboardingStep: 8,
+      onboardedPageIds,
+    })
   }
 
   return (
@@ -1337,6 +1425,49 @@ export function AdsPage() {
             }}
           >
             Create first Meta ad
+          </Button>
+        </DialogFooter>
+      </Dialog>
+
+      <Dialog
+        open={pendingPageSwitch !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingPageSwitch(null)
+        }}
+        panelClassName="w-full max-w-md p-6"
+      >
+        <DialogHeader>
+          <DialogTitle>Onboarding required for this Page</DialogTitle>
+          <DialogDescription>
+            {pendingPageSwitch
+              ? `${pendingPageSwitch.pageName} hasn't gone through Growth Ads onboarding yet. You'll need to complete the onboarding process — business, offer, audience, brand voice, and creative preferences — before you can publish ads to this Page.`
+              : null}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 rounded-2xl border bg-amber-500/5 px-4 py-3 text-sm">
+          <p className="font-medium text-amber-700 dark:text-amber-300">
+            Why this matters
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Each Facebook Page can target a different audience and brand voice. Completing onboarding for{' '}
+            {pendingPageSwitch?.pageName ?? 'this Page'} keeps every ad on-brand and lets the AI tailor copy and
+            creatives to the right audience.
+          </p>
+        </div>
+        <DialogFooter className="mt-5 gap-2 sm:gap-2">
+          <Button
+            variant="ghost"
+            className="w-full sm:w-auto"
+            onClick={() => setPendingPageSwitch(null)}
+          >
+            Stay on current Page
+          </Button>
+          <Button
+            className="w-full sm:w-auto"
+            disabled={updatingPostingTarget}
+            onClick={() => void confirmStartOnboardingForPendingPage()}
+          >
+            Start onboarding
           </Button>
         </DialogFooter>
       </Dialog>
@@ -1633,7 +1764,7 @@ export function AdsPage() {
               setProfile((p) => ({ ...p, audienceProfile }))
               void saveProfile()
             }}
-            businessName={profile.businessProfile.businessName}
+            businessName={selectedFacebookPageName}
             defaultDestinationUrl={profile.leadDestination.defaultUrl || profile.businessProfile.websiteUrl}
             destinationType={profile.leadDestination.type}
             brandTone={profile.brandVoice.tone}
@@ -1723,7 +1854,7 @@ export function AdsPage() {
         <TabsContent value="library" activeValue={activeTab}>
           <AdLibraryPanel
             workspaceId={currentWorkspaceId}
-            businessName={profile.businessProfile.businessName}
+            businessName={selectedFacebookPageName}
             facebookPageId={profile.metaConnection.facebookPageId || null}
             onOpenInStudio={(creative) => {
               setActiveTab('studio')
