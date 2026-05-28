@@ -97,7 +97,7 @@ INSERT INTO public.subscription_plans (
   ('starter', 'Starter', 19, 750, 60, 40, 4, 2, 2, true, false, false, 1),
   ('pro', 'Pro', 49, 2500, 200, 150, 12, 5, 5, true, true, true, 2),
   ('growth', 'Growth', 99, 7500, 500, 400, 30, 10, 10, true, true, false, 3),
-  ('agency', 'Agency', 249, 25000, 1500, 1200, 100, 30, 30, true, true, false, 4)
+  ('agency', 'Agency', 500, 25000, 1500, 1200, 100, 30, 30, true, true, false, 4)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.topup_packs (id, name, credits, price, best_value, sort_order) VALUES

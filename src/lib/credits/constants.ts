@@ -85,7 +85,7 @@ export const MEMBERSHIP_PLANS: Record<
   agency: {
     id: 'agency',
     name: 'Agency',
-    priceMonthly: 249,
+    priceMonthly: 500,
     monthlyCredits: 25000,
     postsPerMonth: 1500,
     imagesPerMonth: 1200,

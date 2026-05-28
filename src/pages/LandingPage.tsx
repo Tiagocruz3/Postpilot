@@ -783,7 +783,7 @@ export function LandingPage() {
                 },
                 {
                   name: 'Agency',
-                  price: '$249',
+                  price: '$500',
                   blurb: 'For teams and agencies.',
                   items: ['25,000 AI credits/mo', '1,500 posts/mo', '1,200 images/mo', '100 videos/mo', '30 social accounts', 'Team workflows'],
                   cta: 'Start Agency',
