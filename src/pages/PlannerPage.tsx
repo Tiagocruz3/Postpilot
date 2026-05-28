@@ -497,7 +497,7 @@ export function PlannerPage() {
             </div>
 
             <DialogFooter className="border-t bg-background px-6 py-4">
-              <Button variant="outline" onClick={() => navigate('/history')}>
+              <Button variant="outline" onClick={() => navigate('/app/history')}>
                 Open {APP_PAGE.activityLog}
               </Button>
               <Button

@@ -120,15 +120,15 @@ export function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button size="lg" className="h-11 shadow-sm" onClick={() => navigate('/compose')}>
+            <Button size="lg" className="h-11 shadow-sm" onClick={() => navigate('/app/compose')}>
               <PenLine className="mr-2 h-4 w-4" />
               Create Post
             </Button>
-            <Button size="lg" variant="outline" className="h-11 bg-background/80" onClick={() => navigate('/planner')}>
+            <Button size="lg" variant="outline" className="h-11 bg-background/80" onClick={() => navigate('/app/planner')}>
               <CalendarClock className="mr-2 h-4 w-4" />
               Schedule Post
             </Button>
-            <Button size="lg" variant="outline" className="h-11 bg-background/80" onClick={() => navigate('/ads')}>
+            <Button size="lg" variant="outline" className="h-11 bg-background/80" onClick={() => navigate('/app/ads')}>
               <Megaphone className="mr-2 h-4 w-4" />
               Create Ad
             </Button>
@@ -207,7 +207,7 @@ export function DashboardPage() {
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.detail}</p>
               </div>
             ))}
-            <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/compose')}>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/app/compose')}>
               <Sparkles className="mr-2 h-4 w-4" />
               Open {APP_PAGE.createStudio}
             </Button>
@@ -224,7 +224,7 @@ export function DashboardPage() {
               <CardTitle className="text-lg">Upcoming Scheduled Posts</CardTitle>
               <CardDescription>Posts and ads queued on your {APP_PAGE.contentCalendar.toLowerCase()}.</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/planner')}>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/planner')}>
               Open {APP_PAGE.contentCalendar}
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Button>
@@ -235,7 +235,7 @@ export function DashboardPage() {
             ) : upcomingScheduled.length === 0 ? (
               <div className="rounded-2xl border border-dashed py-12 text-center">
                 <p className="text-sm text-muted-foreground">No upcoming posts scheduled.</p>
-                <Button className="mt-4" size="sm" onClick={() => navigate('/planner')}>
+                <Button className="mt-4" size="sm" onClick={() => navigate('/app/planner')}>
                   Schedule your first post
                 </Button>
               </div>
@@ -310,7 +310,7 @@ export function DashboardPage() {
                 </div>
               ))
             )}
-            <Button variant="ghost" size="sm" className="mt-1 w-full" onClick={() => navigate('/history')}>
+            <Button variant="ghost" size="sm" className="mt-1 w-full" onClick={() => navigate('/app/history')}>
               View {APP_PAGE.activityLog}
             </Button>
           </CardContent>
@@ -347,7 +347,7 @@ export function DashboardPage() {
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">{ads.cplLabel}</dd>
               </div>
             </dl>
-            <Button className="mt-4 w-full" variant="outline" onClick={() => navigate('/ads')}>
+            <Button className="mt-4 w-full" variant="outline" onClick={() => navigate('/app/ads')}>
               Manage ads
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Button>

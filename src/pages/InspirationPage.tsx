@@ -33,7 +33,7 @@ export function InspirationPage() {
   const [postText, setPostText] = useState('')
 
   const remixPost = (post: InspirationPost) => {
-    navigate('/compose', {
+    navigate('/app/compose', {
       state: {
         remixPostText: post.post_text,
         competitorNiche: watches.find((w) => w.id === post.watch_id)?.niche ?? '',

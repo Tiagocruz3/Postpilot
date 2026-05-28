@@ -229,11 +229,15 @@ export async function saveAdsStudioProfile(
 
   if (isDemoMode) return payload
 
-  const { error } = await supabase.from('meta_ads_onboarding').upsert({
-    workspace_id: workspaceId,
-    user_id: userId,
-    answers: payload as unknown as Json,
-  } as never)
+  const { error } = await supabase.from('meta_ads_onboarding').upsert(
+    {
+      workspace_id: workspaceId,
+      user_id: userId,
+      answers: payload as unknown as Json,
+      updated_at: new Date().toISOString(),
+    } as never,
+    { onConflict: 'user_id,workspace_id' },
+  )
 
   if (error) throw error
   return payload

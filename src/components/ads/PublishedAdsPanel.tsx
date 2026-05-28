@@ -108,7 +108,11 @@ export function PublishedAdsPanel({
       setCampaigns(withInsights)
       if (rows.length === 0) setMessage('No campaigns found yet. Publish your first campaign to see metrics here.')
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Could not load Meta campaign metrics.')
+      const raw = err instanceof Error ? err.message : ''
+      const friendly = raw.toLowerCase().includes('failed to send')
+        ? 'Could not reach Meta Ads. Check that your Meta account is still connected (Settings → Connections) and that the meta-ads edge function is deployed.'
+        : raw || 'Could not load Meta campaign metrics.'
+      setMessage(friendly)
       setCampaigns([])
     } finally {
       setLoading(false)

@@ -1699,11 +1699,11 @@ export function ComposePage() {
 
             <DialogFooter className="border-t bg-background px-6 py-4">
               {completedPost.action === 'schedule' ? (
-                <Button variant="outline" onClick={() => navigate('/planner')}>
+                <Button variant="outline" onClick={() => navigate('/app/planner')}>
                   Open planner
                 </Button>
               ) : (
-                <Button variant="outline" onClick={() => navigate('/history')}>
+                <Button variant="outline" onClick={() => navigate('/app/history')}>
                   {APP_PAGE.activityLog}
                 </Button>
               )}

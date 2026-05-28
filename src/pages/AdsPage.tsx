@@ -308,11 +308,20 @@ export function AdsPage() {
       updatedAt: new Date().toISOString(),
       createdAt: profile.createdAt || new Date().toISOString(),
     }
-    await supabase.from('meta_ads_onboarding').upsert({
-      workspace_id: currentWorkspaceId,
-      user_id: user.id,
-      answers: payload as unknown as Json,
-    } as never)
+    const { error: upsertError } = await supabase.from('meta_ads_onboarding').upsert(
+      {
+        workspace_id: currentWorkspaceId,
+        user_id: user.id,
+        answers: payload as unknown as Json,
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'user_id,workspace_id' },
+    )
+    if (upsertError) {
+      console.error('[AdsPage] saveProfile upsert failed', upsertError)
+      setMessage(`Could not save profile: ${upsertError.message}`)
+      return
+    }
     setProfile(payload)
     if (showProfile) {
       setShowProfile(false)
@@ -536,7 +545,7 @@ export function AdsPage() {
             {profile.metaConnection.adAccountId ? 'Meta connected' : 'Meta not connected'}
           </Badge>
           <Button variant="outline" onClick={() => setShowProfile(true)}>Edit AI Profile</Button>
-          <Button variant="outline" onClick={() => navigate('/settings', { state: { tab: 'accounts' } })}>
+          <Button variant="outline" onClick={() => navigate('/app/settings', { state: { tab: 'accounts' } })}>
             Manage connections
           </Button>
         </div>
@@ -555,7 +564,11 @@ export function AdsPage() {
       </div>
       {message ? <div className="rounded-xl border bg-primary/5 px-4 py-3 text-sm">{message}</div> : null}
 
-      <Dialog open={showOnboardingComplete} onOpenChange={setShowOnboardingComplete} panelClassName="w-full max-w-xl">
+      <Dialog
+        open={showOnboardingComplete}
+        onOpenChange={setShowOnboardingComplete}
+        panelClassName="w-full max-w-lg p-6"
+      >
         <DialogHeader>
           <DialogTitle>Your Growth Ads AI Profile is ready</DialogTitle>
           <DialogDescription>
@@ -568,9 +581,10 @@ export function AdsPage() {
             You can edit this anytime via <span className="font-medium text-foreground">Edit AI Profile</span>.
           </p>
         </div>
-        <DialogFooter className="mt-5">
+        <DialogFooter className="mt-5 gap-2 sm:gap-2">
           <Button
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={() => {
               setShowOnboardingComplete(false)
               setOnboardingDone(true)
@@ -579,6 +593,7 @@ export function AdsPage() {
             Go to Growth Ads
           </Button>
           <Button
+            className="w-full sm:w-auto"
             onClick={() => {
               setShowOnboardingComplete(false)
               setOnboardingDone(true)

@@ -116,7 +116,7 @@ export function AccountMenu({ displayName, email, avatarUrl, sidebarOpen, onSign
 
           <div className="space-y-1 border-t px-2 py-2">
             {balance.isAdmin ? (
-              <Button className="w-full justify-start" size="sm" onClick={() => navigate('/admin')}>
+              <Button className="w-full justify-start" size="sm" onClick={() => navigate('/app/admin')}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Admin Panel
               </Button>
@@ -130,7 +130,7 @@ export function AccountMenu({ displayName, email, avatarUrl, sidebarOpen, onSign
                   className="w-full justify-start"
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate('/settings', { state: { tab: 'billing' } })}
+                  onClick={() => navigate('/app/settings', { state: { tab: 'billing' } })}
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
                   Upgrade Plan
@@ -142,11 +142,11 @@ export function AccountMenu({ displayName, email, avatarUrl, sidebarOpen, onSign
           <DropdownMenuSeparator className="mx-0" />
 
           <div className="px-1 pb-2">
-            <DropdownMenuItem onClick={() => navigate('/settings', { state: { tab: 'profile' } })}>
+            <DropdownMenuItem onClick={() => navigate('/app/settings', { state: { tab: 'profile' } })}>
               <UserRound className="mr-2 h-4 w-4" />
               Account Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/settings', { state: { tab: 'billing' } })}>
+            <DropdownMenuItem onClick={() => navigate('/app/settings', { state: { tab: 'billing' } })}>
               <CreditCard className="mr-2 h-4 w-4" />
               Billing
             </DropdownMenuItem>
@@ -155,13 +155,13 @@ export function AccountMenu({ displayName, email, avatarUrl, sidebarOpen, onSign
               Usage History
             </DropdownMenuItem>
             {!balance.isAdmin ? (
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <DropdownMenuItem onClick={() => navigate('/app/settings')}>
                 <Settings className="mr-2 h-4 w-4" />
                 App Settings
               </DropdownMenuItem>
             ) : null}
             {!balance.isAdmin ? (
-              <DropdownMenuItem onClick={() => navigate('/settings', { state: { tab: 'growth-ads' } })}>
+              <DropdownMenuItem onClick={() => navigate('/app/settings', { state: { tab: 'growth-ads' } })}>
                 <Sparkles className="mr-2 h-4 w-4" />
                 Growth Ads Profile
               </DropdownMenuItem>

@@ -49,7 +49,7 @@ export function LibraryPage() {
   }
 
   const useInCompose = (url: string, type: 'image' | 'video') => {
-    navigate('/compose', { state: { libraryUrl: url, libraryType: type } })
+    navigate('/app/compose', { state: { libraryUrl: url, libraryType: type } })
   }
 
   return (
@@ -103,7 +103,7 @@ export function LibraryPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button onClick={() => navigate('/compose')}>Open {APP_PAGE.createStudio}</Button>
+                  <Button onClick={() => navigate('/app/compose')}>Open {APP_PAGE.createStudio}</Button>
                 </CardContent>
               </Card>
             ) : (
