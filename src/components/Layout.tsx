@@ -76,11 +76,11 @@ export function Layout() {
 
   const handleSignOut = async () => {
     if (isDemoMode) {
-      navigate('/login')
+      navigate('/', { replace: true })
       return
     }
     await supabase.auth.signOut()
-    navigate('/login')
+    navigate('/', { replace: true })
   }
   const userPreferences = loadUserPreferences()
   const displayName = getPreferredDisplayName(profile?.display_name, userPreferences)

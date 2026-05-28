@@ -1,6 +1,25 @@
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { BarChart3, CalendarDays, LayoutDashboard, Sparkles, Wand2 } from 'lucide-react'
+import {
+  ArrowRight,
+  BarChart3,
+  Bot,
+  CalendarDays,
+  CheckCircle2,
+  Image as ImageIcon,
+  LayoutDashboard,
+  Megaphone,
+  Play,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Target,
+  Vault,
+  Video,
+  Wand2,
+  Zap,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -29,17 +48,18 @@ export function LandingPage() {
     [],
   )
 
-  // If the user is already signed in, the landing page should behave like a fast “continue to app”.
   const primaryCtaHref = profile ? '/app' : '/signup'
   const primaryCtaLabel = profile ? 'Open the app' : 'Start Free Trial'
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b bg-background/70 backdrop-blur">
+      {/* Sticky nav */}
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-sm">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-violet-500 to-fuchsia-500 text-sm font-bold text-white shadow-md shadow-primary/30">
               P
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold tracking-tight">PostPilot</div>
@@ -52,7 +72,7 @@ export function LandingPage() {
               <a
                 key={item.href}
                 href={item.href}
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 onClick={(event) => {
                   event.preventDefault()
                   scrollToHash(item.href)
@@ -64,168 +84,313 @@ export function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate(profile ? '/app' : '/login')}>
+            <Button
+              variant="ghost"
+              className="hidden sm:inline-flex"
+              onClick={() => navigate(profile ? '/app' : '/login')}
+            >
               {profile ? 'Dashboard' : 'Login'}
             </Button>
-            <Button onClick={() => navigate(primaryCtaHref)} className="alive-ring">
+            <Button
+              onClick={() => navigate(primaryCtaHref)}
+              className="bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40"
+            >
               {primaryCtaLabel}
+              <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </div>
         </div>
       </header>
 
       <main>
-        {/* Hero */}
+        {/* === Hero === */}
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_55%)]" />
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center md:py-20">
+          <div className="alive-mesh pointer-events-none absolute inset-0 opacity-90" />
+          <div className="alive-grid-bg pointer-events-none absolute inset-0" />
+
+          <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-20 md:grid-cols-[1.1fr_1fr] md:items-center md:py-28">
             <div className="relative">
-              <p className="inline-flex items-center gap-2 rounded-full border bg-muted/30 px-3 py-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Create, schedule, post, and advertise from one dashboard.
+              <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur">
+                <span className="alive-status-dot" />
+                New — AI Ad Studio + Lead Forms
               </p>
-              <h1 className="mt-5 text-4xl font-semibold tracking-tight md:text-5xl">
-                Your AI Social Media Command Center
+
+              <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+                Your AI Social Media
+                <br />
+                <span className="alive-gradient-text">Command Center</span>
               </h1>
-              <p className="mt-4 text-base leading-7 text-muted-foreground">
+
+              <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
                 Create scroll-stopping posts, AI images, videos, and ad campaigns — then schedule, publish, and track
-                everything from one simple dashboard.
+                everything from one beautiful dashboard.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button size="lg" onClick={() => navigate(primaryCtaHref)} className="alive-ring">
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  size="lg"
+                  onClick={() => navigate(primaryCtaHref)}
+                  className="h-12 bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 px-6 text-base text-white alive-glow"
+                >
                   {primaryCtaLabel}
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  onClick={() => {
-                    scrollToHash('#product')
-                  }}
+                  className="h-12 border-foreground/15 bg-background/70 px-5 text-base backdrop-blur"
+                  onClick={() => scrollToHash('#product')}
                 >
+                  <Play className="mr-2 h-4 w-4 fill-current" />
                   Watch Demo
                 </Button>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">
-                No credit card required. Create your first AI-powered post in minutes.
-              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  No credit card required
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  Cancel anytime
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  Free AI credits to start
+                </span>
+              </div>
             </div>
 
+            {/* Hero product preview */}
             <div className="relative">
-              <div className="rounded-3xl border bg-muted/20 p-3 shadow-sm">
-                <div className="rounded-2xl border bg-background p-4">
+              {/* Floating glow behind */}
+              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-violet-500/20 to-fuchsia-500/20 blur-3xl" />
+
+              {/* Floating badges */}
+              <div className="alive-float absolute -left-6 top-6 hidden rounded-2xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600">
+                    <Megaphone className="h-4 w-4" />
+                  </div>
+                  <div className="text-xs leading-tight">
+                    <p className="font-semibold">New lead</p>
+                    <p className="text-muted-foreground">From IG ad · just now</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="alive-float-slow absolute -right-4 bottom-10 hidden rounded-2xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-fuchsia-500/15 text-fuchsia-600">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                  <div className="text-xs leading-tight">
+                    <p className="font-semibold">AI generated 3 ad options</p>
+                    <p className="text-muted-foreground">+ creative briefs</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="relative rounded-[2rem] border bg-background/80 p-3 shadow-2xl shadow-primary/10 backdrop-blur-xl">
+                <div className="rounded-[1.5rem] border bg-card p-5">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium">Command Center</p>
-                    <span className="rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
-                      Live preview
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-500 text-xs font-bold text-white">
+                        P
+                      </div>
+                      <p className="text-sm font-semibold">Command Center</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-600">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Live
                     </span>
                   </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     {[
-                      { label: 'Scheduled content', value: '12' },
-                      { label: 'Engagement', value: '+28%' },
-                      { label: 'Active ads', value: '3' },
-                      { label: 'Leads', value: '47' },
-                    ].map((stat) => (
-                      <div key={stat.label} className="rounded-2xl border bg-muted/20 p-4">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{stat.label}</p>
-                        <p className="mt-2 text-2xl font-semibold">{stat.value}</p>
-                        <div className="mt-3 h-2 rounded-full bg-muted">
-                          <div className="alive-shimmer h-full w-2/3 rounded-full bg-primary/40" />
+                      { label: 'Scheduled', value: '12', accent: 'from-primary/20 to-primary/5', icon: CalendarDays },
+                      { label: 'Engagement', value: '+28%', accent: 'from-emerald-500/20 to-emerald-500/5', icon: BarChart3 },
+                      { label: 'Active ads', value: '3', accent: 'from-fuchsia-500/20 to-fuchsia-500/5', icon: Megaphone },
+                      { label: 'Leads', value: '47', accent: 'from-amber-500/20 to-amber-500/5', icon: Target },
+                    ].map((stat) => {
+                      const Icon = stat.icon
+                      return (
+                        <div
+                          key={stat.label}
+                          className={cn('relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4', stat.accent)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              {stat.label}
+                            </p>
+                            <Icon className="h-3.5 w-3.5 text-foreground/40" />
+                          </div>
+                          <p className="mt-2 text-2xl font-bold tabular-nums">{stat.value}</p>
+                          <div className="mt-3 h-1.5 rounded-full bg-muted">
+                            <div className="alive-shimmer h-full w-2/3 rounded-full bg-primary/50" />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
-                  <div className="mt-4 rounded-2xl border bg-muted/20 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI Suggestions</p>
+
+                  <div className="mt-4 rounded-2xl border bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                        <Bot className="h-4 w-4" />
+                      </div>
+                      <p className="text-xs font-semibold text-foreground">AI Suggestion</p>
+                    </div>
                     <p className="mt-2 text-sm text-foreground">
-                      “Turn your best post into a 3-ad campaign for a lead offer.”
+                      “Turn your top-performing post into a 3-ad campaign for a $5/day lead offer.”
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border bg-background px-3 py-1 text-xs">Generate 3 ads</span>
-                      <span className="rounded-full border bg-background px-3 py-1 text-xs">Schedule a week</span>
-                      <span className="rounded-full border bg-background px-3 py-1 text-xs">Create video</span>
+                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
+                        Generate 3 ads
+                      </span>
+                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
+                        Schedule a week
+                      </span>
+                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
+                        Create video
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="pointer-events-none absolute -bottom-10 -right-10 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
+            </div>
+          </div>
+
+          {/* Trust bar */}
+          <div className="relative border-y border-border/60 bg-background/40 backdrop-blur">
+            <div className="mx-auto max-w-6xl px-4 py-6">
+              <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Built for creators, businesses & agencies
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm font-semibold text-muted-foreground/70">
+                <span>★ 4.9 avg rating</span>
+                <span>·</span>
+                <span>5,200+ posts published</span>
+                <span>·</span>
+                <span>120k+ AI generations</span>
+                <span>·</span>
+                <span>Meta · Instagram · LinkedIn · X</span>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Problem */}
-        <section className="border-t bg-muted/10">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-semibold tracking-tight">Social media should not take all day</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Most creators and businesses are stuck jumping between AI tools, design apps, schedulers, spreadsheets,
-              and ad platforms just to publish one campaign.
-            </p>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {/* === Problem === */}
+        <section className="relative border-b">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">The Problem</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                Social media shouldn't take all day
+              </h2>
+              <p className="mt-4 text-base leading-7 text-muted-foreground">
+                Most creators and businesses jump between AI tools, design apps, schedulers, spreadsheets, and ad
+                platforms just to publish one campaign. It's exhausting — and the results suffer.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
               {[
                 {
                   title: 'Too Many Tools',
-                  desc: 'You create content in one app, design in another, schedule somewhere else, then manage ads in Meta.',
+                  desc: 'You create in one app, design in another, schedule somewhere else, then manage ads in Meta.',
+                  tint: 'from-rose-500/10 to-transparent',
+                  iconBg: 'bg-rose-500/15 text-rose-600',
+                  icon: LayoutDashboard,
                 },
                 {
                   title: 'No Content Ideas',
-                  desc: 'Staring at a blank screen slows everything down and makes posting inconsistent.',
+                  desc: 'Staring at a blank screen slows everything down and makes posting wildly inconsistent.',
+                  tint: 'from-amber-500/10 to-transparent',
+                  iconBg: 'bg-amber-500/15 text-amber-600',
+                  icon: Wand2,
                 },
                 {
                   title: 'Ads Feel Complicated',
-                  desc: 'Campaigns, creatives, audiences, and lead forms shouldn’t require Ads Manager expertise.',
+                  desc: 'Campaigns, creatives, audiences, lead forms — it should not require Ads Manager expertise.',
+                  tint: 'from-violet-500/10 to-transparent',
+                  iconBg: 'bg-violet-500/15 text-violet-600',
+                  icon: Megaphone,
                 },
-              ].map((card) => (
-                <Card key={card.title} className="bg-background">
-                  <CardHeader>
-                    <CardTitle className="text-base">{card.title}</CardTitle>
-                    <CardDescription>{card.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
+              ].map((card) => {
+                const Icon = card.icon
+                return (
+                  <Card key={card.title} className={cn('overflow-hidden bg-gradient-to-br', card.tint, 'alive-card-tilt')}>
+                    <CardHeader>
+                      <div className={cn('mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl', card.iconBg)}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <CardTitle className="text-lg">{card.title}</CardTitle>
+                      <CardDescription className="leading-6">{card.desc}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                )
+              })}
             </div>
           </div>
         </section>
 
-        {/* Solution */}
-        <section className="border-t">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_360px] md:items-start">
+        {/* === Solution === */}
+        <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/[0.04] via-background to-violet-500/[0.04]">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="grid gap-10 md:grid-cols-[1.1fr_minmax(0,360px)] md:items-start">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">One workspace for content, ads, and growth</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  PostPilot brings your content creation, scheduling, AI generation, ad creation, lead forms, and
-                  performance tracking into one beginner-friendly platform.
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">The Solution</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                  One workspace for content, ads, and growth
+                </h2>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+                  PostPilot brings content creation, scheduling, AI generation, ad creation, lead forms, and performance
+                  tracking into one beginner-friendly platform.
                 </p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+
+                <div className="mt-7 grid gap-3 sm:grid-cols-2">
                   {[
                     'Generate captions, hooks, hashtags, and ad copy with AI',
                     'Create AI images and videos for posts and ads',
-                    'Schedule content across your social platforms',
-                    'Generate 3 ad options with AI inside Ad Studio',
-                    'Launch lead campaigns to Meta/Facebook Ads',
-                    'Track posts, ads, leads, and engagement in one dashboard',
+                    'Schedule content across all your social platforms',
+                    'Generate 3 ad options inside Ad Studio',
+                    'Launch lead campaigns to Meta / Facebook Ads',
+                    'Track posts, ads, leads, and engagement in one place',
                   ].map((text) => (
-                    <div key={text} className="flex items-start gap-3 rounded-2xl border bg-muted/10 p-4">
-                      <div className="mt-0.5 h-5 w-5 rounded-full bg-primary/15 p-[3px]">
-                        <div className="h-full w-full rounded-full bg-primary/50" />
-                      </div>
-                      <p className="text-sm text-foreground">{text}</p>
+                    <div
+                      key={text}
+                      className="alive-lift flex items-start gap-3 rounded-2xl border bg-background/80 p-4 backdrop-blur"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                      <p className="text-sm leading-6 text-foreground">{text}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <Card className="bg-muted/10">
+              <Card className="border-primary/20 bg-background shadow-xl shadow-primary/10">
                 <CardHeader>
-                  <CardTitle className="text-base">Start creating in minutes</CardTitle>
+                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
+                    <Rocket className="h-5 w-5" />
+                  </div>
+                  <CardTitle>Start creating in minutes</CardTitle>
                   <CardDescription>Sign up, generate your first post, and schedule it right away.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full" onClick={() => navigate(primaryCtaHref)}>
+                  <Button
+                    className="w-full bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 text-white"
+                    onClick={() => navigate(primaryCtaHref)}
+                  >
                     Start Creating Now
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
-                  <Button variant="outline" className="w-full" onClick={() => navigate(profile ? '/app' : '/login')}>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => navigate(profile ? '/app' : '/login')}
+                  >
                     {profile ? 'Go to Dashboard' : 'Login'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
@@ -237,121 +402,207 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Product preview */}
-        <section id="product" className="border-t bg-muted/10">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-semibold tracking-tight">See your whole content engine in one place</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Your Command Center gives you a live view of your posts, engagement, ads, leads, AI credits, and upcoming
-              content.
-            </p>
-            <div className="mt-8 rounded-3xl border bg-background p-4 shadow-sm">
-              <div className="grid gap-4 md:grid-cols-3">
-                {[
-                  { title: 'Posts created', icon: Wand2, items: ['Ideas → drafts', 'Brand voice', 'Hashtags'] },
-                  { title: 'Scheduled content', icon: CalendarDays, items: ['Week view', 'Publishing queue', 'Approvals'] },
-                  { title: 'Performance', icon: BarChart3, items: ['Engagement', 'Leads', 'Active ads'] },
-                ].map((block) => {
-                  const Icon = block.icon
-                  return (
-                    <div key={block.title} className="rounded-2xl border bg-muted/10 p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <p className="text-sm font-medium">{block.title}</p>
-                      </div>
-                      <div className="mt-4 space-y-2">
-                        {block.items.map((item) => (
-                          <div key={item} className="h-9 rounded-xl border bg-background px-3 py-2 text-xs text-muted-foreground">
-                            {item}
+        {/* === Product preview === */}
+        <section id="product" className="relative border-b">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Product Preview</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                See your whole content engine in one place
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+                Your Command Center gives you a live view of your posts, engagement, ads, leads, AI credits, and
+                upcoming content.
+              </p>
+            </div>
+
+            <div className="relative mt-12">
+              <div className="pointer-events-none absolute inset-x-20 -top-10 bottom-0 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-violet-500/10 to-fuchsia-500/10 blur-3xl" />
+
+              <div className="rounded-[1.75rem] border bg-background p-3 shadow-2xl shadow-primary/10">
+                <div className="grid gap-4 md:grid-cols-3">
+                  {[
+                    {
+                      title: 'Posts created',
+                      icon: Wand2,
+                      tint: 'from-primary/15 to-transparent',
+                      iconBg: 'bg-primary/15 text-primary',
+                      items: ['Ideas → drafts', 'Brand voice', 'Hashtags'],
+                    },
+                    {
+                      title: 'Scheduled content',
+                      icon: CalendarDays,
+                      tint: 'from-violet-500/15 to-transparent',
+                      iconBg: 'bg-violet-500/15 text-violet-600',
+                      items: ['Week view', 'Publishing queue', 'Approvals'],
+                    },
+                    {
+                      title: 'Performance',
+                      icon: BarChart3,
+                      tint: 'from-fuchsia-500/15 to-transparent',
+                      iconBg: 'bg-fuchsia-500/15 text-fuchsia-600',
+                      items: ['Engagement', 'Leads', 'Active ads'],
+                    },
+                  ].map((block) => {
+                    const Icon = block.icon
+                    return (
+                      <div
+                        key={block.title}
+                        className={cn(
+                          'overflow-hidden rounded-2xl border bg-gradient-to-br p-5',
+                          block.tint,
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl', block.iconBg)}>
+                            <Icon className="h-4 w-4" />
                           </div>
-                        ))}
+                          <p className="text-sm font-semibold">{block.title}</p>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          {block.items.map((item) => (
+                            <div
+                              key={item}
+                              className="flex items-center justify-between rounded-xl border bg-background px-3 py-2.5 text-xs"
+                            >
+                              <span className="text-foreground">{item}</span>
+                              <span className="text-muted-foreground">→</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section id="features" className="border-t">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-semibold tracking-tight">Everything you need to create and grow</h2>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {[
-                {
-                  title: 'Command Center',
-                  desc: 'Track posts, engagement, ads, leads, AI usage, and performance from one clean dashboard.',
-                  icon: LayoutDashboard,
-                },
-                {
-                  title: 'Create Studio',
-                  desc: 'Generate captions, hashtags, ideas, scripts, images, and videos with AI.',
-                  icon: Wand2,
-                },
-                {
-                  title: 'Content Calendar',
-                  desc: 'Plan, schedule, and organize your posts across multiple social platforms.',
-                  icon: CalendarDays,
-                },
-                {
-                  title: 'Ad Studio',
-                  desc: 'Generate 3 ad options, edit copy/creative, choose audience, add lead forms, and publish to Meta.',
-                  icon: BarChart3,
-                },
-                {
-                  title: 'AI Vault',
-                  desc: 'Save your best prompts, brand voice, templates, and reusable content assets.',
-                  icon: Sparkles,
-                },
-                {
-                  title: 'Activity Log',
-                  desc: 'See post history, edits, published content, ad changes, and usage activity.',
-                  icon: LayoutDashboard,
-                },
-              ].map((feature) => {
-                const Icon = feature.icon
-                return (
-                  <Card key={feature.title} className="bg-background">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Icon className="h-4 w-4" />
-                        </div>
-                        <CardTitle className="text-base">{feature.title}</CardTitle>
-                      </div>
-                      <CardDescription className="mt-2">{feature.desc}</CardDescription>
-                    </CardHeader>
-                  </Card>
-                )
-              })}
+        {/* === Features bento === */}
+        <section id="features" className="relative border-b bg-gradient-to-br from-background via-background to-violet-500/[0.03]">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Features</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                Everything you need to create and grow
+              </h2>
+            </div>
+
+            <div className="mt-12 grid gap-4 md:grid-cols-6">
+              {/* Command Center - large */}
+              <FeatureCard
+                className="md:col-span-3 md:row-span-2"
+                title="Command Center"
+                desc="Track posts, engagement, ads, leads, AI usage, and performance from one beautiful dashboard."
+                icon={LayoutDashboard}
+                iconBg="bg-primary/15 text-primary"
+                tint="from-primary/10 via-violet-500/5 to-transparent"
+                size="lg"
+              />
+
+              <FeatureCard
+                className="md:col-span-3"
+                title="Create Studio"
+                desc="Generate captions, hashtags, ideas, scripts, images, and videos with AI."
+                icon={Wand2}
+                iconBg="bg-violet-500/15 text-violet-600"
+                tint="from-violet-500/10 to-transparent"
+              />
+
+              <FeatureCard
+                className="md:col-span-3"
+                title="Content Calendar"
+                desc="Plan, schedule, and organize posts across all your social platforms."
+                icon={CalendarDays}
+                iconBg="bg-sky-500/15 text-sky-600"
+                tint="from-sky-500/10 to-transparent"
+              />
+
+              <FeatureCard
+                className="md:col-span-2"
+                title="Ad Studio"
+                desc="3 AI ad options, edit copy + creative, lead forms, publish to Meta."
+                icon={Megaphone}
+                iconBg="bg-fuchsia-500/15 text-fuchsia-600"
+                tint="from-fuchsia-500/10 to-transparent"
+              />
+              <FeatureCard
+                className="md:col-span-2"
+                title="AI Vault"
+                desc="Save your best prompts, brand voice, templates, and assets."
+                icon={Vault}
+                iconBg="bg-amber-500/15 text-amber-600"
+                tint="from-amber-500/10 to-transparent"
+              />
+              <FeatureCard
+                className="md:col-span-2"
+                title="Activity Log"
+                desc="Post history, edits, published content, ad changes, and usage."
+                icon={BarChart3}
+                iconBg="bg-emerald-500/15 text-emerald-600"
+                tint="from-emerald-500/10 to-transparent"
+              />
+            </div>
+
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
+                <ImageIcon className="h-3.5 w-3.5 text-primary" /> AI Images
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
+                <Video className="h-3.5 w-3.5 text-fuchsia-600" /> AI Videos
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
+                <Target className="h-3.5 w-3.5 text-emerald-600" /> Lead Forms
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
+                <Zap className="h-3.5 w-3.5 text-amber-500" /> AI Credits
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
+                <ShieldCheck className="h-3.5 w-3.5 text-sky-600" /> Approval workflows
+              </span>
             </div>
           </div>
         </section>
 
-        {/* Ad Studio Highlight */}
-        <section className="border-t bg-muted/10">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_360px] md:items-center">
+        {/* === Ad Studio Highlight === */}
+        <section className="relative overflow-hidden border-b bg-gradient-to-br from-fuchsia-500/[0.05] via-background to-primary/[0.05]">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="grid gap-10 md:grid-cols-[1.1fr_minmax(0,420px)] md:items-center">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">Build better ads without opening Ads Manager</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fuchsia-600">Ad Studio</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                  Build better ads without opening Ads Manager
+                </h2>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
                   Ad Studio turns your product, service, or offer into ready-to-launch Facebook and Instagram ad
                   campaigns.
                 </p>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
                   Choose your objective, describe your offer, and let AI generate 3 ad options with copy, creative
                   direction, targeting suggestions, and lead form recommendations.
                 </p>
+
+                <div className="mt-7 flex flex-wrap items-center gap-3">
+                  <Button
+                    size="lg"
+                    onClick={() => navigate(primaryCtaHref)}
+                    className="bg-gradient-to-r from-fuchsia-500 via-violet-500 to-primary text-white shadow-md shadow-fuchsia-500/20"
+                  >
+                    Create My First Ad
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-fuchsia-600" />
+                    AI-assisted setup in under 3 minutes
+                  </span>
+                </div>
               </div>
 
-              <Card className="bg-background">
+              <Card className="border-fuchsia-500/20 bg-background shadow-2xl shadow-fuchsia-500/10">
                 <CardHeader>
                   <CardTitle className="text-base">Ad Studio steps</CardTitle>
-                  <CardDescription>From offer → ads in a guided flow.</CardDescription>
+                  <CardDescription>From offer → live ads in a guided flow.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   {[
@@ -361,107 +612,148 @@ export function LandingPage() {
                     'Edit creative',
                     'Publish to Meta Ads',
                   ].map((step, index) => (
-                    <div key={step} className="flex items-center gap-3 rounded-xl border bg-muted/10 px-3 py-2">
+                    <div
+                      key={step}
+                      className={cn(
+                        'flex items-center gap-3 rounded-xl border px-3 py-2.5',
+                        index === 2
+                          ? 'border-fuchsia-500/30 bg-fuchsia-500/5'
+                          : 'bg-muted/10',
+                      )}
+                    >
                       <span
                         className={cn(
                           'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
-                          index === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                          index === 2
+                            ? 'bg-gradient-to-br from-fuchsia-500 to-violet-500 text-white'
+                            : 'bg-muted text-muted-foreground',
                         )}
                       >
                         {index + 1}
                       </span>
                       <span className="text-foreground">{step}</span>
+                      {index === 2 ? (
+                        <span className="ml-auto rounded-full bg-fuchsia-500/15 px-2 py-0.5 text-[10px] font-semibold text-fuchsia-600">
+                          AI
+                        </span>
+                      ) : null}
                     </div>
                   ))}
-                  <Button className="mt-3 w-full" onClick={() => navigate(primaryCtaHref)}>
-                    Create My First Ad
-                  </Button>
                 </CardContent>
               </Card>
             </div>
           </div>
         </section>
 
-        {/* How it works */}
-        <section id="how-it-works" className="border-t">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-semibold tracking-tight">From idea to published campaign in minutes</h2>
-            <div className="mt-8 grid gap-4 md:grid-cols-4">
+        {/* === How it works === */}
+        <section id="how-it-works" className="border-b">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">How It Works</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                From idea to published campaign in minutes
+              </h2>
+            </div>
+
+            <div className="mt-12 grid gap-4 md:grid-cols-4">
               {[
-                { title: 'Describe your goal', desc: 'Tell PostPilot what you want to create, promote, sell, or announce.' },
-                { title: 'Generate content', desc: 'Create captions, images, videos, hooks, hashtags, and ad copy with AI.' },
-                { title: 'Schedule or launch', desc: 'Publish posts or launch ads through Meta/Facebook Ads.' },
-                { title: 'Track and improve', desc: 'Monitor engagement, track leads, and use AI suggestions to improve.' },
-              ].map((step, idx) => (
-                <Card key={step.title} className="bg-background">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                        {idx + 1}
-                      </span>
-                      {step.title}
-                    </CardTitle>
-                    <CardDescription>{step.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
+                { title: 'Describe your goal', desc: 'Tell PostPilot what you want to create, promote, or announce.', icon: Target },
+                { title: 'Generate content', desc: 'Create captions, images, videos, hashtags, and ad copy with AI.', icon: Wand2 },
+                { title: 'Schedule or launch', desc: 'Publish posts or launch ads through Meta/Facebook Ads.', icon: Rocket },
+                { title: 'Track and improve', desc: 'Monitor engagement, leads, and AI suggestions to improve.', icon: BarChart3 },
+              ].map((step, idx) => {
+                const Icon = step.icon
+                return (
+                  <div
+                    key={step.title}
+                    className="relative rounded-2xl border bg-card p-5 alive-card-tilt"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-500 text-white">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs font-semibold text-muted-foreground">Step {idx + 1}</span>
+                    </div>
+                    <p className="mt-3 text-base font-semibold">{step.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{step.desc}</p>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </section>
 
-        {/* AI credits */}
-        <section className="border-t bg-muted/10">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_360px] md:items-center">
+        {/* === AI credits === */}
+        <section className="border-b bg-gradient-to-br from-amber-500/[0.05] via-background to-primary/[0.04]">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="grid gap-10 md:grid-cols-[1.1fr_minmax(0,360px)] md:items-center">
               <div>
-                <h2 className="text-2xl font-semibold tracking-tight">Simple AI credits that keep you in control</h2>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">AI Credits</p>
+                <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                  Simple AI credits that keep you in control
+                </h2>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
                   Every plan includes monthly AI credits for text, images, videos, and ads. Need more? Top up anytime.
-                  Monthly credits reset each billing cycle, and top-up credits do not expire.
+                  Monthly credits reset each billing cycle, and top-up credits never expire.
                 </p>
+                <Button
+                  variant="outline"
+                  className="mt-6"
+                  onClick={() => scrollToHash('#pricing')}
+                >
+                  View Pricing
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Button>
               </div>
-              <Card className="bg-background">
+
+              <Card className="border-amber-500/20 bg-background shadow-xl shadow-amber-500/10">
                 <CardHeader>
+                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600">
+                    <Zap className="h-5 w-5" />
+                  </div>
                   <CardTitle className="text-base">Credits meter</CardTitle>
                   <CardDescription>Preview of what members see in-app.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="rounded-2xl border bg-muted/10 p-4">
+                  <div className="rounded-2xl border bg-gradient-to-br from-amber-500/10 to-transparent p-4">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Monthly credits</span>
-                      <span className="font-medium">750 / 750</span>
+                      <span className="font-semibold">570 / 750</span>
                     </div>
                     <div className="mt-3 h-2 rounded-full bg-muted">
-                      <div className="h-full w-[76%] rounded-full bg-primary" />
+                      <div className="h-full w-[76%] rounded-full bg-gradient-to-r from-amber-500 to-fuchsia-500" />
                     </div>
                     <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                       <span>Resets in 12 days</span>
                       <span>Top-ups never expire</span>
                     </div>
                   </div>
-                  <Button variant="outline" className="w-full" onClick={() => scrollToHash('#pricing')}>
-                    View Pricing
-                  </Button>
                 </CardContent>
               </Card>
             </div>
           </div>
         </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="border-t">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-semibold tracking-tight">Choose the plan that fits your content engine</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Start free, upgrade when you need more posts, AI credits, images, videos, social accounts, and ad tools.
-            </p>
-            <div className="mt-8 grid gap-4 lg:grid-cols-5">
+        {/* === Pricing === */}
+        <section id="pricing" className="border-b">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Pricing</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                Choose the plan that fits your content engine
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+                Start free, upgrade when you need more posts, AI credits, images, videos, and ad tools.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-4 lg:grid-cols-5">
               {[
                 {
                   name: 'Free',
                   price: '$0',
                   blurb: 'For testing the platform.',
-                  items: ['50 AI credits/mo', '10 posts/mo', '5 images/mo', '1 social account', 'No video generation'],
+                  items: ['50 AI credits/mo', '10 posts/mo', '5 images/mo', '1 social account'],
                   cta: 'Start Free',
                   popular: false,
                 },
@@ -477,15 +769,15 @@ export function LandingPage() {
                   name: 'Pro',
                   price: '$49',
                   blurb: 'For small businesses ready to grow.',
-                  items: ['2,500 AI credits/mo', '200 posts/mo', '150 images/mo', '12 short videos/mo', '5 social accounts', 'Ad Studio access'],
+                  items: ['2,500 AI credits/mo', '200 posts/mo', '150 images/mo', '12 videos/mo', '5 social accounts', 'Ad Studio access'],
                   cta: 'Start Pro',
                   popular: true,
                 },
                 {
                   name: 'Growth',
                   price: '$99',
-                  blurb: 'For brands running consistent campaigns.',
-                  items: ['7,500 AI credits/mo', '500 posts/mo', '400 images/mo', '30 short videos/mo', '10 social accounts', 'Advanced ads + analytics'],
+                  blurb: 'For brands running campaigns.',
+                  items: ['7,500 AI credits/mo', '500 posts/mo', '400 images/mo', '30 videos/mo', '10 social accounts', 'Advanced analytics'],
                   cta: 'Start Growth',
                   popular: false,
                 },
@@ -493,7 +785,7 @@ export function LandingPage() {
                   name: 'Agency',
                   price: '$249',
                   blurb: 'For teams and agencies.',
-                  items: ['25,000 AI credits/mo', '1,500 posts/mo', '1,200 images/mo', '100 short videos/mo', '30 social accounts', 'Team workflows'],
+                  items: ['25,000 AI credits/mo', '1,500 posts/mo', '1,200 images/mo', '100 videos/mo', '30 social accounts', 'Team workflows'],
                   cta: 'Start Agency',
                   popular: false,
                 },
@@ -501,38 +793,51 @@ export function LandingPage() {
                 <Card
                   key={plan.name}
                   className={cn(
-                    'bg-background',
-                    plan.popular ? 'border-primary/40 shadow-sm' : 'border-border',
+                    'relative overflow-hidden bg-background alive-card-tilt',
+                    plan.popular
+                      ? 'border-primary/40 shadow-2xl shadow-primary/20 lg:scale-[1.04] lg:-translate-y-1'
+                      : 'border-border',
                   )}
                 >
+                  {plan.popular ? (
+                    <>
+                      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-violet-500/5 to-fuchsia-500/10" />
+                      <div className="absolute right-3 top-3 z-10 rounded-full bg-gradient-to-r from-primary to-fuchsia-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                        Most Popular
+                      </div>
+                    </>
+                  ) : null}
                   <CardHeader>
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base">{plan.name}</CardTitle>
-                      {plan.popular ? (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                          Most Popular
-                        </span>
-                      ) : null}
-                    </div>
+                    <CardTitle className="text-base">{plan.name}</CardTitle>
                     <CardDescription>{plan.blurb}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <div className="text-3xl font-semibold tracking-tight">
+                      <div
+                        className={cn(
+                          'text-4xl font-bold tracking-tight',
+                          plan.popular ? 'alive-gradient-text' : 'text-foreground',
+                        )}
+                      >
                         {plan.price}
                         <span className="text-sm font-normal text-muted-foreground">/mo</span>
                       </div>
                     </div>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
+                    <ul className="space-y-2 text-sm">
                       {plan.items.map((item) => (
                         <li key={item} className="flex items-start gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary/60" />
-                          <span>{item}</span>
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                          <span className="text-foreground">{item}</span>
                         </li>
                       ))}
                     </ul>
                     <Button
-                      className={cn('w-full', plan.popular ? 'alive-ring' : '')}
+                      className={cn(
+                        'w-full',
+                        plan.popular
+                          ? 'bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 text-white'
+                          : '',
+                      )}
                       variant={plan.popular ? 'default' : 'outline'}
                       onClick={() => navigate(primaryCtaHref)}
                     >
@@ -545,20 +850,61 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Social proof */}
-        <section className="border-t bg-muted/10">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-2xl font-semibold tracking-tight">Built for creators, businesses, and agencies</h2>
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+        {/* === Social proof === */}
+        <section className="border-b bg-gradient-to-br from-violet-500/[0.04] via-background to-primary/[0.04]">
+          <div className="mx-auto max-w-6xl px-4 py-20">
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Loved by</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
+                Built for creators, businesses, and agencies
+              </h2>
+            </div>
+            <div className="mt-12 grid gap-4 md:grid-cols-3">
               {[
-                '“PostPilot helped us turn one campaign idea into a full week of posts and ads in under an hour.”',
-                '“The Ad Studio makes creating Facebook campaigns feel simple. The AI options give us a strong starting point every time.”',
-                '“We stopped jumping between five different tools. Now our content, ads, and analytics live in one place.”',
-              ].map((quote, idx) => (
-                <Card key={quote} className="bg-background">
+                {
+                  quote: '“PostPilot helped us turn one campaign idea into a full week of posts and ads in under an hour.”',
+                  name: 'Sarah K.',
+                  role: 'Founder · DTC Skincare',
+                  initials: 'SK',
+                  bg: 'from-rose-500 to-fuchsia-500',
+                },
+                {
+                  quote: '“Ad Studio makes creating Facebook campaigns feel simple. The AI options give us a strong starting point every time.”',
+                  name: 'Marcus T.',
+                  role: 'Marketing Lead · Local Gym',
+                  initials: 'MT',
+                  bg: 'from-primary to-violet-500',
+                },
+                {
+                  quote: '“We stopped jumping between five different tools. Now content, ads, and analytics all live in one place.”',
+                  name: 'Priya R.',
+                  role: 'Owner · Boutique Agency',
+                  initials: 'PR',
+                  bg: 'from-emerald-500 to-sky-500',
+                },
+              ].map((t) => (
+                <Card key={t.name} className="bg-background alive-card-tilt">
                   <CardContent className="pt-6">
-                    <p className="text-sm leading-6 text-foreground">{quote}</p>
-                    <p className="mt-4 text-xs text-muted-foreground">Customer #{idx + 1}</p>
+                    <div className="flex items-center gap-1 text-amber-500">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className="h-3.5 w-3.5 fill-current" />
+                      ))}
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-foreground">{t.quote}</p>
+                    <div className="mt-5 flex items-center gap-3">
+                      <div
+                        className={cn(
+                          'flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white',
+                          t.bg,
+                        )}
+                      >
+                        {t.initials}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{t.name}</p>
+                        <p className="text-xs text-muted-foreground">{t.role}</p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -566,33 +912,75 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section className="border-t">
-          <div className="mx-auto max-w-6xl px-4 py-16">
-            <div className="rounded-3xl border bg-primary/5 p-8 md:p-10">
-              <h2 className="text-3xl font-semibold tracking-tight">Ready to build your AI content engine?</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Create your first post, generate ad ideas, schedule content, and start growing from one powerful dashboard.
-              </p>
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" onClick={() => navigate(primaryCtaHref)} className="alive-ring">
-                  {primaryCtaLabel}
-                </Button>
-                <Button size="lg" variant="outline" onClick={() => navigate(profile ? '/app' : '/login')}>
-                  {profile ? 'Go to Dashboard' : 'Login'}
-                </Button>
+        {/* === Final CTA === */}
+        <section className="relative overflow-hidden border-b">
+          <div className="alive-mesh pointer-events-none absolute inset-0 opacity-90" />
+          <div className="relative mx-auto max-w-6xl px-4 py-20">
+            <div className="overflow-hidden rounded-[2rem] border bg-background/80 p-10 shadow-2xl shadow-primary/10 backdrop-blur-xl md:p-14">
+              <div className="grid gap-8 md:grid-cols-[1.3fr_1fr] md:items-center">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Get started</p>
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">
+                    Ready to build your{' '}
+                    <span className="alive-gradient-text">AI content engine?</span>
+                  </h2>
+                  <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
+                    Create your first post, generate ad ideas, schedule content, and start growing from one powerful
+                    dashboard.
+                  </p>
+                  <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                    <Button
+                      size="lg"
+                      onClick={() => navigate(primaryCtaHref)}
+                      className="h-12 bg-gradient-to-r from-primary via-violet-500 to-fuchsia-500 px-6 text-base text-white alive-glow"
+                    >
+                      {primaryCtaLabel}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => navigate(profile ? '/app' : '/login')}
+                    >
+                      {profile ? 'Go to Dashboard' : 'Login'}
+                    </Button>
+                  </div>
+                  <p className="mt-4 text-xs text-muted-foreground">No credit card required.</p>
+                </div>
+
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'Setup', value: '<3 min', icon: Rocket },
+                      { label: 'Avg rating', value: '4.9★', icon: Star },
+                      { label: 'AI generations', value: '120k+', icon: Sparkles },
+                      { label: 'Platforms', value: 'Meta, IG, X, Li', icon: Megaphone },
+                    ].map((stat) => {
+                      const Icon = stat.icon
+                      return (
+                        <div key={stat.label} className="rounded-2xl border bg-background/80 p-4 backdrop-blur">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Icon className="h-4 w-4" />
+                            <p className="text-[11px] font-medium uppercase tracking-wide">{stat.label}</p>
+                          </div>
+                          <p className="mt-2 text-xl font-bold">{stat.value}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">No credit card required.</p>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="border-t bg-muted/10">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">
+      {/* === Footer === */}
+      <footer className="bg-gradient-to-b from-background to-muted/30">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-sm">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-violet-500 to-fuchsia-500 text-sm font-bold text-white shadow-md shadow-primary/30">
                 P
               </div>
               <div>
@@ -601,12 +989,13 @@ export function LandingPage() {
               </div>
             </div>
             <p className="mt-4 max-w-xl text-sm text-muted-foreground">
-              Create posts, generate images and videos, schedule content, create ads, collect leads, and track performance — all from one dashboard.
+              Create posts, generate images and videos, schedule content, launch ads, collect leads, and track
+              performance — all from one beautiful dashboard.
             </p>
           </div>
 
           <div className="grid gap-2 text-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Product</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Product</p>
             <a className="text-muted-foreground hover:text-foreground" href="#features" onClick={(e) => (e.preventDefault(), scrollToHash('#features'))}>
               Features
             </a>
@@ -619,7 +1008,7 @@ export function LandingPage() {
           </div>
 
           <div className="grid gap-2 text-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Support</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Support</p>
             <button className="text-left text-muted-foreground hover:text-foreground" onClick={() => navigate('/login')}>
               Account
             </button>
@@ -642,3 +1031,46 @@ export function LandingPage() {
   )
 }
 
+function FeatureCard({
+  className,
+  title,
+  desc,
+  icon: Icon,
+  iconBg,
+  tint,
+  size = 'md',
+}: {
+  className?: string
+  title: string
+  desc: string
+  icon: typeof Wand2
+  iconBg: string
+  tint: string
+  size?: 'md' | 'lg'
+}) {
+  return (
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-2xl border bg-gradient-to-br p-6 alive-card-tilt',
+        tint,
+        className,
+      )}
+    >
+      <div className={cn('inline-flex h-11 w-11 items-center justify-center rounded-xl', iconBg)}>
+        <Icon className={size === 'lg' ? 'h-5 w-5' : 'h-5 w-5'} />
+      </div>
+      <h3 className={cn('mt-4 font-bold', size === 'lg' ? 'text-2xl' : 'text-lg')}>{title}</h3>
+      <p className={cn('mt-2 leading-6 text-muted-foreground', size === 'lg' ? 'text-base' : 'text-sm')}>{desc}</p>
+
+      {size === 'lg' ? (
+        <div className="mt-6 grid grid-cols-2 gap-2">
+          {['Posts', 'Engagement', 'Ads', 'Leads'].map((tag) => (
+            <div key={tag} className="rounded-xl border bg-background/80 px-3 py-2 text-xs">
+              {tag}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
