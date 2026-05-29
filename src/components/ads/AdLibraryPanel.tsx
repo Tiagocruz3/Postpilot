@@ -42,12 +42,15 @@ type AdLibraryPanelProps = {
   workspaceId: string | null
   businessName: string
   facebookPageId?: string | null
+  /** Bump this number to force a re-fetch (e.g. after a legacy backfill). */
+  refreshToken?: number
   onOpenInStudio?: (creative: AdCreative) => void
 }
 
 export function AdLibraryPanel({
   workspaceId,
   facebookPageId = null,
+  refreshToken = 0,
   onOpenInStudio,
 }: AdLibraryPanelProps) {
   const confirm = useConfirm()
@@ -75,7 +78,8 @@ export function AdLibraryPanel({
 
   useEffect(() => {
     void refresh()
-  }, [refresh])
+    // `refreshToken` is an explicit refetch trigger (e.g. after a backfill).
+  }, [refresh, refreshToken])
 
   // Clamp the requested page during render rather than via setState in an
   // effect, so list shrinks (deletes, status filter changes that reduce the

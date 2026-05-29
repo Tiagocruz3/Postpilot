@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { AdsAudienceFields } from '@/components/ads/AdsAudienceFields'
@@ -242,6 +242,8 @@ export function AdsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [mediaPage, setMediaPage] = useState(1)
   const [updatingPostingTarget, setUpdatingPostingTarget] = useState(false)
+  /** Bumped after the legacy-asset backfill so the Ad Library re-fetches. */
+  const [libraryRefreshToken, setLibraryRefreshToken] = useState(0)
   /**
    * Set when the user picks a Page from the studio "Posting from" toggle that
    * hasn't been onboarded for ads yet. Holds the candidate Page so we can show
@@ -263,6 +265,8 @@ export function AdsPage() {
   /** Map ad-option-id → ad_creatives.id so subsequent edits/regens update the same row. */
   const creativeIdByOption = useRef<Record<string, string>>({})
   const currentGenerationId = useRef<string | null>(null)
+  /** Guards the one-time legacy-asset backfill so it runs at most once per mount. */
+  const legacyBackfillRef = useRef(false)
   const editDebounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const draftHydrated = useRef(false)
   /** Parsed targeting suggestion payload (raw values to apply when the user accepts a card). */
@@ -472,16 +476,17 @@ export function AdsPage() {
   ])
 
   const selectedOption = options.find((o) => o.id === selectedId) ?? null
-  // Scope ad assets to the Page the user is posting from. Media is tagged with
-  // `metadata.facebook_page_id` at generation/upload time; legacy assets with
-  // no tag stay visible across every Page so nothing disappears.
+  // Scope ad assets strictly to the Page the user is posting from. Media is
+  // tagged with `metadata.facebook_page_id` at generation/upload time, and
+  // legacy untagged assets are backfilled to the active Page (see the
+  // one-time backfill effect below), so each Page only shows its own assets.
   const adsMedia = useMemo(() => {
     const pageId = profile.metaConnection.facebookPageId || null
     return mediaItems.filter((m) => {
       if (m.source !== 'ads' && m.source !== 'other') return false
       if (!pageId) return true
       const taggedPage = (m.metadata as Record<string, unknown> | null)?.facebook_page_id
-      return !taggedPage || taggedPage === pageId
+      return taggedPage === pageId
     })
   }, [mediaItems, profile.metaConnection.facebookPageId])
   // Clamp the page in render so the user never lands on an empty page when
@@ -736,6 +741,61 @@ export function AdsPage() {
     setPendingPageSwitch(null)
     await applyFacebookPageSwitch(pageId, pageName, { restartOnboarding: true })
   }
+
+  /**
+   * One-time migration for assets created before per-Page tagging existed.
+   * Any ad creative or ad media asset without a Facebook Page id is assigned to
+   * the Page the user currently has selected, so Pages stop sharing the same
+   * legacy assets. New assets are always tagged on creation, so this query is
+   * naturally idempotent (it finds nothing once everything has a Page).
+   */
+  const backfillUntaggedAssetsToPage = useCallback(
+    async (pageId: string) => {
+      if (!currentWorkspaceId || isDemoMode) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = supabase as any
+      try {
+        await sb
+          .from('ad_creatives')
+          .update({ facebook_page_id: pageId })
+          .eq('workspace_id', currentWorkspaceId)
+          .is('facebook_page_id', null)
+
+        const { data } = await sb
+          .from('workspace_ai_media')
+          .select('id, metadata, source')
+          .eq('workspace_id', currentWorkspaceId)
+          .in('source', ['ads', 'other'])
+        const untagged = ((data ?? []) as Array<{ id: string; metadata: Record<string, unknown> | null }>).filter(
+          (row) => !row.metadata?.facebook_page_id,
+        )
+        await Promise.all(
+          untagged.map((row) =>
+            sb
+              .from('workspace_ai_media')
+              .update({ metadata: { ...(row.metadata ?? {}), facebook_page_id: pageId } })
+              .eq('id', row.id),
+          ),
+        )
+
+        if (untagged.length > 0) {
+          await refreshMedia()
+        }
+        setLibraryRefreshToken((token) => token + 1)
+      } catch (err) {
+        console.warn('[AdsPage] legacy asset backfill failed', err)
+      }
+    },
+    [currentWorkspaceId, refreshMedia],
+  )
+
+  useEffect(() => {
+    if (legacyBackfillRef.current || isDemoMode) return
+    const pageId = profile.metaConnection.facebookPageId
+    if (!currentWorkspaceId || !pageId || !onboardingDone) return
+    legacyBackfillRef.current = true
+    void backfillUntaggedAssetsToPage(pageId)
+  }, [currentWorkspaceId, profile.metaConnection.facebookPageId, onboardingDone, backfillUntaggedAssetsToPage])
 
   const suggestAudienceWithAi = async (goalOverride?: string) => {
     setSuggestingAudience(true)
@@ -2132,6 +2192,7 @@ export function AdsPage() {
             workspaceId={currentWorkspaceId}
             businessName={selectedFacebookPageName}
             facebookPageId={profile.metaConnection.facebookPageId || null}
+            refreshToken={libraryRefreshToken}
             onOpenInStudio={(creative) => {
               setActiveTab('studio')
               setDraft((d) => ({

@@ -159,9 +159,9 @@ export async function deleteAdCreative(id: string): Promise<void> {
 export type ListAdCreativesParams = {
   workspaceId: string
   /**
-   * When provided, scope results to the given Facebook Page. Legacy rows with a
-   * NULL page id remain visible across every Page so nothing disappears for
-   * users who created ads before per-Page isolation existed.
+   * When provided, scope results strictly to the given Facebook Page. Rows are
+   * assigned a page id on creation (and legacy rows are backfilled to the
+   * active Page in the UI), so each Page only ever shows its own ads.
    */
   facebookPageId?: string | null
   status?: AdCreativeStatus | 'all'
@@ -184,7 +184,7 @@ export async function listAdCreatives({
     .limit(limit)
 
   if (facebookPageId) {
-    query = query.or(`facebook_page_id.eq.${facebookPageId},facebook_page_id.is.null`)
+    query = query.eq('facebook_page_id', facebookPageId)
   }
   if (status && status !== 'all') {
     query = query.eq('status', status)
