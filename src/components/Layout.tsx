@@ -128,36 +128,29 @@ export function Layout() {
         className={cn(
           'flex min-h-0 shrink-0 flex-col border-r bg-card',
           SIDEBAR_TRANSITION,
-          sidebarOpen ? 'w-64' : 'w-[68px]'
+          sidebarOpen ? 'w-64' : 'w-16'
         )}
       >
         <div
           className={cn(
-            'flex items-center gap-2 py-4',
+            'flex py-4',
             SIDEBAR_TRANSITION,
-            sidebarOpen ? 'px-4' : 'px-3 justify-center'
+            sidebarOpen ? 'items-center gap-2 px-4' : 'flex-col items-center gap-3 px-2'
           )}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-sm">
             A
           </div>
-          <div
-            className={cn(
-              'min-w-0 flex-1 overflow-hidden whitespace-nowrap transition-opacity duration-150',
-              sidebarOpen ? 'opacity-100 delay-100' : 'pointer-events-none opacity-0'
-            )}
-            aria-hidden={!sidebarOpen}
-          >
-            <span className="block truncate text-sm font-semibold tracking-tight text-foreground">Ad Guru</span>
-            <span className="block truncate text-[11px] text-muted-foreground">Social + ads workspace</span>
-          </div>
+          {sidebarOpen ? (
+            <div className="min-w-0 flex-1 overflow-hidden whitespace-nowrap">
+              <span className="block truncate text-sm font-semibold tracking-tight text-foreground">Ad Guru</span>
+              <span className="block truncate text-[11px] text-muted-foreground">Social + ads workspace</span>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => setSidebarOpen((current) => !current)}
-            className={cn(
-              'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-              sidebarOpen ? '' : 'absolute right-2 top-3'
-            )}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
@@ -203,13 +196,15 @@ export function Layout() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div
-                className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground"
-                title={currentWorkspace.name}
-                aria-hidden="true"
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title={`${currentWorkspace.name} — expand to switch`}
+                aria-label={`Current workspace: ${currentWorkspace.name}. Expand to switch.`}
               >
                 <Building2 className="h-4 w-4" />
-              </div>
+              </button>
             )}
           </div>
         ) : null}
@@ -231,8 +226,8 @@ export function Layout() {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'group relative flex w-full items-center rounded-lg text-sm font-medium transition-colors',
-                  sidebarOpen ? 'h-10 gap-3 px-3' : 'h-10 justify-center px-0',
+                  'group relative flex items-center rounded-lg text-sm font-medium transition-colors',
+                  sidebarOpen ? 'h-10 w-full gap-3 px-3' : 'mx-auto h-10 w-10 justify-center',
                   active
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-foreground/80 hover:bg-accent hover:text-foreground'
@@ -240,14 +235,7 @@ export function Layout() {
                 title={!sidebarOpen ? item.label : undefined}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span
-                  className={cn(
-                    'flex-1 truncate text-left transition-opacity duration-150',
-                    sidebarOpen ? 'opacity-100 delay-100' : 'pointer-events-none w-0 overflow-hidden opacity-0'
-                  )}
-                >
-                  {item.label}
-                </span>
+                {sidebarOpen ? <span className="flex-1 truncate text-left">{item.label}</span> : null}
               </button>
             )
           })}
