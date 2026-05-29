@@ -146,6 +146,7 @@ type PersistedCampaignDraft = {
   options?: AdOption[]
   selectedId?: string | null
   step?: StudioStep
+  creativeIdMap?: Record<string, string>
   savedAt?: number
 }
 
@@ -296,6 +297,7 @@ export function AdsPage() {
         if (saved.options) setOptions(saved.options)
         if (saved.selectedId !== undefined) setSelectedId(saved.selectedId)
         if (saved.step) setStudioStep(saved.step)
+        if (saved.creativeIdMap) creativeIdByOption.current = saved.creativeIdMap
         const isMeaningful =
           (saved.options && saved.options.length > 0) ||
           (saved.draft?.promoting?.trim()?.length ?? 0) > 0 ||
@@ -317,6 +319,7 @@ export function AdsPage() {
       options,
       selectedId,
       step: studioStep,
+      creativeIdMap: creativeIdByOption.current,
     })
   }, [currentWorkspaceId, draft, options, selectedId, studioStep])
 

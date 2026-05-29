@@ -288,13 +288,14 @@ export function AdsCampaignStudio({
       skipStepScrollRef.current = false
       return
     }
-    navRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const scroller = (navRef.current?.closest('main') ?? document.querySelector('main')) as HTMLElement | null
+    scroller?.scrollTo({ top: 0, behavior: 'smooth' })
     stepButtonRefs.current[step]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }, [step])
 
   return (
     <div className="space-y-4">
-      <nav ref={navRef} className="rounded-xl border bg-card p-2 lg:sticky lg:top-4 lg:z-20 scroll-mt-4">
+      <nav ref={navRef} className="rounded-xl border bg-card p-2 lg:sticky lg:top-0 lg:z-20">
         <div className="flex items-center gap-2">
           <div className="-mx-1 flex flex-1 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {STUDIO_STEPS.map((item) => {
