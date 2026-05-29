@@ -29,7 +29,7 @@ import {
   type MetaPageOption,
 } from '@/lib/meta-integration-options'
 import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
-import { Loader2, Upload, X } from 'lucide-react'
+import { Loader2, Trash2, Upload, Video, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -139,7 +139,7 @@ function createDefaultCampaignDraft(): CampaignDraftState {
 const PERSIST_KEY_PREFIX = 'adguru:campaign-draft:'
 // Drafts older than this are considered stale and cleared on load.
 const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000
-const ADS_MEDIA_PAGE_SIZE = 9
+const ADS_MEDIA_PAGE_SIZE = 15
 
 type PersistedCampaignDraft = {
   draft?: Partial<CampaignDraftState>
@@ -2178,19 +2178,48 @@ export function AdsPage() {
                 <p className="text-sm text-muted-foreground">No assets yet.</p>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                     {visibleAdsMedia.map((asset) => (
-                      <Card key={asset.id}>
-                        <CardContent className="space-y-2 p-3">
-                          {asset.media_type === 'video'
-                            ? <video src={asset.public_url} controls className="h-40 w-full rounded object-cover" />
-                            : <img src={asset.public_url} alt="" className="h-40 w-full rounded object-cover" />}
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(asset.public_url)}>Reuse</Button>
-                            <Button size="sm" variant="destructive" onClick={() => void handleRemoveMedia(asset.id)}>Delete</Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div
+                        key={asset.id}
+                        className="group overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md"
+                      >
+                        <div className="relative aspect-square w-full overflow-hidden bg-muted">
+                          {asset.media_type === 'video' ? (
+                            <video src={asset.public_url} muted playsInline className="h-full w-full object-cover" />
+                          ) : (
+                            <img src={asset.public_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                          )}
+                          {asset.media_type === 'video' ? (
+                            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                              <Video className="h-3 w-3" />
+                              Video
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-1.5 p-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 flex-1 text-xs"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(asset.public_url)
+                              setMessage('Asset URL copied to clipboard.')
+                            }}
+                          >
+                            Reuse
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 shrink-0"
+                            title="Delete"
+                            onClick={() => void handleRemoveMedia(asset.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
                     ))}
                   </div>
 

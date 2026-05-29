@@ -27,6 +27,8 @@ serve(withCors(async (req) => {
   const prompt = `You are a senior Meta Ads copywriter and creative strategist.
 Create ${variantsToReturn} STRUCTURALLY DISTINCT Facebook/Instagram ad variants for this brief.
 
+Writing rule: NEVER use em dashes or en dashes (— or –). Use a comma, period, or a plain hyphen (-) instead.
+
 Brief: "${brief}"
 
 Brand & audience context:

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Calendar, ExternalLink, Loader2, RefreshCcw, Search, Trash2 } from 'lucide-react'
+import { Archive, Calendar, ExternalLink, Image as ImageIcon, Loader2, RefreshCcw, Search, Trash2, Video } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Pagination } from '@/components/ui/pagination'
 import { useConfirm } from '@/components/ConfirmProvider'
-import { FacebookAdPreview } from '@/components/ads/FacebookAdPreview'
 import {
   AD_CREATIVE_STATUS_LABELS,
   deleteAdCreative,
@@ -18,7 +17,7 @@ import {
 } from '@/lib/ads-creatives'
 import { cn } from '@/lib/utils'
 
-const AD_LIBRARY_PAGE_SIZE = 9
+const AD_LIBRARY_PAGE_SIZE = 12
 
 const STATUS_FILTERS: Array<{ value: AdCreativeStatus | 'all'; label: string }> = [
   { value: 'all', label: 'All' },
@@ -48,8 +47,6 @@ type AdLibraryPanelProps = {
 
 export function AdLibraryPanel({
   workspaceId,
-  businessName,
-  facebookPageId = null,
   onOpenInStudio,
 }: AdLibraryPanelProps) {
   const confirm = useConfirm()
@@ -214,13 +211,11 @@ export function AdLibraryPanel({
           <EmptyState message="No ads yet. Generate your first campaign in the Studio." />
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visibleItems.map((creative) => (
                 <AdLibraryCard
                   key={creative.id}
                   creative={creative}
-                  businessName={businessName}
-                  facebookPageId={facebookPageId}
                   onArchive={() => void handleArchive(creative)}
                   onDelete={() => void handleDelete(creative)}
                   onStatusChange={(next) => void handleStatusChange(creative, next)}
@@ -255,8 +250,6 @@ function EmptyState({ message }: { message: string }) {
 
 function AdLibraryCard({
   creative,
-  businessName,
-  facebookPageId,
   onArchive,
   onDelete,
   onStatusChange,
@@ -264,29 +257,42 @@ function AdLibraryCard({
   onOpenDetail,
 }: {
   creative: AdCreative
-  businessName: string
-  facebookPageId?: string | null
   onArchive: () => void
   onDelete: () => void
   onStatusChange: (next: AdCreativeStatus) => void
   onOpen?: () => void
   onOpenDetail?: () => void
 }) {
-  const pageAvatarUrl = facebookPageId
-    ? `https://graph.facebook.com/${encodeURIComponent(facebookPageId)}/picture?type=large`
-    : null
-  const destinationDomain = useMemo(() => {
-    if (!creative.destination_url) return ''
-    try {
-      return new URL(creative.destination_url).hostname.replace(/^www\./, '')
-    } catch {
-      return creative.destination_url.replace(/^https?:\/\//, '').split('/')[0]
-    }
-  }, [creative.destination_url])
-
+  const isVideo = creative.media_type === 'video'
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3">
-      <div className="flex items-start justify-between gap-2">
+    <div className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+        {creative.media_url ? (
+          isVideo ? (
+            <video src={creative.media_url} muted playsInline className="h-full w-full object-cover" />
+          ) : (
+            <img src={creative.media_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+          )
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
+            {isVideo ? <Video className="h-7 w-7" /> : <ImageIcon className="h-7 w-7" />}
+          </div>
+        )}
+        <Badge
+          variant="outline"
+          className={cn('absolute left-2 top-2 bg-background/85 backdrop-blur', STATUS_BADGE_CLASS[creative.status])}
+        >
+          {AD_CREATIVE_STATUS_LABELS[creative.status]}
+        </Badge>
+        {isVideo ? (
+          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            <Video className="h-3 w-3" />
+            Video
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 p-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
             {creative.campaign_name || creative.headline || 'Untitled ad'}
@@ -296,68 +302,35 @@ function AdLibraryCard({
             {creative.angle ? ` · ${creative.angle.replace(/-/g, ' ')}` : ''}
           </p>
         </div>
-        <Badge variant="outline" className={cn('shrink-0', STATUS_BADGE_CLASS[creative.status])}>
-          {AD_CREATIVE_STATUS_LABELS[creative.status]}
-        </Badge>
-      </div>
-
-      <FacebookAdPreview
-        data={{
-          pageName: businessName || 'Your Page',
-          pageAvatarUrl,
-          primaryText: creative.primary_text,
-          headline: creative.headline,
-          description: creative.description ?? undefined,
-          cta: creative.cta,
-          mediaUrl: creative.media_url,
-          mediaType: (creative.media_type as 'image' | 'video' | undefined) ?? 'image',
-          destinationDomain,
-        }}
-        placement="facebook-feed"
-        device="mobile"
-      />
-
-      <div className="grid grid-cols-2 gap-1.5 text-[11px] text-muted-foreground">
-        <div>
-          <span className="text-foreground">Goal:</span> {creative.goal || '—'}
-        </div>
-        <div>
-          <span className="text-foreground">Budget:</span>{' '}
-          {creative.budget?.type === 'lifetime'
-            ? `$${creative.budget?.lifetime ?? '—'} lifetime`
-            : `$${creative.budget?.daily ?? '—'}/day`}
-        </div>
-        <div className="col-span-2 truncate">
-          <span className="text-foreground">Audience:</span>{' '}
-          {creative.audience?.location || '—'}
-          {creative.audience?.age_min ? ` · ${creative.audience.age_min}-${creative.audience.age_max ?? '+'}` : ''}
-        </div>
-      </div>
-
-      <div className="mt-auto flex flex-wrap items-center gap-1.5">
-        {onOpenDetail ? (
-          <Button size="sm" variant="default" className="flex-1" onClick={onOpenDetail}>
-            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-            Open detail
-          </Button>
+        {creative.primary_text ? (
+          <p className="line-clamp-2 text-xs text-muted-foreground">{creative.primary_text}</p>
         ) : null}
-        {onOpen ? (
-          <Button size="sm" variant="outline" onClick={onOpen}>
-            Edit
-          </Button>
-        ) : null}
-        <StatusMenu current={creative.status} onChange={onStatusChange} />
-        <Button size="icon" variant="ghost" onClick={onArchive} title="Archive">
-          <Archive className="h-4 w-4" />
-        </Button>
-        <Button size="icon" variant="ghost" onClick={onDelete} title="Delete">
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </div>
 
-      <p className="text-[10px] text-muted-foreground">
-        Updated {new Date(creative.updated_at).toLocaleString()}
-      </p>
+        <div className="mt-auto space-y-2 pt-1">
+          <div className="flex items-center gap-1.5">
+            {onOpenDetail ? (
+              <Button size="sm" variant="default" className="flex-1" onClick={onOpenDetail}>
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                Open
+              </Button>
+            ) : null}
+            {onOpen ? (
+              <Button size="sm" variant="outline" className="flex-1" onClick={onOpen}>
+                Edit
+              </Button>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <StatusMenu current={creative.status} onChange={onStatusChange} />
+            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onArchive} title="Archive">
+              <Archive className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onDelete} title="Delete">
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -373,7 +346,7 @@ function StatusMenu({
     <select
       value={current}
       onChange={(e) => onChange(e.target.value as AdCreativeStatus)}
-      className="h-8 rounded-md border bg-background px-2 text-xs"
+      className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
     >
       {(Object.keys(AD_CREATIVE_STATUS_LABELS) as AdCreativeStatus[]).map((status) => (
         <option key={status} value={status}>
