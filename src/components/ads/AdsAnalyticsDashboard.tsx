@@ -159,8 +159,6 @@ export function AdsAnalyticsDashboard({ workspaceId, facebookPageId = null }: Ad
     }
   }
 
-  const linkedCount = useMemo(() => rows.filter((r) => !r.metricsUnavailable).length, [rows])
-
   return (
     <div className="space-y-4">
       <Card>
@@ -169,11 +167,11 @@ export function AdsAnalyticsDashboard({ workspaceId, facebookPageId = null }: Ad
             <CardTitle className="flex items-center gap-2">
               Analytics
               <Badge variant="secondary" className="text-[10px] font-normal">
-                {linkedCount}/{rows.length} ads with live metrics
+                {rows.length} live {rows.length === 1 ? 'ad' : 'ads'}
               </Badge>
             </CardTitle>
             <CardDescription>
-              Spend, reach, impressions, CTR, CPC, CPM, frequency, leads, conversions and ROAS for every creative in this workspace.
+              Live Meta performance for every ad published from this Page: spend, reach, impressions, CTR, CPC, CPM, frequency, leads, conversions and ROAS.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -243,7 +241,7 @@ export function AdsAnalyticsDashboard({ workspaceId, facebookPageId = null }: Ad
           {!workspaceId ? (
             <EmptyHint message="Pick a workspace to load analytics." />
           ) : sorted.length === 0 && !loading ? (
-            <EmptyHint message="No ads match these filters yet." />
+            <EmptyHint message="No live ads for this Page yet. Publish an ad to Meta and its real performance will appear here." />
           ) : (
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full text-sm">

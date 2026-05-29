@@ -197,7 +197,13 @@ export type LoadAnalyticsParams = {
   maxEnriched?: number
 }
 
-/** Loads creatives + enriches each with Meta insights when possible. */
+/**
+ * Loads analytics for real ads only. Analytics shows ONLY creatives that were
+ * actually published to Meta (i.e. have a Meta ad/adset/campaign id) and
+ * enriches each with live insights. AI drafts and unpublished creatives are
+ * excluded so the dashboard never shows placeholder / zeroed-out rows. Results
+ * are scoped to the given Facebook Page when one is provided.
+ */
 export async function loadAdAnalytics({
   workspaceId,
   preset,
@@ -205,16 +211,18 @@ export async function loadAdAnalytics({
   maxEnriched = 30,
 }: LoadAnalyticsParams): Promise<AnalyticsRow[]> {
   const creatives = await listAdCreatives({ workspaceId, facebookPageId, status: 'all', limit: 100 })
+  const liveAds = creatives.filter((creative) =>
+    Boolean(creative.meta_ad_id || creative.meta_adset_id || creative.meta_campaign_id),
+  )
   const rows: AnalyticsRow[] = []
   let enriched = 0
-  for (const creative of creatives) {
-    const hasMeta = Boolean(creative.meta_ad_id || creative.meta_adset_id || creative.meta_campaign_id)
-    if (hasMeta && enriched < maxEnriched) {
+  for (const creative of liveAds) {
+    if (enriched < maxEnriched) {
       enriched += 1
       const metrics = await fetchInsightsFor(workspaceId, creative, preset)
       rows.push({ creative, metrics, metricsUnavailable: false })
     } else {
-      rows.push({ creative, metrics: emptyMetrics(), metricsUnavailable: hasMeta === false })
+      rows.push({ creative, metrics: emptyMetrics(), metricsUnavailable: true })
     }
   }
   return rows
