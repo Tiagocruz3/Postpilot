@@ -229,7 +229,7 @@ export function AdDetailPage() {
 
   if (loading && !creative) {
     return (
-      <div className="mx-auto flex h-64 max-w-6xl items-center justify-center p-6 md:p-8">
+      <div className="mx-auto flex h-64 max-w-6xl items-center justify-center px-6 py-6 md:px-10 md:py-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
@@ -237,7 +237,7 @@ export function AdDetailPage() {
 
   if (error || !creative) {
     return (
-      <div className="mx-auto max-w-6xl space-y-4 p-6 md:p-8">
+      <div className="mx-auto max-w-6xl space-y-4 px-6 py-6 md:px-10 md:py-8">
         <Button variant="outline" size="sm" onClick={() => navigate('/app/ads')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Ads
@@ -250,7 +250,7 @@ export function AdDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6 md:p-8">
+    <div className="mx-auto max-w-6xl space-y-6 px-6 py-6 md:px-10 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="outline" size="sm" onClick={() => navigate('/app/ads')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -328,7 +328,7 @@ export function AdDetailPage() {
         <StatusBadge status={creative.status} />
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(340px,400px)] xl:gap-10">
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
@@ -473,7 +473,7 @@ export function AdDetailPage() {
                 onPlacement={setPlacement}
                 onDevice={setDevice}
               />
-              <div className="flex justify-center overflow-x-auto rounded-xl border bg-muted/10 p-4">
+              <div className="flex min-h-[280px] justify-center overflow-x-auto rounded-xl border bg-muted/10 p-4 sm:p-6">
                 <FacebookAdPreview
                   data={{
                     pageName: businessName,
@@ -518,6 +518,7 @@ function PlacementSwitcher({
 }) {
   return (
     <div className="space-y-3">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Placement</p>
       <div className="flex flex-wrap gap-1.5">
         {AD_PLACEMENTS.map(({ id, label, icon }) => (
           <button
@@ -536,6 +537,7 @@ function PlacementSwitcher({
           </button>
         ))}
       </div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Device</p>
       <div className="inline-flex rounded-full border p-0.5">
         {(['mobile', 'desktop'] as const).map((value) => (
           <button
