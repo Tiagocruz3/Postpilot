@@ -149,6 +149,7 @@ export function AdsAnalyticsDashboard({ workspaceId, facebookPageId = null }: Ad
   }, [filtered, sortKey, sortDir])
 
   const totals = useMemo(() => sumMetrics(filtered.map((row) => row.metrics)), [filtered])
+  const linkedCount = rows.filter((r) => !r.metricsUnavailable).length
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
