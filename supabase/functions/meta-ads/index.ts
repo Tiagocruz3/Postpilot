@@ -379,6 +379,9 @@ function buildTargeting(audience: Record<string, unknown> | null | undefined, pl
     if (ps.some((p) => p.includes('instagram') || p.includes('reel') || p.includes('story'))) platforms.push('instagram')
     if (platforms.length > 0) targeting.publisher_platforms = Array.from(new Set(platforms))
   }
+  // Meta now requires an explicit opt in/out of Advantage+ audience expansion.
+  // 0 = use the targeting the user defined as-is (don't let Meta expand past it).
+  targeting.targeting_automation = { advantage_audience: 0 }
   return targeting
 }
 
