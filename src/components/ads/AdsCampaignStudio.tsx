@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw, RotateCcw, Sparkles, Trophy, Wand2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
 import { AdsReachPanel } from '@/components/ads/AdsReachPanel'
 import { AdsSelectField } from '@/components/ads/AdsSelectField'
@@ -175,6 +175,9 @@ export function AdsCampaignStudio({
   const [previewPlacement, setPreviewPlacement] = useState<AdPlacement>('facebook-feed')
   const [previewDevice, setPreviewDevice] = useState<AdDevice>('mobile')
   const [regeneratingVariantId, setRegeneratingVariantId] = useState<string | null>(null)
+  const navRef = useRef<HTMLElement>(null)
+  const stepButtonRefs = useRef<Partial<Record<StudioStepId, HTMLButtonElement | null>>>({})
+  const skipStepScrollRef = useRef(true)
   const selectedOption = options.find((option) => option.id === selectedId) ?? null
   const destinationDomain = useMemo(() => {
     if (!draft.destinationUrl) return ''
@@ -277,16 +280,22 @@ export function AdsCampaignStudio({
   })()
   const canNext = !nextReason
 
+  // When the user advances (Continue), goes back, or picks a step pill, scroll
+  // the studio so the step bar sits at the top and the active pill stays
+  // visible in the horizontal row — they can then work down through the step.
+  useEffect(() => {
+    if (skipStepScrollRef.current) {
+      skipStepScrollRef.current = false
+      return
+    }
+    navRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    stepButtonRefs.current[step]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [step])
+
   return (
     <div className="space-y-4">
-      <nav className="rounded-xl border bg-card p-2 lg:sticky lg:top-4 lg:z-20">
+      <nav ref={navRef} className="rounded-xl border bg-card p-2 lg:sticky lg:top-4 lg:z-20 scroll-mt-4">
         <div className="flex items-center gap-2">
-          <p className="hidden shrink-0 px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:block">
-            Ad Studio
-          </p>
-
-          {/* Horizontal scroller for the step pills so the row never wraps and
-              stays responsive on narrow viewports. */}
           <div className="-mx-1 flex flex-1 items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {STUDIO_STEPS.map((item) => {
               const active = step === item.id
@@ -294,6 +303,9 @@ export function AdsCampaignStudio({
                 <button
                   key={item.id}
                   type="button"
+                  ref={(el) => {
+                    stepButtonRefs.current[item.id] = el
+                  }}
                   onClick={() => setStep(item.id)}
                   className={cn(
                     'group flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition-colors',
