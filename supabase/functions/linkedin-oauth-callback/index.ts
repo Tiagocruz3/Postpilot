@@ -31,9 +31,13 @@ serve(async (req) => {
       redirect_uri: redirectUri,
     }),
   })
-  const tokenData = await tokenRes.json()
+  const tokenData = await tokenRes.json().catch(() => ({} as Record<string, unknown>))
   if (!tokenData.access_token) {
-    return new Response('LinkedIn token exchange failed', { status: 400 })
+    // Surface LinkedIn's actual reason (e.g. invalid_client = wrong/expired
+    // secret, invalid_redirect_uri, invalid_grant = code expired/reused).
+    console.error('LinkedIn token exchange failed:', tokenRes.status, tokenData)
+    const detail = tokenData.error_description || tokenData.error || `HTTP ${tokenRes.status}`
+    return new Response(`LinkedIn token exchange failed: ${detail}`, { status: 400 })
   }
 
   const accessToken = tokenData.access_token as string

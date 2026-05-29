@@ -274,6 +274,10 @@ serve(withCors(async (req) => {
       supabase,
       apiBase,
       token,
+      // The ad creative references the Page via object_story_spec, which needs
+      // page access the account token lacks (it only has pages_show_list). The
+      // facebook token carries pages_* + ads_management, so use it for that step.
+      pageToken: facebookIntegration?.access_token_encrypted ?? null,
       pageId,
       params,
     })
@@ -409,11 +413,12 @@ type PublishParams = {
   supabase: ReturnType<typeof createClient>
   apiBase: string
   token: string
+  pageToken: string | null
   pageId: string | null
   params: Record<string, unknown>
 }
 
-async function publishAdFromCreative({ supabase, apiBase, token, pageId, params }: PublishParams) {
+async function publishAdFromCreative({ supabase, apiBase, token, pageToken, pageId, params }: PublishParams) {
   const creativeId = String(params.creative_id || '')
   const rawAccountId = String(params.account_id || '')
   if (!creativeId) return { status: 400, body: { error: 'Missing creative_id' } }
@@ -520,7 +525,8 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageId, params 
     body: JSON.stringify({
       name: `${c.headline || 'Ad'} creative`,
       object_story_spec: { page_id: pageId, link_data: linkData },
-      access_token: token,
+      // Needs page access for the object_story_spec — use the page-capable token.
+      access_token: pageToken || token,
     }),
   })
   const creativeJson = (await creativeRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
