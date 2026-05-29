@@ -43,6 +43,7 @@ export type AdCreative = {
   id: string
   workspace_id: string
   user_id: string
+  facebook_page_id: string | null
   generation_id: string | null
   variant_label: string
   campaign_name: string | null
@@ -100,6 +101,7 @@ function normalize(row: Record<string, unknown>): AdCreative {
     id: String(row.id),
     workspace_id: String(row.workspace_id),
     user_id: String(row.user_id),
+    facebook_page_id: (row.facebook_page_id as string | null) ?? null,
     generation_id: (row.generation_id as string | null) ?? null,
     variant_label: String(row.variant_label || 'Variant A'),
     campaign_name: (row.campaign_name as string | null) ?? null,
@@ -156,6 +158,12 @@ export async function deleteAdCreative(id: string): Promise<void> {
 
 export type ListAdCreativesParams = {
   workspaceId: string
+  /**
+   * When provided, scope results to the given Facebook Page. Legacy rows with a
+   * NULL page id remain visible across every Page so nothing disappears for
+   * users who created ads before per-Page isolation existed.
+   */
+  facebookPageId?: string | null
   status?: AdCreativeStatus | 'all'
   search?: string
   limit?: number
@@ -163,6 +171,7 @@ export type ListAdCreativesParams = {
 
 export async function listAdCreatives({
   workspaceId,
+  facebookPageId,
   status,
   search,
   limit = 100,
@@ -174,6 +183,9 @@ export async function listAdCreatives({
     .order('updated_at', { ascending: false })
     .limit(limit)
 
+  if (facebookPageId) {
+    query = query.or(`facebook_page_id.eq.${facebookPageId},facebook_page_id.is.null`)
+  }
   if (status && status !== 'all') {
     query = query.eq('status', status)
   }

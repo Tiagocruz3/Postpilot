@@ -472,10 +472,18 @@ export function AdsPage() {
   ])
 
   const selectedOption = options.find((o) => o.id === selectedId) ?? null
-  const adsMedia = useMemo(
-    () => mediaItems.filter((m) => m.source === 'ads' || m.source === 'other'),
-    [mediaItems],
-  )
+  // Scope ad assets to the Page the user is posting from. Media is tagged with
+  // `metadata.facebook_page_id` at generation/upload time; legacy assets with
+  // no tag stay visible across every Page so nothing disappears.
+  const adsMedia = useMemo(() => {
+    const pageId = profile.metaConnection.facebookPageId || null
+    return mediaItems.filter((m) => {
+      if (m.source !== 'ads' && m.source !== 'other') return false
+      if (!pageId) return true
+      const taggedPage = (m.metadata as Record<string, unknown> | null)?.facebook_page_id
+      return !taggedPage || taggedPage === pageId
+    })
+  }, [mediaItems, profile.metaConnection.facebookPageId])
   // Clamp the page in render so the user never lands on an empty page when
   // assets are deleted or the workspace switches. Pure computation, no effect.
   const safeMediaPage = Math.min(
@@ -1128,6 +1136,7 @@ export function AdsPage() {
           ...buildCreativePayload(option),
           workspace_id: currentWorkspaceId,
           user_id: user.id,
+          facebook_page_id: profile.metaConnection.facebookPageId || null,
           generation_id: generationId,
           variant_label: option.name,
           is_selected_variant: idx === 0,
@@ -1349,7 +1358,11 @@ export function AdsPage() {
           workspace_id: currentWorkspaceId,
           user_id: user.id,
           source: 'ads',
-          metadata: { adOptionId: optionId, campaignId: draft.campaignName || null },
+          metadata: {
+            adOptionId: optionId,
+            campaignId: draft.campaignName || null,
+            facebook_page_id: profile.metaConnection.facebookPageId || null,
+          },
         },
       })
       if (error) {
@@ -1455,7 +1468,11 @@ export function AdsPage() {
         public_url: publicUrl,
         prompt: 'Brand logo',
         source: 'ads',
-        metadata: { kind: 'logo', source: 'upload' },
+        metadata: {
+          kind: 'logo',
+          source: 'upload',
+          facebook_page_id: profile.metaConnection.facebookPageId || null,
+        },
       } as never)
       if (insertError) {
         setMessage(insertError.message)
@@ -2238,7 +2255,10 @@ export function AdsPage() {
 
         <TabsContent value="analytics" activeValue={activeTab}>
           <div className="space-y-4">
-            <AdsAnalyticsDashboard workspaceId={currentWorkspaceId} />
+            <AdsAnalyticsDashboard
+              workspaceId={currentWorkspaceId}
+              facebookPageId={profile.metaConnection.facebookPageId || null}
+            />
             <PublishedAdsPanel
               workspaceId={currentWorkspaceId}
               metaAccountId={profile?.metaConnection?.adAccountId ? `act_${profile.metaConnection.adAccountId.replace(/^act_/, '')}` : null}

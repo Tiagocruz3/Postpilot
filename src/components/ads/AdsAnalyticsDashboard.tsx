@@ -25,6 +25,8 @@ import { cn } from '@/lib/utils'
 
 type AdsAnalyticsDashboardProps = {
   workspaceId: string | null
+  /** When set, analytics are scoped to this Facebook Page. */
+  facebookPageId?: string | null
 }
 
 const STATUS_FILTERS: Array<{ value: AdCreativeStatus | 'all'; label: string }> = [
@@ -66,7 +68,7 @@ const COLUMNS: Array<{ key: SortKey; label: string; numeric?: boolean; metric?: 
   { key: 'roas', label: 'ROAS', numeric: true, metric: 'roas', format: fmtRatio },
 ]
 
-export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProps) {
+export function AdsAnalyticsDashboard({ workspaceId, facebookPageId = null }: AdsAnalyticsDashboardProps) {
   const navigate = useNavigate()
   const [rows, setRows] = useState<AnalyticsRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -84,7 +86,7 @@ export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProp
     setLoading(true)
     setError(null)
     try {
-      const data = await loadAdAnalytics({ workspaceId, preset })
+      const data = await loadAdAnalytics({ workspaceId, preset, facebookPageId })
       setRows(data)
       const aggregated = await loadAggregatedTrends({
         workspaceId,
@@ -97,7 +99,7 @@ export function AdsAnalyticsDashboard({ workspaceId }: AdsAnalyticsDashboardProp
     } finally {
       setLoading(false)
     }
-  }, [workspaceId, preset])
+  }, [workspaceId, preset, facebookPageId])
 
   useEffect(() => {
     void refresh()

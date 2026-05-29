@@ -27,7 +27,9 @@ serve(withCors(async (req) => {
   const prompt = `You are a senior Meta Ads copywriter and creative strategist.
 Create ${variantsToReturn} STRUCTURALLY DISTINCT Facebook/Instagram ad variants for this brief.
 
-Writing rule: NEVER use em dashes or en dashes (— or –). Use a comma, period, or a plain hyphen (-) instead.
+Writing rules:
+- NEVER use em dashes or en dashes (— or –). Use a comma, period, or a plain hyphen (-) instead.
+- Format "primary_text" as 2-3 short, scannable paragraphs separated by a blank line (\n\n). Keep paragraphs to 1-2 sentences. Do NOT return one long run-on block.
 
 Brief: "${brief}"
 
@@ -67,7 +69,7 @@ Return ONLY a JSON object exactly matching this schema (no markdown, no commenta
       "name": "Variant A",
       "angle": "direct-offer | problem-solution | social-proof | urgency | curiosity | story | founder | comparison",
       "headline": "5-8 words max, punchy",
-      "primary_text": "2-4 sentences, no emojis unless they fit the tone",
+      "primary_text": "2-3 short paragraphs separated by a blank line (\\n\\n), 1-2 sentences each, no emojis unless they fit the tone",
       "description": "8-14 words, supports the headline",
       "cta": "Learn More | Shop Now | Sign Up | Get Offer | Book Now | Get Quote | Message Us | Apply Now",
       "image_prompt": "1-2 sentences describing a shot we could generate",

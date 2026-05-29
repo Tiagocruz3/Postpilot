@@ -47,6 +47,7 @@ type AdLibraryPanelProps = {
 
 export function AdLibraryPanel({
   workspaceId,
+  facebookPageId = null,
   onOpenInStudio,
 }: AdLibraryPanelProps) {
   const confirm = useConfirm()
@@ -63,14 +64,14 @@ export function AdLibraryPanel({
     setLoading(true)
     setError(null)
     try {
-      const rows = await listAdCreatives({ workspaceId, status, search })
+      const rows = await listAdCreatives({ workspaceId, facebookPageId, status, search })
       setItems(rows)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load ad library')
     } finally {
       setLoading(false)
     }
-  }, [workspaceId, status, search])
+  }, [workspaceId, facebookPageId, status, search])
 
   useEffect(() => {
     void refresh()

@@ -191,6 +191,8 @@ export type AnalyticsRow = {
 export type LoadAnalyticsParams = {
   workspaceId: string
   preset: DateRangePreset
+  /** When set, scope analytics to a single Facebook Page (legacy nulls included). */
+  facebookPageId?: string | null
   /** Cap how many creatives we attempt to enrich (each costs an API call). */
   maxEnriched?: number
 }
@@ -199,9 +201,10 @@ export type LoadAnalyticsParams = {
 export async function loadAdAnalytics({
   workspaceId,
   preset,
+  facebookPageId,
   maxEnriched = 30,
 }: LoadAnalyticsParams): Promise<AnalyticsRow[]> {
-  const creatives = await listAdCreatives({ workspaceId, status: 'all', limit: 100 })
+  const creatives = await listAdCreatives({ workspaceId, facebookPageId, status: 'all', limit: 100 })
   const rows: AnalyticsRow[] = []
   let enriched = 0
   for (const creative of creatives) {
