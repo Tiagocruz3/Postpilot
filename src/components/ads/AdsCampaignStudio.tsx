@@ -454,7 +454,7 @@ export function AdsCampaignStudio({
                 ) : null}
 
                 {options.length === 0 && generatingCopy ? (
-                  <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid gap-8 sm:grid-cols-2">
                     {[0, 1].map((index) => (
                       <VariantSkeletonCard
                         key={`skeleton-${index}`}
@@ -466,7 +466,7 @@ export function AdsCampaignStudio({
                 ) : null}
 
                 {options.length > 0 ? (
-                  <div className="grid items-start gap-6 sm:grid-cols-2">
+                  <div className="grid items-start gap-8 sm:grid-cols-2">
                     {options.map((option) => {
                       const isSelected = selectedId === option.id
                       const isRecommended =
@@ -482,8 +482,8 @@ export function AdsCampaignStudio({
                         <div
                           key={option.id}
                           className={cn(
-                            'alive-enter flex flex-col gap-3 rounded-2xl border p-3 transition-all',
-                            isSelected ? 'border-[#1877F2] ring-2 ring-[#1877F2]/20' : 'hover:bg-muted/30',
+                            'alive-enter flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-sm transition-all',
+                            isSelected ? 'border-[#1877F2] ring-2 ring-[#1877F2]/20' : 'hover:shadow-md',
                             !isReady && 'border-dashed',
                           )}
                         >
