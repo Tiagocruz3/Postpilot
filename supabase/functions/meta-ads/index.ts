@@ -97,6 +97,7 @@ serve(withCors(async (req) => {
         objective: params.objective || 'OUTCOME_AWARENESS',
         status: 'PAUSED',
         special_ad_categories: [],
+        is_adset_budget_sharing_enabled: false,
         access_token: token,
       }),
     })
@@ -447,6 +448,9 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageId, params 
         objective,
         status: 'PAUSED',
         special_ad_categories: [],
+        // Budget lives on the ad set (not campaign-level/CBO), so Meta requires
+        // this to be set explicitly. false = each ad set keeps its own budget.
+        is_adset_budget_sharing_enabled: false,
         access_token: token,
       }),
     })
