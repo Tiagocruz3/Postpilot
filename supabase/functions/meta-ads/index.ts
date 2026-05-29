@@ -10,16 +10,28 @@ serve(withCors(async (req) => {
   const body = await req.json().catch(() => ({}))
   const { action, workspace_id, ...params } = body
 
-  const { data: integration } = await supabase
+  // Both providers can carry ads access. The `meta` row holds the ads_management
+  // token + ad_accounts; the `facebook` row holds the connected Page (page_id /
+  // selected_page_id) and a token with both pages_* and ads_management scopes.
+  const { data: integrations } = await supabase
     .from('user_integrations')
     .select('*')
     .eq('user_id', user.id)
     .eq('workspace_id', workspace_id)
-    .eq('provider', 'meta')
-    .single()
+    .in('provider', ['meta', 'facebook'])
 
+  const metaIntegration = integrations?.find((row) => row.provider === 'meta') ?? null
+  const facebookIntegration = integrations?.find((row) => row.provider === 'facebook') ?? null
+  const integration = metaIntegration ?? facebookIntegration
   if (!integration) return new Response('No Meta integration', { status: 400 })
   const token = integration.access_token_encrypted
+  // The connected Facebook Page lives on the `facebook` integration; the legacy
+  // `meta` row never stored one. Fall back across both so publish can resolve it.
+  const pageId =
+    (facebookIntegration?.metadata?.selected_page_id as string | undefined) ||
+    (facebookIntegration?.metadata?.page_id as string | undefined) ||
+    (metaIntegration?.metadata?.page_id as string | undefined) ||
+    null
   const apiBase = 'https://graph.facebook.com/v18.0'
 
   async function fetchJson(url: string) {
@@ -116,7 +128,7 @@ serve(withCors(async (req) => {
       body: JSON.stringify({
         name: params.name,
         object_story_spec: {
-          page_id: integration.metadata?.page_id,
+          page_id: pageId,
           link_data: {
             message: params.primary_text,
             link: params.link || 'https://example.com',
@@ -253,11 +265,14 @@ serve(withCors(async (req) => {
   }
 
   if (action === 'publish_ad') {
+    // The ad creative references the Page via object_story_spec, so prefer the
+    // facebook token (pages_* + ads_management) when present.
+    const publishToken = facebookIntegration?.access_token_encrypted ?? token
     const result = await publishAdFromCreative({
       supabase,
       apiBase,
-      token,
-      integration,
+      token: publishToken,
+      pageId,
       params,
     })
     return new Response(JSON.stringify(result.body), {
@@ -378,18 +393,17 @@ type PublishParams = {
   supabase: ReturnType<typeof createClient>
   apiBase: string
   token: string
-  integration: { metadata?: { page_id?: string } | null }
+  pageId: string | null
   params: Record<string, unknown>
 }
 
-async function publishAdFromCreative({ supabase, apiBase, token, integration, params }: PublishParams) {
+async function publishAdFromCreative({ supabase, apiBase, token, pageId, params }: PublishParams) {
   const creativeId = String(params.creative_id || '')
   const rawAccountId = String(params.account_id || '')
   if (!creativeId) return { status: 400, body: { error: 'Missing creative_id' } }
   if (!rawAccountId) return { status: 400, body: { error: 'Missing account_id' } }
   const accountId = rawAccountId.replace(/^act_/, '')
-  const pageId = integration.metadata?.page_id
-  if (!pageId) return { status: 400, body: { error: 'No Facebook page connected. Connect a page in Settings.' } }
+  if (!pageId) return { status: 400, body: { error: 'No Facebook page connected. Connect a Facebook Page in Settings → Connections.' } }
 
   const { data: creative, error: creativeError } = await supabase
     .from('ad_creatives')

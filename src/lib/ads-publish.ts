@@ -1,5 +1,32 @@
 import { supabase } from '@/lib/supabase'
 
+/**
+ * `supabase.functions.invoke` surfaces a non-2xx response as a FunctionsHttpError
+ * whose `.context` is the raw Response — its generic `.message` ("Edge Function
+ * returned a non-2xx status code") hides the function's own error body. Read the
+ * body so users see the real reason (e.g. a Meta API error detail).
+ */
+async function readFunctionError(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: unknown })?.context
+  if (context instanceof Response) {
+    try {
+      const body = await context.clone().json()
+      const detail = body?.detail?.error?.message ?? body?.detail?.message
+      if (typeof body?.error === 'string') return detail ? `${body.error} — ${detail}` : body.error
+      if (typeof detail === 'string') return detail
+    } catch {
+      try {
+        const text = await context.clone().text()
+        if (text) return text
+      } catch {
+        // ignore — fall through to message/fallback
+      }
+    }
+  }
+  const message = (error as { message?: unknown })?.message
+  return typeof message === 'string' && message ? message : fallback
+}
+
 export type PublishResult = {
   ok: boolean
   campaign_id?: string
@@ -24,7 +51,7 @@ export async function publishCreativeToMeta(params: {
     },
   })
   if (error) {
-    return { ok: false, error: error.message || 'Publish failed' }
+    return { ok: false, error: await readFunctionError(error, 'Publish failed') }
   }
   if (data?.error) {
     return { ok: false, error: typeof data.error === 'string' ? data.error : 'Publish failed', warnings: data.warnings }
@@ -54,7 +81,7 @@ export async function setMetaAdStatus(params: {
       creative_id: params.creativeId,
     },
   })
-  if (error) return { ok: false, error: error.message }
+  if (error) return { ok: false, error: await readFunctionError(error, 'Status update failed') }
   if (data?.error) return { ok: false, error: typeof data.error === 'string' ? data.error : 'Status update failed' }
   return { ok: true }
 }
