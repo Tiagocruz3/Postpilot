@@ -229,7 +229,7 @@ export function AdDetailPage() {
 
   if (loading && !creative) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="mx-auto flex h-64 max-w-6xl items-center justify-center p-6 md:p-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
@@ -237,7 +237,7 @@ export function AdDetailPage() {
 
   if (error || !creative) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-6xl space-y-4 p-6 md:p-8">
         <Button variant="outline" size="sm" onClick={() => navigate('/app/ads')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Ads
@@ -250,8 +250,8 @@ export function AdDetailPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="mx-auto max-w-6xl space-y-6 p-6 md:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="outline" size="sm" onClick={() => navigate('/app/ads')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Ads
@@ -314,47 +314,22 @@ export function AdDetailPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
-              <div>
-                <CardTitle className="text-xl">
-                  {creative.campaign_name || creative.headline || 'Ad detail'}
-                </CardTitle>
-                <CardDescription>
-                  {creative.variant_label}
-                  {creative.angle ? ` · ${creative.angle.replace(/-/g, ' ')} angle` : ''}
-                  {creative.is_selected_variant ? ' · Selected variant' : ''}
-                </CardDescription>
-              </div>
-              <StatusBadge status={creative.status} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <PlacementSwitcher
-                placement={placement}
-                device={device}
-                onPlacement={setPlacement}
-                onDevice={setDevice}
-              />
-              <FacebookAdPreview
-                data={{
-                  pageName: businessName,
-                  pageAvatarUrl,
-                  primaryText: creative.primary_text,
-                  headline: creative.headline,
-                  description: creative.description ?? undefined,
-                  cta: creative.cta,
-                  mediaUrl: creative.media_url,
-                  mediaType: (creative.media_type as 'image' | 'video' | undefined) ?? 'image',
-                  destinationDomain,
-                }}
-                placement={placement}
-                device={device}
-              />
-            </CardContent>
-          </Card>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {creative.campaign_name || creative.headline || 'Ad detail'}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {creative.variant_label}
+            {creative.angle ? ` · ${creative.angle.replace(/-/g, ' ')} angle` : ''}
+            {creative.is_selected_variant ? ' · Selected variant' : ''}
+          </p>
+        </div>
+        <StatusBadge status={creative.status} />
+      </div>
 
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+        <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Performance</CardTitle>
@@ -365,7 +340,7 @@ export function AdDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Kpi label="Spend" value={fmtCurrency(metrics?.spend ?? 0)} accent="text-[#1877F2]" trend={trends.map((t) => t.spend)} />
                 <Kpi label="Reach" value={fmtNumber(metrics?.reach ?? 0)} trend={trends.map((t) => t.reach)} />
                 <Kpi label="Impressions" value={fmtNumber(metrics?.impressions ?? 0)} trend={trends.map((t) => t.impressions)} />
@@ -446,7 +421,7 @@ export function AdDetailPage() {
           </Card>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Snapshot</CardTitle>
@@ -486,13 +461,20 @@ export function AdDetailPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">All placements</CardTitle>
-              <CardDescription>See how the ad looks across every Meta surface.</CardDescription>
+              <CardTitle className="text-base">Ad preview</CardTitle>
+              <CardDescription>
+                Pick a placement and device — one surface at a time so nothing overlaps.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              {AD_PLACEMENTS.map(({ id }) => (
+            <CardContent className="space-y-4">
+              <PlacementSwitcher
+                placement={placement}
+                device={device}
+                onPlacement={setPlacement}
+                onDevice={setDevice}
+              />
+              <div className="flex justify-center overflow-x-auto rounded-xl border bg-muted/10 p-4">
                 <FacebookAdPreview
-                  key={id}
                   data={{
                     pageName: businessName,
                     pageAvatarUrl,
@@ -504,10 +486,17 @@ export function AdDetailPage() {
                     mediaType: (creative.media_type as 'image' | 'video' | undefined) ?? 'image',
                     destinationDomain,
                   }}
-                  placement={id}
+                  placement={placement}
                   device={device}
                 />
-              ))}
+              </div>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Showing{' '}
+                <span className="font-medium text-foreground">
+                  {AD_PLACEMENTS.find((p) => p.id === placement)?.label}
+                </span>{' '}
+                on {device === 'mobile' ? 'mobile' : 'desktop'}.
+              </p>
             </CardContent>
           </Card>
         </aside>
@@ -528,8 +517,8 @@ function PlacementSwitcher({
   onDevice: (d: AdDevice) => void
 }) {
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
         {AD_PLACEMENTS.map(({ id, label, icon }) => (
           <button
             key={id}
@@ -537,7 +526,9 @@ function PlacementSwitcher({
             onClick={() => onPlacement(id)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-              placement === id ? 'border-[#1877F2] bg-[#1877F2]/10 text-[#1877F2]' : 'hover:bg-muted',
+              placement === id
+                ? 'border-[#1877F2] bg-[#1877F2] text-white shadow-sm'
+                : 'border-border bg-background text-muted-foreground hover:text-foreground',
             )}
           >
             {icon}
