@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import {
   Bookmark,
   Globe,
@@ -57,6 +57,21 @@ type FacebookAdPreviewProps = {
 }
 
 const DEFAULT_AVATAR_BG = 'linear-gradient(135deg, #1877F2, #00C6FF)'
+
+/**
+ * AI copy often arrives with ragged spacing (trailing spaces, runs of 3+
+ * newlines). With `whitespace-pre-line` those blank lines render as big gaps,
+ * so collapse any run of blank lines down to a single blank line between
+ * paragraphs and trim the ends.
+ */
+export function normalizeAdCopy(text: string | null | undefined): string {
+  if (!text) return ''
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
 
 function PageAvatar({ url, name, size = 36 }: { url?: string | null; name: string; size?: number }) {
   const [failed, setFailed] = useState(false)
@@ -474,26 +489,30 @@ export function FacebookAdPreview({
   mediaLoading = false,
 }: FacebookAdPreviewProps) {
   const id = useId()
+  const normalizedData = useMemo(
+    () => ({ ...data, primaryText: normalizeAdCopy(data.primaryText) }),
+    [data],
+  )
   let body: React.ReactNode
   switch (placement) {
     case 'instagram-feed':
-      body = <InstagramFeedAd data={data} device={device} mediaLoading={mediaLoading} />
+      body = <InstagramFeedAd data={normalizedData} device={device} mediaLoading={mediaLoading} />
       break
     case 'story':
-      body = <StoryAd data={data} device={device} mediaLoading={mediaLoading} />
+      body = <StoryAd data={normalizedData} device={device} mediaLoading={mediaLoading} />
       break
     case 'reel':
-      body = <ReelAd data={data} device={device} mediaLoading={mediaLoading} />
+      body = <ReelAd data={normalizedData} device={device} mediaLoading={mediaLoading} />
       break
     case 'marketplace':
-      body = <MarketplaceAd data={data} device={device} mediaLoading={mediaLoading} />
+      body = <MarketplaceAd data={normalizedData} device={device} mediaLoading={mediaLoading} />
       break
     case 'right-column':
-      body = <RightColumnAd data={data} mediaLoading={mediaLoading} />
+      body = <RightColumnAd data={normalizedData} mediaLoading={mediaLoading} />
       break
     case 'facebook-feed':
     default:
-      body = <FacebookFeedAd data={data} device={device} mediaLoading={mediaLoading} />
+      body = <FacebookFeedAd data={normalizedData} device={device} mediaLoading={mediaLoading} />
       break
   }
 

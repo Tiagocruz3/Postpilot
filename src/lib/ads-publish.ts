@@ -11,7 +11,14 @@ async function readFunctionError(error: unknown, fallback: string): Promise<stri
   if (context instanceof Response) {
     try {
       const body = await context.clone().json()
-      const detail = body?.detail?.error?.message ?? body?.detail?.message
+      const metaError = body?.detail?.error
+      // Meta's error_user_msg / error_user_title are the human-readable specifics;
+      // `message` is the generic line (e.g. "Invalid parameter"). Prefer the former.
+      const detail =
+        metaError?.error_user_msg ??
+        metaError?.error_user_title ??
+        metaError?.message ??
+        body?.detail?.message
       if (typeof body?.error === 'string') return detail ? `${body.error} — ${detail}` : body.error
       if (typeof detail === 'string') return detail
     } catch {

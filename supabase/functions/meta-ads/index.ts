@@ -265,13 +265,14 @@ serve(withCors(async (req) => {
   }
 
   if (action === 'publish_ad') {
-    // The ad creative references the Page via object_story_spec, so prefer the
-    // facebook token (pages_* + ads_management) when present.
-    const publishToken = facebookIntegration?.access_token_encrypted ?? token
+    // Use the primary token (the one that owns the ad account) for the
+    // campaign/adset/ad calls. The Page is referenced via object_story_spec and
+    // resolved from the facebook integration's metadata, but account access —
+    // not page access — is what these calls require.
     const result = await publishAdFromCreative({
       supabase,
       apiBase,
-      token: publishToken,
+      token,
       pageId,
       params,
     })
@@ -316,6 +317,17 @@ const CTA_MAP: Record<string, string> = {
 
 function mapGoalToObjective(goal: string | null | undefined): string {
   return OBJECTIVE_MAP[(goal ?? '').toLowerCase()] ?? 'OUTCOME_AWARENESS'
+}
+
+// Collapse ragged AI spacing to a single blank line between paragraphs so the
+// published ad matches the cleaned-up preview.
+function normalizeAdCopy(text: string | null | undefined): string {
+  if (!text) return ''
+  return String(text)
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 function mapCta(cta: string | null | undefined): string {
@@ -487,7 +499,7 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageId, params 
 
   // 4. Ad creative
   const linkData: Record<string, unknown> = {
-    message: c.primary_text,
+    message: normalizeAdCopy(c.primary_text as string | null),
     link: c.destination_url || 'https://example.com',
     name: c.headline,
     description: c.description ?? undefined,
