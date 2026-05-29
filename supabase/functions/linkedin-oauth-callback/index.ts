@@ -38,18 +38,20 @@ serve(async (req) => {
 
   const accessToken = tokenData.access_token as string
 
-  const profileRes = await fetch(
-    'https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)',
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  )
+  // OpenID Connect userinfo (replaces the deprecated /v2/me + r_liteprofile).
+  const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
   const profileData = await profileRes.json()
-  const personId = profileData.id as string | undefined
+  // userinfo returns the member id in `sub`.
+  const personId = (profileData.sub ?? profileData.id) as string | undefined
   if (!personId) {
     return new Response('Could not load LinkedIn profile', { status: 400 })
   }
 
   const personName =
-    [profileData.localizedFirstName, profileData.localizedLastName].filter(Boolean).join(' ').trim() ||
+    (typeof profileData.name === 'string' && profileData.name.trim()) ||
+    [profileData.given_name, profileData.family_name].filter(Boolean).join(' ').trim() ||
     'Personal profile'
 
   const profiles: LinkedInProfileOption[] = [
