@@ -274,10 +274,11 @@ serve(withCors(async (req) => {
       supabase,
       apiBase,
       token,
-      // The ad creative references the Page via object_story_spec, which needs
-      // page access the account token lacks (it only has pages_show_list). The
-      // facebook token carries pages_* + ads_management, so use it for that step.
-      pageToken: facebookIntegration?.access_token_encrypted ?? null,
+      // The ad creative's object_story_spec needs a USER token with
+      // ads_management AND page access. The facebook integration's
+      // access_token_encrypted is a PAGE token (can't create ad-account
+      // objects), so use the user token stored in metadata.user_access_token.
+      pageToken: (facebookIntegration?.metadata?.user_access_token as string | undefined) ?? null,
       pageId,
       params,
     })
@@ -531,7 +532,12 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   })
   const creativeJson = (await creativeRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
   if (!creativeRes.ok || !creativeJson.id) {
-    return { status: 502, body: { error: 'Failed to create ad creative', detail: creativeJson } }
+    // Without a stored user token the creative is attempted with the account
+    // token, which lacks page access — point the user at the reconnect.
+    const hint = pageToken
+      ? ''
+      : ' Reconnect Facebook in Settings → Connections to grant ad-publishing access, then try again.'
+    return { status: 502, body: { error: `Failed to create ad creative.${hint}`, detail: creativeJson } }
   }
 
   // 5. Ad

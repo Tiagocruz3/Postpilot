@@ -109,7 +109,20 @@ serve(async (req) => {
       }
     }
 
-    const userAccessToken = tokenData.access_token as string
+    // Exchange the short-lived user token for a long-lived one (~60 days). This
+    // is the token used for ad creative creation, which needs a USER token with
+    // ads_management + page access (the page token can't create ad-account
+    // objects). Page tokens for organic posting are kept separately below.
+    let userAccessToken = tokenData.access_token as string
+    try {
+      const exchangeRes = await fetch(
+        `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${metaAppId}&client_secret=${metaAppSecret}&fb_exchange_token=${encodeURIComponent(userAccessToken)}`,
+      )
+      const exchangeData = await exchangeRes.json()
+      if (exchangeData.access_token) userAccessToken = exchangeData.access_token as string
+    } catch (_err) {
+      // Keep the short-lived token if the exchange fails.
+    }
     const adAccounts = await fetchMetaAdAccounts(userAccessToken)
 
     const supabase = getAdminClient()
@@ -150,6 +163,8 @@ serve(async (req) => {
       instagram_accounts: instagramAccounts,
       selected_instagram_account_id: selectedInstagramId,
       ad_accounts: adAccounts,
+      // User token (ads_management + page access) for ad creative publishing.
+      user_access_token: userAccessToken,
     }
 
     const { error } = await supabase.from('user_integrations').upsert(
