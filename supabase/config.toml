@@ -206,3 +206,19 @@ verify_jwt = true
 
 [functions.save-ai-library]
 verify_jwt = true
+
+# Platform publish APIs are invoked server-to-server by scheduler-tick with the
+# service-role key, which the gateway's JWT check rejects. They do their own auth
+# (resolveRequestUserId: service-key path resolves the user from task_id, user
+# path validates the JWT), so gateway verification is redundant here.
+[functions.facebook-api]
+verify_jwt = false
+
+[functions.instagram-api]
+verify_jwt = false
+
+[functions.linkedin-api]
+verify_jwt = false
+
+[functions.x-api]
+verify_jwt = false
