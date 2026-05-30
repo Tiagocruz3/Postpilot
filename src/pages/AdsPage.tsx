@@ -329,6 +329,14 @@ export function AdsPage() {
     setSelectedId(null)
     setStudioStep(1)
     setResumedDraft(false)
+    // Also clear transient AI state so a fresh campaign doesn't inherit the
+    // previous one's variants, suggestions, recommendation, or tip.
+    setTargetingSuggestions([])
+    setVariantRecommendation(null)
+    setAiTip('')
+    setGeneratingCopy(false)
+    setGeneratingMediaIds([])
+    creativeIdByOption.current = {}
     if (currentWorkspaceId) clearPersistedCampaignDraft(currentWorkspaceId)
   }
 
@@ -2100,7 +2108,10 @@ export function AdsPage() {
             audienceProfile={profile.audienceProfile}
             onAudienceProfileChange={(audienceProfile) => {
               setProfile((p) => ({ ...p, audienceProfile }))
-              void saveProfile()
+              // Pass the new value as a patch — a bare saveProfile() reads the
+              // stale profile closure and would re-save the previous location
+              // (e.g. revert Gold Coast back to Australia).
+              void saveProfile({ audienceProfile })
             }}
             businessName={selectedFacebookPageName}
             defaultDestinationUrl={profile.leadDestination.defaultUrl || profile.businessProfile.websiteUrl}

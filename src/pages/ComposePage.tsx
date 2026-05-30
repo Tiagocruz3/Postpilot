@@ -484,7 +484,27 @@ export function ComposePage() {
     try {
       const cleanContent = sanitizeComposeCopy(content)
       const mediaSnapshot = [...media]
-      const targetTime = action === 'now' ? new Date().toISOString() : scheduleAt || new Date().toISOString()
+      // `scheduleAt` is a datetime-local value (wall-clock, no timezone). Parse it
+      // as local time and convert to a proper UTC ISO string — storing the raw
+      // string made Postgres read it as UTC, so scheduled posts fired at the
+      // wrong time (off by the user's UTC offset).
+      let targetTime: string
+      if (action === 'now') {
+        targetTime = new Date().toISOString()
+      } else {
+        const parsed = scheduleAt ? new Date(scheduleAt) : null
+        if (!parsed || Number.isNaN(parsed.getTime())) {
+          setMessage('Pick a date and time to schedule this post.')
+          setLoading(false)
+          return
+        }
+        if (parsed.getTime() <= Date.now()) {
+          setMessage('That scheduled time is in the past — pick a future date and time.')
+          setLoading(false)
+          return
+        }
+        targetTime = parsed.toISOString()
+      }
 
       if (isDemoMode) {
         setMessage(`Demo mode: ${action === 'now' ? 'posted' : 'scheduled'} to ${platformLabel(activeTab)}.`)
