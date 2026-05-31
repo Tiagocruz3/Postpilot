@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
-import { ChevronLeft, ChevronRight, ExternalLink, Pencil, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from 'lucide-react'
 import { APP_PAGE } from '@/lib/app-labels'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ConfirmProvider'
@@ -69,6 +69,7 @@ export function PlannerPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
+  const [platformFilter, setPlatformFilter] = useState<string>('all')
   const [previewTask, setPreviewTask] = useState<PlannerTask | null>(null)
   const [plannerMessage, setPlannerMessage] = useState('')
 
@@ -92,6 +93,18 @@ export function PlannerPage() {
       }
     })
   }, [tasks])
+
+  // Accounts actually present on the calendar, for the filter dropdown.
+  const availablePlatforms = useMemo(() => {
+    const set = new Set<string>()
+    for (const task of tasks) if (task.platform) set.add(task.platform)
+    return Array.from(set)
+  }, [tasks])
+
+  const visibleEvents = useMemo(
+    () => (platformFilter === 'all' ? events : events.filter((event) => event.platform === platformFilter)),
+    [events, platformFilter],
+  )
 
   const openNewTask = (day?: Date, hour?: number) => {
     const base = day ? startOfDay(day) : startOfDay(today)
@@ -182,10 +195,19 @@ export function PlannerPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <Button size="sm" onClick={() => openNewTask()}>
-            <Plus className="mr-2 h-4 w-4" />
-            New
-          </Button>
+          <Select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="h-9 w-44"
+            aria-label="Filter calendar by account"
+          >
+            <option value="all">All accounts</option>
+            {availablePlatforms.map((platform) => (
+              <option key={platform} value={platform}>
+                {PLATFORM_LABELS[platform] ?? platform}
+              </option>
+            ))}
+          </Select>
         </div>
       </header>
 
@@ -268,7 +290,7 @@ export function PlannerPage() {
                           onClick={() => openNewTask(day, hour)}
                         />
                       ))}
-                      {events
+                      {visibleEvents
                         .filter((event) => isSameDay(event.start, day))
                         .map((event) => {
                           const eventMinutes = event.start.getHours() * 60 + event.start.getMinutes()
