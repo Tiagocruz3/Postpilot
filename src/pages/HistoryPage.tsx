@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import {
   BarChart3,
+  CalendarClock,
   CheckCircle2,
   ExternalLink,
   Eye,
@@ -117,6 +118,7 @@ function pickThumbnail(post: PublishedPost): { kind: 'image' | 'video'; src: str
 
 export function HistoryPage() {
   const confirm = useConfirm()
+  const navigate = useNavigate()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId)
   const [platformFilter, setPlatformFilter] = useState<string>('all')
@@ -199,13 +201,22 @@ export function HistoryPage() {
 
   const removePost = async (post: PublishedPost) => {
     if (isDemoMode) return
-    const label = statusFor(post) === 'published' ? 'published post' : statusFor(post) === 'failed' ? 'failed post' : 'post'
-    const confirmed = await confirm({
-      title: `Remove ${label}?`,
-      description: `This removes the entry from your activity history. It does not delete the live post on ${platformLabel(post.platform)}.`,
-      confirmLabel: 'Remove',
-      variant: 'destructive',
-    })
+    // A scheduled post hasn't published yet, so removing it actually cancels it
+    // (deletes the planner task the scheduler reads). Word the confirm to match.
+    const isScheduled = statusFor(post) === 'pending'
+    const confirmed = isScheduled
+      ? await confirm({
+          title: 'Cancel scheduled post?',
+          description: `This stops it from publishing to ${platformLabel(post.platform)}. You can’t undo this.`,
+          confirmLabel: 'Cancel post',
+          variant: 'destructive',
+        })
+      : await confirm({
+          title: `Remove ${statusFor(post) === 'published' ? 'published post' : 'failed post'}?`,
+          description: `This removes the entry from your activity history. It does not delete the live post on ${platformLabel(post.platform)}.`,
+          confirmLabel: 'Remove',
+          variant: 'destructive',
+        })
     if (!confirmed) return
 
     setDeletingId(post.id)
@@ -423,7 +434,7 @@ export function HistoryPage() {
                                   : 'secondary'
                             }
                           >
-                            {postStatus}
+                            {postStatus === 'pending' ? 'scheduled' : postStatus}
                           </Badge>
                           {post.published_at ? (
                             <span className="text-xs text-muted-foreground">
@@ -469,20 +480,32 @@ export function HistoryPage() {
                               Retry publish
                             </Button>
                           ) : null}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={refreshing || !post.platform_post_id}
-                            onClick={() => void refreshMetrics(post)}
-                            title={!post.platform_post_id ? 'No platform post id stored.' : undefined}
-                          >
-                            {refreshing ? (
-                              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                            )}
-                            Refresh metrics
-                          </Button>
+                          {postStatus === 'pending' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate('/app/planner')}
+                              title="Edit the time or content in the Calendar"
+                            >
+                              <CalendarClock className="mr-2 h-3.5 w-3.5" />
+                              Edit in Calendar
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={refreshing || !post.platform_post_id}
+                              onClick={() => void refreshMetrics(post)}
+                              title={!post.platform_post_id ? 'No platform post id stored.' : undefined}
+                            >
+                              {refreshing ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                              )}
+                              Refresh metrics
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -492,10 +515,12 @@ export function HistoryPage() {
                           >
                             {deletingId === post.id ? (
                               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                            ) : postStatus === 'pending' ? (
+                              <XCircle className="mr-2 h-3.5 w-3.5" />
                             ) : (
                               <Trash2 className="mr-2 h-3.5 w-3.5" />
                             )}
-                            Remove
+                            {postStatus === 'pending' ? 'Cancel post' : 'Remove'}
                           </Button>
                         </div>
                       </div>
