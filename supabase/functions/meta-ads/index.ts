@@ -433,6 +433,10 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   if (!rawAccountId) return { status: 400, body: { error: 'Missing account_id' } }
   const accountId = rawAccountId.replace(/^act_/, '')
   if (!pageId) return { status: 400, body: { error: 'No Facebook page connected. Connect a Facebook Page in Settings → Connections.' } }
+  // The ad creative references the Page and (optionally) an uploaded image. Both
+  // the image upload and the creative must use the SAME token, or the image hash
+  // created under one identity isn't visible to the other ("object not visible").
+  const creativeToken = pageToken || token
 
   const { data: creative, error: creativeError } = await supabase
     .from('ad_creatives')
@@ -447,9 +451,10 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   const budget = (c.budget as Record<string, unknown> | null) ?? {}
 
   // 1. Upload image (videos skipped in v1 — Meta video upload is async + polling-heavy)
+  // Use the same token as the creative so the returned image hash is visible to it.
   let imageHash: string | null = null
   if (c.media_url && c.media_type === 'image') {
-    imageHash = await uploadAdImage(apiBase, accountId, token, String(c.media_url))
+    imageHash = await uploadAdImage(apiBase, accountId, creativeToken, String(c.media_url))
   }
 
   // 2. Campaign
@@ -533,8 +538,7 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
     body: JSON.stringify({
       name: `${c.headline || 'Ad'} creative`,
       object_story_spec: { page_id: pageId, link_data: linkData },
-      // Needs page access for the object_story_spec — use the page-capable token.
-      access_token: pageToken || token,
+      access_token: creativeToken,
     }),
   })
   const creativeJson = (await creativeRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
@@ -556,7 +560,8 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
       adset_id: adsetId,
       creative: { creative_id: creativeJson.id },
       status: 'PAUSED',
-      access_token: token,
+      // Same identity as the creative it references, to avoid visibility gaps.
+      access_token: creativeToken,
     }),
   })
   const adJson = (await adRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
