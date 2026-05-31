@@ -10,6 +10,7 @@ import {
   Link,
   RefreshCw,
   RotateCcw,
+  Layers,
   Send,
   Sparkles,
   Video as VideoIcon,
@@ -39,6 +40,7 @@ import { redirectToEdgeFunction, supabase } from '@/lib/supabase'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { BulkScheduleModal } from '@/components/compose/BulkScheduleModal'
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -159,6 +161,7 @@ export function ComposePage() {
   const [message, setMessage] = useState('')
   const [showResearch, setShowResearch] = useState(false)
   const [showRemix, setShowRemix] = useState(false)
+  const [showBulk, setShowBulk] = useState(false)
   const [remixSeed, setRemixSeed] = useState({ text: '', niche: '' })
   const [completedPost, setCompletedPost] = useState<CompletedPost | null>(null)
   const [showCompletedPost, setShowCompletedPost] = useState(false)
@@ -1475,6 +1478,12 @@ export function ComposePage() {
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
                 {loading ? 'Saving...' : 'Schedule Post'}
               </Button>
+              {activeTab === 'facebook' ? (
+                <Button type="button" variant="ghost" onClick={() => setShowBulk(true)} className="w-full">
+                  <Layers className="mr-2 h-4 w-4" />
+                  Bulk schedule variants
+                </Button>
+              ) : null}
               {hasVisual ? (
                 <Button type="button" variant="ghost" onClick={() => setShowPreview(true)} className="w-full">
                   <Eye className="mr-2 h-4 w-4" />
@@ -1559,6 +1568,17 @@ export function ComposePage() {
           setReplaceInPreview(false)
           setMessage('Stock image selected.')
         }}
+      />
+
+      <BulkScheduleModal
+        open={showBulk}
+        onOpenChange={setShowBulk}
+        workspaceId={currentWorkspaceId}
+        userId={user?.id}
+        platform={activeTab}
+        platformLabel={platformLabel(activeTab)}
+        invokeAi={invokeAi}
+        onScheduled={(n) => setMessage(`Scheduled ${n} ${platformLabel(activeTab)} post${n === 1 ? '' : 's'}.`)}
       />
 
       <Dialog
