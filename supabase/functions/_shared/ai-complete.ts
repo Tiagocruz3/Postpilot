@@ -68,39 +68,52 @@ export async function completeChat(options: {
       throw new Error('OpenRouter is not configured.')
     }
 
-    const model = options.webSearch ? getOpenRouterResearchModel() : getOpenRouterContentModel(workspaceSettings)
-    const body: Record<string, unknown> = {
-      model,
-      messages: options.messages,
-      temperature,
-    }
+    const primaryModel = options.webSearch
+      ? getOpenRouterResearchModel()
+      : getOpenRouterContentModel(workspaceSettings)
+    // If the configured model is unavailable (deprecated / typo'd), fall back to
+    // a stable default so a single bad model id doesn't take down all copy.
+    const fallbackModel = 'google/gemini-2.5-pro'
+    const models = primaryModel === fallbackModel ? [primaryModel] : [primaryModel, fallbackModel]
 
-    if (options.jsonMode) {
-      body.response_format = { type: 'json_object' }
-    }
+    let lastError = 'AI request failed.'
+    for (const model of models) {
+      const body: Record<string, unknown> = {
+        model,
+        messages: options.messages,
+        temperature,
+      }
+      if (options.jsonMode) {
+        body.response_format = { type: 'json_object' }
+      }
 
-    const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': Deno.env.get('APP_URL') || 'https://adguru.app',
-        'X-Title': 'Ad Guru',
-      },
-      body: JSON.stringify(body),
-    })
+      const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': Deno.env.get('APP_URL') || 'https://adguru.app',
+          'X-Title': 'Ad Guru',
+        },
+        body: JSON.stringify(body),
+      })
 
-    const aiData = await aiRes.json()
-    if (!aiRes.ok) {
-      const message = (aiData as { error?: { message?: string } }).error?.message || 'AI request failed.'
-      throw new Error(message)
-    }
+      const aiData = await aiRes.json().catch(() => ({}))
+      if (!aiRes.ok) {
+        const providerMsg = (aiData as { error?: { message?: string } }).error?.message
+        lastError = `OpenRouter ${aiRes.status} (model ${model}): ${providerMsg || 'request failed'}`
+        // Auth (401) and billing (402) errors won't be helped by another model.
+        if (aiRes.status === 401 || aiRes.status === 402) break
+        continue
+      }
 
-    const raw = (aiData as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]?.message?.content
-    if (!raw?.trim()) {
-      throw new Error('No response from the model.')
+      const raw = (aiData as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]?.message?.content
+      if (raw?.trim()) {
+        return raw.trim()
+      }
+      lastError = `No response from model ${model}.`
     }
-    return raw.trim()
+    throw new Error(lastError)
   }
 
   if (options.webSearch) {
