@@ -53,6 +53,7 @@ import {
   type AdCreativeUpdate,
 } from '@/lib/ads-creatives'
 import { publishCreativeToMeta } from '@/lib/ads-publish'
+import { PublishProgressModal, type PublishPhase } from '@/components/ads/PublishProgressModal'
 
 interface OutletContext {
   currentWorkspaceId: string | null
@@ -260,6 +261,13 @@ export function AdsPage() {
   const [options, setOptions] = useState<AdOption[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [studioStep, setStudioStep] = useState<StudioStep>(1)
+  const [publishState, setPublishState] = useState<{
+    open: boolean
+    phase: PublishPhase
+    adId?: string | null
+    warnings?: string[]
+    error?: string | null
+  }>({ open: false, phase: 'publishing' })
   const [resumedDraft, setResumedDraft] = useState(false)
   const [targetingSuggestions, setTargetingSuggestions] = useState<AdsTargetingSuggestion[]>([])
   const [variantRecommendation, setVariantRecommendation] = useState<AdRecommendation>(null)
@@ -2184,34 +2192,33 @@ export function AdsPage() {
             onPublish={async () => {
               const creativeId = selectedId ? creativeIdByOption.current[selectedId] : null
               if (!creativeId) {
-                setMessage('Generate or select an ad variant before publishing.')
+                setPublishState({ open: true, phase: 'error', error: 'Generate or select an ad variant before publishing.' })
                 return
               }
               if (!currentWorkspaceId) {
-                setMessage('Pick a workspace before publishing.')
+                setPublishState({ open: true, phase: 'error', error: 'Pick a workspace before publishing.' })
                 return
               }
               const adAccountId = profile.metaConnection.adAccountId
               if (!adAccountId) {
-                setMessage('Connect a Meta ad account in Settings → Connections before publishing.')
+                setPublishState({
+                  open: true,
+                  phase: 'error',
+                  error: 'Connect a Meta ad account in Settings → Connections before publishing.',
+                })
                 return
               }
-              setMessage('Publishing to Meta Ads…')
+              setPublishState({ open: true, phase: 'publishing' })
               const result = await publishCreativeToMeta({
                 creativeId,
                 workspaceId: currentWorkspaceId,
                 metaAccountId: `act_${adAccountId.replace(/^act_/, '')}`,
               })
               if (!result.ok) {
-                setMessage(`Publish failed: ${result.error ?? 'Unknown error'}`)
+                setPublishState({ open: true, phase: 'error', error: result.error ?? 'Unknown error' })
                 return
               }
-              const warnings = (result.warnings ?? []).join(' ')
-              setMessage(
-                `Ad created on Meta as PAUSED. Ad ID ${result.ad_id}. Activate it in Meta Ads Manager to go live.${
-                  warnings ? ` ${warnings}` : ''
-                }`,
-              )
+              setPublishState({ open: true, phase: 'success', adId: result.ad_id, warnings: result.warnings })
             }}
             step={studioStep}
             onStepChange={setStudioStep}
@@ -2224,6 +2231,32 @@ export function AdsPage() {
                 variant: 'destructive',
               })
               if (ok) resetCampaignDraft()
+            }}
+          />
+
+          <PublishProgressModal
+            open={publishState.open}
+            phase={publishState.phase}
+            adId={publishState.adId}
+            warnings={publishState.warnings}
+            error={publishState.error}
+            adsManagerUrl={
+              profile.metaConnection.adAccountId
+                ? `https://www.facebook.com/adsmanager/manage/ads?act=${profile.metaConnection.adAccountId.replace(/^act_/, '')}`
+                : null
+            }
+            onClose={() => setPublishState((s) => ({ ...s, open: false }))}
+            onViewLibrary={() => {
+              setPublishState((s) => ({ ...s, open: false }))
+              setActiveTab('library')
+            }}
+            onStartNew={() => {
+              setPublishState((s) => ({ ...s, open: false }))
+              resetCampaignDraft()
+            }}
+            onReconnect={() => {
+              setPublishState((s) => ({ ...s, open: false }))
+              connectFacebook()
             }}
           />
         </TabsContent>

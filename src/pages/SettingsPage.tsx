@@ -861,10 +861,21 @@ export function SettingsPage() {
                       </div>
                     </div>
                     {connected ? (
-                      <Button size="sm" variant="destructive" onClick={() => void disconnect(connected.id, provider.name)}>
-                        <Trash2 className="mr-2 h-3 w-3" />
-                        Disconnect
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => connect(provider.oauthKey, provider.key)}
+                          title="Re-authorise to refresh access and permissions (needed for ad publishing)"
+                        >
+                          <RefreshCcw className="mr-2 h-3 w-3" />
+                          Reconnect
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => void disconnect(connected.id, provider.name)}>
+                          <Trash2 className="mr-2 h-3 w-3" />
+                          Disconnect
+                        </Button>
+                      </div>
                     ) : (
                       <Button size="sm" variant="outline" onClick={() => connect(provider.oauthKey, provider.key)}>
                         <Link className="mr-2 h-3 w-3" />
