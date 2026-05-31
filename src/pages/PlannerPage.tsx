@@ -427,9 +427,9 @@ export function PlannerPage() {
             </Button>
           ) : null}
           <Button variant="outline" onClick={() => setShowDialog(false)}>
-            Cancel
+            Close
           </Button>
-          <Button onClick={saveTask}>Save</Button>
+          <Button onClick={saveTask}>OK</Button>
         </DialogFooter>
       </Dialog>
 
@@ -511,7 +511,7 @@ export function PlannerPage() {
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </Button>
-              <Button onClick={() => setPreviewTask(null)}>Close</Button>
+              <Button onClick={() => setPreviewTask(null)}>OK</Button>
             </DialogFooter>
           </div>
         ) : null}
