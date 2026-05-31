@@ -875,7 +875,9 @@ export function AdsPage() {
         audienceProfile: {
           ...prev.audienceProfile,
           description: String(data.audience_description || prev.audienceProfile.description),
-          locations: String(data.locations || prev.audienceProfile.locations),
+          // Keep the user's chosen location — only fall back to the AI's when
+          // none is set. Location is still offered as an applyable suggestion.
+          locations: prev.audienceProfile.locations || String(data.locations || ''),
           ageRange: ageRangeText || prev.audienceProfile.ageRange,
           gender: String(data.gender || prev.audienceProfile.gender),
           interests: interests || prev.audienceProfile.interests,
@@ -886,7 +888,7 @@ export function AdsPage() {
       setDraft((prev) => ({
         ...prev,
         audience: String(data.audience_description || prev.audience),
-        location: String(data.locations || prev.location),
+        location: prev.location || String(data.locations || ''),
       }))
       if (typeof data.ai_tip === 'string') setAiTip(data.ai_tip)
 
