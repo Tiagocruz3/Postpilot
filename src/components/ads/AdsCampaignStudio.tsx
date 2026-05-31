@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, RotateCcw, Sparkles, Trophy, Wand2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, RotateCcw, Sparkles, Trophy, Upload, Wand2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AdsAudienceFields, type AudienceProfileFields } from '@/components/ads/AdsAudienceFields'
 import { AdsReachPanel } from '@/components/ads/AdsReachPanel'
@@ -95,6 +95,8 @@ type AdsCampaignStudioProps = {
   /** AI's pick of which variant should perform better and why. */
   variantRecommendation?: AdRecommendation
   onGenerateCreative: (type: 'image' | 'video') => Promise<void>
+  /** Upload a user-supplied image to replace the selected variant's media. */
+  onUploadImage?: (optionId: string, file: File) => Promise<void>
   onSuggestAudience: () => Promise<void>
   /** AI-recommended targeting suggestions with reasoning per field. */
   targetingSuggestions?: AdsTargetingSuggestion[]
@@ -149,6 +151,7 @@ export function AdsCampaignStudio({
   onRegenerateVariant,
   variantRecommendation,
   onGenerateCreative,
+  onUploadImage,
   onSuggestAudience,
   targetingSuggestions,
   onApplyTargetingSuggestion,
@@ -175,6 +178,8 @@ export function AdsCampaignStudio({
   const [previewPlacement, setPreviewPlacement] = useState<AdPlacement>('facebook-feed')
   const [previewDevice, setPreviewDevice] = useState<AdDevice>('mobile')
   const [regeneratingVariantId, setRegeneratingVariantId] = useState<string | null>(null)
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const navRef = useRef<HTMLElement>(null)
   const stepButtonRefs = useRef<Partial<Record<StudioStepId, HTMLButtonElement | null>>>({})
   const skipStepScrollRef = useRef(true)
@@ -199,6 +204,16 @@ export function AdsCampaignStudio({
       await onRegenerateVariant(id)
     } finally {
       setRegeneratingVariantId(null)
+    }
+  }
+
+  const handleUploadImage = async (optionId: string, file: File | null | undefined) => {
+    if (!file || !onUploadImage) return
+    setUploadingImageId(optionId)
+    try {
+      await onUploadImage(optionId, file)
+    } finally {
+      setUploadingImageId(null)
     }
   }
 
@@ -703,6 +718,34 @@ export function AdsCampaignStudio({
                           )}
                           Regenerate video
                         </Button>
+                        {onUploadImage ? (
+                          <>
+                            <input
+                              ref={uploadInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(event) => {
+                                void handleUploadImage(selectedOption.id, event.target.files?.[0])
+                                event.target.value = ''
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => uploadInputRef.current?.click()}
+                              disabled={uploadingImageId === selectedOption.id}
+                              title="Replace the AI image with your own"
+                            >
+                              {uploadingImageId === selectedOption.id ? (
+                                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="mr-2 h-3.5 w-3.5" />
+                              )}
+                              Upload image
+                            </Button>
+                          </>
+                        ) : null}
                         {onRegenerateVariant ? (
                           <Button
                             size="sm"

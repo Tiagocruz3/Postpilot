@@ -2144,6 +2144,31 @@ export function AdsPage() {
             onRegenerateVariant={regenerateVariant}
             variantRecommendation={variantRecommendation}
             onGenerateCreative={generateCreative}
+            onUploadImage={async (optionId, file) => {
+              if (!currentWorkspaceId || !user?.id) {
+                setMessage('Pick a workspace before uploading an image.')
+                return
+              }
+              try {
+                const safeName = file.name.replace(/[^\w.-]+/g, '_')
+                const path = `${currentWorkspaceId}/${user.id}/ad_${Date.now()}_${safeName}`
+                const { data, error } = await supabase.storage.from('media').upload(path, file)
+                if (error || !data) {
+                  setMessage(`Image upload failed: ${error?.message ?? 'unknown error'}`)
+                  return
+                }
+                const url = supabase.storage.from('media').getPublicUrl(data.path).data.publicUrl
+                setOptions((list) =>
+                  list.map((o) => (o.id === optionId ? { ...o, previewUrl: url, previewType: 'image' } : o)),
+                )
+                const creativeId = creativeIdByOption.current[optionId]
+                if (creativeId) {
+                  await updateAdCreative(creativeId, { media_url: url, media_type: 'image' })
+                }
+              } catch (err) {
+                setMessage(err instanceof Error ? err.message : 'Image upload failed.')
+              }
+            }}
             onSuggestAudience={() => suggestAudienceWithAi()}
             targetingSuggestions={targetingSuggestions}
             onApplyTargetingSuggestion={applyTargetingSuggestion}
