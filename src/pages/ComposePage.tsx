@@ -180,6 +180,7 @@ export function ComposePage() {
     (row) => row.provider === 'facebook' || row.provider === 'meta',
   )
   const linkedinIntegration = integrations.find((row) => row.provider === 'linkedin')
+  const xIntegration = integrations.find((row) => row.provider === 'x')
 
   const facebookPages = (() => {
     const raw = facebookIntegration?.metadata?.pages
@@ -317,6 +318,28 @@ export function ComposePage() {
   }
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
+
+  const previewProfile = (() => {
+    if (activeTab === 'facebook') {
+      const page = facebookPages.find((p) => p.id === selectedFacebookPageId) ?? facebookPages[0]
+      if (page) return { name: page.name, avatar: brandLogoUrl }
+    }
+    if (activeTab === 'instagram') {
+      const account = instagramAccounts.find((a) => a.id === selectedInstagramAccountId) ?? instagramAccounts[0]
+      if (account) return { name: `@${account.username}`, avatar: brandLogoUrl }
+    }
+    if (activeTab === 'linkedin') {
+      const profile = linkedinProfiles.find((p) => p.id === selectedLinkedInProfileId) ?? linkedinProfiles[0]
+      const avatar = (linkedinIntegration?.metadata?.avatar as string | undefined) ?? brandLogoUrl
+      if (profile) return { name: profile.name, avatar }
+    }
+    if (activeTab === 'x') {
+      const handle = xIntegration?.metadata?.handle as string | undefined
+      const avatar = (xIntegration?.metadata?.avatar as string | undefined) ?? brandLogoUrl
+      if (handle) return { name: `@${handle}`, avatar }
+    }
+    return { name: brandName, avatar: brandLogoUrl }
+  })()
 
   useEffect(() => {
     setBrandLogoUrl(currentWorkspace?.logo_url ?? null)
@@ -1350,20 +1373,6 @@ export function ComposePage() {
                   </div>
                 ) : null}
 
-                <ComposeAiWriteSection
-                  draftTopic={draftTopic}
-                  onDraftTopicChange={setDraftTopic}
-                  copyLoading={copyLoading}
-                  canPolish={Boolean(content.trim())}
-                  onWriteWithAi={() => void draftWithAi()}
-                  onPolish={() => void polishWithAi()}
-                  onResearch={() => setShowResearch(true)}
-                  onRemix={() => {
-                    setRemixSeed({ text: content, niche: '' })
-                    setShowRemix(true)
-                  }}
-                />
-
                 <div className="space-y-2">
                   <div className="flex items-end justify-between gap-3">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your post</p>
@@ -1400,6 +1409,20 @@ export function ComposePage() {
                     </p>
                   ) : null}
                 </div>
+
+                <ComposeAiWriteSection
+                  draftTopic={draftTopic}
+                  onDraftTopicChange={setDraftTopic}
+                  copyLoading={copyLoading}
+                  canPolish={Boolean(content.trim())}
+                  onWriteWithAi={() => void draftWithAi()}
+                  onPolish={() => void polishWithAi()}
+                  onResearch={() => setShowResearch(true)}
+                  onRemix={() => {
+                    setRemixSeed({ text: content, niche: '' })
+                    setShowRemix(true)
+                  }}
+                />
         </CardContent>
       </Card>
 
@@ -1441,8 +1464,8 @@ export function ComposePage() {
           <CardContent className="bg-muted/30 p-4">
             <PlatformPostPreview
               platform={activeTab as PreviewPlatform}
-              brandName={brandName}
-              avatarUrl={brandLogoUrl}
+              brandName={previewProfile.name}
+              avatarUrl={previewProfile.avatar}
               content={content || 'Your post text will appear here as you write…'}
               mediaUrl={activeMedia?.url ?? null}
               mediaType={activeMedia?.type === 'video' ? 'video' : 'image'}
