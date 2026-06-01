@@ -253,8 +253,8 @@ export function PlannerPage() {
               ))}
             </Select>
           ) : null}
-          {/* Page filter — shown when the effective workspace has FB pages */}
-          {filterPages.length > 0 ? (
+          {/* Page filter — only relevant when viewing Facebook/Instagram or all platforms */}
+          {filterPages.length > 0 && (platformFilter === 'all' || platformFilter === 'facebook' || platformFilter === 'instagram') ? (
             <Select
               value={filterPageId ?? ''}
               onChange={(e) => setFilterPageId(e.target.value || null)}
@@ -269,7 +269,14 @@ export function PlannerPage() {
           ) : null}
           <Select
             value={platformFilter}
-            onChange={(e) => setPlatformFilter(e.target.value)}
+            onChange={(e) => {
+              const p = e.target.value
+              setPlatformFilter(p)
+              // Clear page filter when switching to a platform that has no FB pages
+              if (p !== 'all' && p !== 'facebook' && p !== 'instagram') {
+                setFilterPageId(null)
+              }
+            }}
             className="h-9 w-44"
             aria-label="Filter calendar by account"
           >
