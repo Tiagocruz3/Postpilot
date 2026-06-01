@@ -1,6 +1,6 @@
 import type { Json } from '@/types/database'
 
-export type Platform = 'facebook' | 'linkedin' | 'x' | 'meta' | 'google'
+export type Platform = 'facebook' | 'instagram' | 'linkedin' | 'x' | 'meta' | 'google'
 export type PlannerPlatform = Platform | 'meta_ads'
 export type IntegrationProvider = Platform
 export type TaskStatus = 'draft' | 'scheduled' | 'published' | 'failed'

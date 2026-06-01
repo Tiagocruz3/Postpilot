@@ -5,7 +5,7 @@ import { usePlannerTasks } from '@/hooks/usePlannerTasks'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { CalendarEvent, PlannerTask, AppOutletContext } from '@/types'
-import { parseFacebookPages } from '@/lib/meta-integration-options'
+import { parseFacebookPages, parseInstagramAccounts } from '@/lib/meta-integration-options'
 import {
   addDays,
   addHours,
@@ -79,12 +79,13 @@ export function PlannerPage() {
   )
   const { integrations } = useWorkspaceIntegrations(effectiveWorkspaceId)
 
-  // Pages available for the currently-filtered workspace.
+  // Pages / accounts available in this workspace for the dialog platform selector.
   const filterFbIntegration = useMemo(
     () => integrations.find((i) => i.provider === 'facebook' || i.provider === 'meta') ?? null,
     [integrations],
   )
   const filterPages = useMemo(() => parseFacebookPages(filterFbIntegration), [filterFbIntegration])
+  const filterIgAccounts = useMemo(() => parseInstagramAccounts(filterFbIntegration), [filterFbIntegration])
 
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
@@ -481,14 +482,26 @@ export function PlannerPage() {
               <label className="text-sm font-medium">Platform</label>
               <Select
                 value={editingTask?.platform || ''}
-                onChange={(e) =>
-                  setEditingTask((task) =>
-                    task ? { ...task, platform: (e.target.value || null) as PlannerTask['platform'] } : null
-                  )
-                }
+                onChange={(e) => {
+                  const newPlatform = (e.target.value || null) as PlannerTask['platform']
+                  setEditingTask((task) => {
+                    if (!task) return null
+                    // Auto-select the first matching account when switching platform
+                    let pageId: string | null = task.facebook_page_id
+                    if (newPlatform === 'facebook') {
+                      pageId = task.facebook_page_id || filterPages[0]?.id || null
+                    } else if (newPlatform === 'instagram') {
+                      pageId = filterIgAccounts[0]?.id || null
+                    } else {
+                      pageId = null
+                    }
+                    return { ...task, platform: newPlatform, facebook_page_id: pageId }
+                  })
+                }}
               >
                 <option value="">None</option>
                 <option value="facebook">Facebook</option>
+                {filterIgAccounts.length > 0 ? <option value="instagram">Instagram</option> : null}
                 <option value="linkedin">LinkedIn</option>
                 <option value="x">X</option>
                 <option value="meta_ads">Meta Ads</option>
@@ -512,6 +525,42 @@ export function PlannerPage() {
               </Select>
             </div>
           </div>
+          {/* Page / account selector — only shown when the platform has connected accounts */}
+          {editingTask?.platform === 'facebook' && filterPages.length > 0 ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Facebook Page</label>
+              <Select
+                value={editingTask.facebook_page_id || ''}
+                onChange={(e) =>
+                  setEditingTask((task) =>
+                    task ? { ...task, facebook_page_id: e.target.value || null } : null
+                  )
+                }
+              >
+                <option value="">— choose a page —</option>
+                {filterPages.map((page) => (
+                  <option key={page.id} value={page.id}>{page.name}</option>
+                ))}
+              </Select>
+            </div>
+          ) : editingTask?.platform === 'instagram' && filterIgAccounts.length > 0 ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Instagram Account</label>
+              <Select
+                value={editingTask.facebook_page_id || ''}
+                onChange={(e) =>
+                  setEditingTask((task) =>
+                    task ? { ...task, facebook_page_id: e.target.value || null } : null
+                  )
+                }
+              >
+                <option value="">— choose an account —</option>
+                {filterIgAccounts.map((acct) => (
+                  <option key={acct.id} value={acct.id}>@{acct.username}</option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
         </div>
         <DialogFooter>
           {editingTask?.id ? (
