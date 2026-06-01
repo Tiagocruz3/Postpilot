@@ -1,15 +1,23 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Eye, EyeOff, Sparkles, CalendarDays, BarChart3, Megaphone } from 'lucide-react'
+
+const BENEFITS = [
+  { icon: Sparkles, text: 'AI-written posts in seconds' },
+  { icon: CalendarDays, text: 'Schedule across every platform' },
+  { icon: BarChart3, text: 'Track engagement & leads in one place' },
+  { icon: Megaphone, text: 'Launch Meta ads without the complexity' },
+]
 
 export function LoginPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -17,30 +25,107 @@ export function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
-    if (error) setError(error.message)
+    if (authError) setError(authError.message)
     else navigate('/app')
   }
 
   const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/app` },
     })
-    if (error) setError(error.message)
+    if (authError) setError(authError.message)
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your Ad Guru account</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+    <div className="flex min-h-screen bg-background">
+      {/* ── Left brand panel ── */}
+      <div className="relative hidden w-[46%] flex-col overflow-hidden lg:flex">
+        {/* Background layers */}
+        <div className="alive-mesh absolute inset-0 opacity-90" />
+        <div className="alive-grid-bg absolute inset-0" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-sky-600/70 to-cyan-600/60" />
+
+        {/* Content */}
+        <div className="relative flex h-full flex-col p-10">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-sm font-bold text-white shadow-lg backdrop-blur">
+              A
+              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white/30 bg-emerald-400" />
+            </div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-white">Ad Guru</div>
+              <div className="text-[11px] text-white/70">AI social command center</div>
+            </div>
+          </Link>
+
+          {/* Main copy */}
+          <div className="mt-auto pb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Welcome back</p>
+            <h2 className="mt-3 text-3xl font-bold leading-tight text-white">
+              Your content.<br />Your audience.<br />
+              <span className="text-white/80">Amplified.</span>
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-white/70">
+              Everything you need to create, schedule, and grow — all in one beautiful workspace.
+            </p>
+
+            {/* Benefit list */}
+            <ul className="mt-7 space-y-3">
+              {BENEFITS.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/15 backdrop-blur">
+                    <Icon className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  <span className="text-sm text-white/85">{text}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Social proof */}
+            <div className="mt-8 flex items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white">J</div>
+              <div>
+                <p className="text-xs leading-relaxed text-white/90">"Cut my content workflow from hours to minutes. Game changer."</p>
+                <p className="mt-1 text-[11px] text-white/55">James K. · Digital agency owner</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right form panel ── */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        {/* Mobile logo */}
+        <Link to="/" className="mb-8 flex items-center gap-2 lg:hidden">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+            A
+          </div>
+          <span className="text-sm font-semibold">Ad Guru</span>
+        </Link>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign in to Ad Guru</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <Link to="/signup" className="font-medium text-primary hover:underline">
+                Start free
+              </Link>
+            </p>
+          </div>
+
+          {/* Google SSO */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2.5 border-border/70 bg-background font-medium shadow-sm hover:bg-accent"
+            onClick={handleGoogleLogin}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -48,38 +133,87 @@ export function LoginPage() {
             </svg>
             Continue with Google
           </Button>
-          <div className="relative">
+
+          <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+              <span className="w-full border-t border-border/60" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or</span>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-background px-3 text-muted-foreground">or continue with email</span>
             </div>
           </div>
+
+          {/* Email form */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@company.com"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setError('Password reset is available via email. Contact support@adguru.app.')}
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
+
+            {error && (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-11 w-full bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <button onClick={() => navigate('/signup')} className="font-medium text-primary hover:underline">
-              Sign up
-            </button>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            By signing in you agree to our{' '}
+            <Link to="/terms" className="underline hover:text-foreground">Terms</Link>
+            {' '}and{' '}
+            <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
           </p>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
