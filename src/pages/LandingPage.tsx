@@ -44,6 +44,7 @@ export function LandingPage() {
       { label: 'Features', href: '#features' },
       { label: 'How It Works', href: '#how-it-works' },
       { label: 'Pricing', href: '#pricing' },
+      { label: 'Support', href: '/support' },
     ],
     [],
   )
@@ -68,19 +69,29 @@ export function LandingPage() {
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                onClick={(event) => {
-                  event.preventDefault()
-                  scrollToHash(item.href)
-                }}
-              >
-                {item.label}
-              </a>
-            ))}
+            {navItems.map((item) =>
+              item.href.startsWith('/') ? (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    scrollToHash(item.href)
+                  }}
+                >
+                  {item.label}
+                </a>
+              )
+            )}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -108,63 +119,88 @@ export function LandingPage() {
           <div className="alive-mesh pointer-events-none absolute inset-0 opacity-90" />
           <div className="alive-grid-bg pointer-events-none absolute inset-0" />
 
-          <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-20 md:grid-cols-[1.1fr_1fr] md:items-center md:py-28">
+          {/* Social proof bar above fold */}
+          <div className="relative border-b border-border/40 bg-background/50 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 py-3">
+              <div className="flex items-center gap-1.5">
+                {[1,2,3,4,5].map((i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
+                <span className="ml-1 text-xs font-semibold text-foreground">4.9</span>
+                <span className="text-xs text-muted-foreground">· 200+ reviews</span>
+              </div>
+              <span className="hidden text-border/60 sm:block">|</span>
+              <span className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">5,200+</span> posts published</span>
+              <span className="hidden text-border/60 sm:block">|</span>
+              <span className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">120k+</span> AI generations</span>
+              <span className="hidden text-border/60 sm:block">|</span>
+              <span className="text-xs text-muted-foreground">Meta · Instagram · LinkedIn · X</span>
+            </div>
+          </div>
+
+          <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 md:grid-cols-[1.15fr_1fr] md:items-center md:py-24">
             <div className="relative">
+              {/* Urgency pill */}
               <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur">
                 <span className="alive-status-dot" />
-                New: AI Ad Studio + Lead Forms
+                Limited launch pricing — lock in your rate today
               </p>
 
               <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
-                Your AI Social Media
-                <br />
-                <span className="alive-gradient-text">Command Center</span>
+                Stop juggling 5 apps.<br />
+                <span className="alive-gradient-text">Publish smarter</span><br />
+                in one place.
               </h1>
 
-              <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-                Create scroll-stopping posts, AI images, videos, and ad campaigns, then schedule, publish, and track
-                everything from one beautiful dashboard.
+              <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground md:text-lg">
+                Ad Guru replaces your content calendar, AI writer, image generator, and ad manager with one beautiful workspace. Write, design, schedule, and launch — all from a single tab.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {/* Inline testimonial */}
+              <div className="mt-5 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 backdrop-blur">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky-500 text-sm font-bold text-white">S</div>
+                <div>
+                  <p className="text-sm leading-relaxed text-foreground">"I used to spend 3 hours a day on social media. Now it's 20 minutes — and my engagement is up 40%."</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Sarah M. · E-commerce founder</p>
+                </div>
+              </div>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
                   size="lg"
                   onClick={() => navigate(primaryCtaHref)}
-                  className="h-12 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-6 text-base text-white alive-glow"
+                  className="h-13 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-7 text-base font-semibold text-white shadow-lg shadow-primary/30 alive-glow hover:shadow-xl hover:shadow-primary/40"
                 >
-                  {primaryCtaLabel}
+                  {primaryCtaLabel} — It's Free
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   className="h-12 border-foreground/15 bg-background/70 px-5 text-base backdrop-blur"
-                  onClick={() => scrollToHash('#product')}
+                  onClick={() => scrollToHash('#features')}
                 >
                   <Play className="mr-2 h-4 w-4 fill-current" />
-                  Watch Demo
+                  See Features
                 </Button>
               </div>
 
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   No credit card required
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  Cancel anytime
+                  Free AI credits included
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  Free AI credits to start
+                  Cancel anytime
                 </span>
               </div>
             </div>
 
             {/* Hero product preview */}
             <div className="relative">
-              {/* Floating glow behind */}
               <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-sky-500/20 to-cyan-500/20 blur-3xl" />
 
               {/* Floating badges */}
@@ -174,7 +210,7 @@ export function LandingPage() {
                     <Megaphone className="h-4 w-4" />
                   </div>
                   <div className="text-xs leading-tight">
-                    <p className="font-semibold">New lead</p>
+                    <p className="font-semibold">New lead captured</p>
                     <p className="text-muted-foreground">From IG ad · just now</p>
                   </div>
                 </div>
@@ -186,8 +222,8 @@ export function LandingPage() {
                     <Sparkles className="h-4 w-4" />
                   </div>
                   <div className="text-xs leading-tight">
-                    <p className="font-semibold">AI generated 3 ad options</p>
-                    <p className="text-muted-foreground">+ creative briefs</p>
+                    <p className="font-semibold">Post generated in 4 sec</p>
+                    <p className="text-muted-foreground">Caption + hashtags ready</p>
                   </div>
                 </div>
               </div>
@@ -197,9 +233,9 @@ export function LandingPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-sky-500 text-xs font-bold text-white">
-                        P
+                        A
                       </div>
-                      <p className="text-sm font-semibold">Command Center</p>
+                      <p className="text-sm font-semibold">Ad Guru Dashboard</p>
                     </div>
                     <span className="inline-flex items-center gap-1.5 rounded-full border bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-600">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -207,54 +243,47 @@ export function LandingPage() {
                     </span>
                   </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-4 grid grid-cols-2 gap-2.5">
                     {[
-                      { label: 'Scheduled', value: '12', accent: 'from-primary/20 to-primary/5', icon: CalendarDays },
-                      { label: 'Engagement', value: '+28%', accent: 'from-emerald-500/20 to-emerald-500/5', icon: BarChart3 },
-                      { label: 'Active ads', value: '3', accent: 'from-cyan-500/20 to-cyan-500/5', icon: Megaphone },
-                      { label: 'Leads', value: '47', accent: 'from-amber-500/20 to-amber-500/5', icon: Target },
+                      { label: 'Scheduled posts', value: '12', accent: 'from-primary/20 to-primary/5', icon: CalendarDays, delta: '↑ 4 this week' },
+                      { label: 'Engagement', value: '+41%', accent: 'from-emerald-500/20 to-emerald-500/5', icon: BarChart3, delta: 'vs last month' },
+                      { label: 'Active ads', value: '3', accent: 'from-cyan-500/20 to-cyan-500/5', icon: Megaphone, delta: '$12/day spend' },
+                      { label: 'Leads collected', value: '47', accent: 'from-amber-500/20 to-amber-500/5', icon: Target, delta: '↑ 19 this week' },
                     ].map((stat) => {
                       const Icon = stat.icon
                       return (
                         <div
                           key={stat.label}
-                          className={cn('relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4', stat.accent)}
+                          className={cn('relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5', stat.accent)}
                         >
                           <div className="flex items-center justify-between">
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                               {stat.label}
                             </p>
                             <Icon className="h-3.5 w-3.5 text-foreground/40" />
                           </div>
-                          <p className="mt-2 text-2xl font-bold tabular-nums">{stat.value}</p>
-                          <div className="mt-3 h-1.5 rounded-full bg-muted">
-                            <div className="alive-shimmer h-full w-2/3 rounded-full bg-primary/50" />
-                          </div>
+                          <p className="mt-1.5 text-xl font-bold tabular-nums">{stat.value}</p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">{stat.delta}</p>
                         </div>
                       )
                     })}
                   </div>
 
-                  <div className="mt-4 rounded-2xl border bg-gradient-to-br from-primary/10 via-sky-500/5 to-transparent p-4">
+                  <div className="mt-3.5 rounded-2xl border bg-gradient-to-br from-primary/10 via-sky-500/5 to-transparent p-3.5">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
                         <Bot className="h-4 w-4" />
                       </div>
                       <p className="text-xs font-semibold text-foreground">AI Suggestion</p>
+                      <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">New</span>
                     </div>
                     <p className="mt-2 text-sm text-foreground">
-                      “Turn your top-performing post into a 3-ad campaign for a $5/day lead offer.”
+                      "Your Tuesday post outperformed by 3×. Turn it into a lead ad — I'll write 3 variants."
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
-                        Generate 3 ads
-                      </span>
-                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
-                        Schedule a week
-                      </span>
-                      <span className="rounded-full border bg-background px-3 py-1 text-xs font-medium">
-                        Create video
-                      </span>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <span className="rounded-full border bg-background px-2.5 py-0.5 text-[11px] font-medium">Create ad →</span>
+                      <span className="rounded-full border bg-background px-2.5 py-0.5 text-[11px] font-medium">Schedule reposts</span>
+                      <span className="rounded-full border bg-background px-2.5 py-0.5 text-[11px] font-medium">Generate video</span>
                     </div>
                   </div>
                 </div>
@@ -262,20 +291,21 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Trust bar */}
-          <div className="relative border-y border-border/60 bg-background/40 backdrop-blur">
-            <div className="mx-auto max-w-6xl px-4 py-6">
-              <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                Built for creators, businesses & agencies
+          {/* Trust bar with logos-style platform row */}
+          <div className="relative border-t border-border/60 bg-background/40 backdrop-blur">
+            <div className="mx-auto max-w-6xl px-4 py-5">
+              <p className="mb-4 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Trusted by creators, agencies & e-commerce brands
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm font-semibold text-muted-foreground/70">
-                <span>★ 4.9 avg rating</span>
-                <span>·</span>
-                <span>5,200+ posts published</span>
-                <span>·</span>
-                <span>120k+ AI generations</span>
-                <span>·</span>
-                <span>Meta · Instagram · LinkedIn · X</span>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                {['Meta / Facebook', 'Instagram', 'LinkedIn', 'X (Twitter)'].map((platform) => (
+                  <span
+                    key={platform}
+                    className="rounded-full border border-border/60 bg-background/60 px-4 py-1.5 text-xs font-semibold text-muted-foreground backdrop-blur"
+                  >
+                    {platform}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -394,7 +424,10 @@ export function LandingPage() {
                     {profile ? 'Go to Dashboard' : 'Login'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    By continuing, you agree to our Terms and Privacy Policy.
+                    By continuing, you agree to our{' '}
+                    <Link to="/terms" className="underline hover:text-foreground">Terms</Link>
+                    {' '}and{' '}
+                    <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
                   </p>
                 </CardContent>
               </Card>
@@ -862,21 +895,21 @@ export function LandingPage() {
             <div className="mt-12 grid gap-4 md:grid-cols-3">
               {[
                 {
-                  quote: '“Ad Guru helped us turn one campaign idea into a full week of posts and ads in under an hour.”',
+                  quote: '"Ad Guru helped us turn one campaign idea into a full week of posts and ads in under an hour."',
                   name: 'Sarah K.',
                   role: 'Founder · DTC Skincare',
                   initials: 'SK',
                   bg: 'from-blue-500 to-cyan-500',
                 },
                 {
-                  quote: '“Ad Studio makes creating Facebook campaigns feel simple. The AI options give us a strong starting point every time.”',
+                  quote: '"Ad Studio makes creating Facebook campaigns feel simple. The AI options give us a strong starting point every time."',
                   name: 'Marcus T.',
                   role: 'Marketing Lead · Local Gym',
                   initials: 'MT',
                   bg: 'from-primary to-sky-500',
                 },
                 {
-                  quote: '“We stopped jumping between five different tools. Now content, ads, and analytics all live in one place.”',
+                  quote: '"We stopped jumping between five different tools. Now content, ads, and analytics all live in one place."',
                   name: 'Priya R.',
                   role: 'Owner · Boutique Agency',
                   initials: 'PR',
@@ -1008,21 +1041,19 @@ export function LandingPage() {
           </div>
 
           <div className="grid gap-2 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Support</p>
-            <button className="text-left text-muted-foreground hover:text-foreground" onClick={() => navigate('/login')}>
-              Account
-            </button>
-            <button className="text-left text-muted-foreground hover:text-foreground" onClick={() => navigate('/login')}>
-              Billing
-            </button>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Legal & Support</p>
+            <Link className="text-muted-foreground hover:text-foreground" to="/support">Support</Link>
+            <Link className="text-muted-foreground hover:text-foreground" to="/privacy">Privacy Policy</Link>
+            <Link className="text-muted-foreground hover:text-foreground" to="/terms">Terms of Service</Link>
           </div>
         </div>
         <div className="border-t">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>© {new Date().getFullYear()} Ad Guru. All rights reserved.</p>
             <div className="flex gap-4">
-              <span>Privacy Policy</span>
-              <span>Terms of Service</span>
+              <Link className="hover:text-foreground" to="/privacy">Privacy Policy</Link>
+              <Link className="hover:text-foreground" to="/terms">Terms of Service</Link>
+              <Link className="hover:text-foreground" to="/support">Support</Link>
             </div>
           </div>
         </div>

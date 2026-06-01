@@ -18,6 +18,9 @@ import { LibraryPage } from '@/pages/LibraryPage'
 import { HistoryPage } from '@/pages/HistoryPage'
 import { AdminPanelPage } from '@/pages/admin/AdminPanelPage'
 import { AdminRoute } from '@/components/admin/AdminRoute'
+import { PrivacyPage } from '@/pages/PrivacyPage'
+import { TermsPage } from '@/pages/TermsPage'
+import { SupportPage } from '@/pages/SupportPage'
 
 function App() {
   const { profile, loading } = useAuth()
@@ -36,6 +39,9 @@ function App() {
     <CreditProvider>
       <Routes>
         <Route path="/" element={profile ? <Navigate to="/app" /> : <LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/login" element={profile ? <Navigate to="/app" /> : <LoginPage />} />
         <Route path="/signup" element={profile ? <Navigate to="/app" /> : <SignupPage />} />
         <Route path="/workspace-setup" element={!profile ? <Navigate to="/login" /> : <WorkspaceSetupPage />} />
