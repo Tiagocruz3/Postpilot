@@ -128,7 +128,7 @@ function clearDraftSnapshot(workspaceId: string | null) {
 export function ComposePage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { currentWorkspaceId, currentWorkspace, currentPageId } = useOutletContext<AppOutletContext>()
+  const { currentWorkspaceId, currentWorkspace, currentPageId, currentPage } = useOutletContext<AppOutletContext>()
   const { user } = useAuth()
 
   const initialSnapshot = loadDraftSnapshot(currentWorkspaceId)
@@ -237,6 +237,9 @@ export function ComposePage() {
   })()
 
   const selectedFacebookPageId =
+    // The page toggled in the left sidebar (workspace profile) always wins so the
+    // composer and live preview stay in sync with what the user selected globally.
+    (currentPageId && facebookPages.some((page) => page.id === currentPageId) ? currentPageId : '') ||
     (facebookIntegration?.metadata as { selected_page_id?: string } | undefined)?.selected_page_id ||
     (facebookIntegration?.metadata as { page_id?: string } | undefined)?.page_id ||
     facebookPages[0]?.id ||
