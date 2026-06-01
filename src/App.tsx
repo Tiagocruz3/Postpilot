@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ScrollToTop } from '@/components/ScrollToTop'
 import { ConfirmProvider } from '@/components/ConfirmProvider'
 import { CreditProvider } from '@/contexts/CreditContext'
 import { useAuth } from '@/hooks/useAuth'
@@ -36,6 +37,7 @@ function App() {
   return (
     <ConfirmProvider>
     <BrowserRouter>
+    <ScrollToTop />
     <CreditProvider>
       <Routes>
         <Route path="/" element={profile ? <Navigate to="/app" /> : <LandingPage />} />
