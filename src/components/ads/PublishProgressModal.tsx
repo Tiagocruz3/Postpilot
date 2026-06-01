@@ -84,7 +84,7 @@ export function PublishProgressModal({
           </div>
           <div>
             <h2 className="text-lg font-semibold">Publishing your ad to Meta</h2>
-            <p className="text-sm text-muted-foreground">Hang tight — this usually takes a few seconds.</p>
+            <p className="text-sm text-muted-foreground">Hang tight - this usually takes a few seconds.</p>
           </div>
           <ul className="w-full space-y-2 text-left">
             {STEPS.map((step, index) => {
@@ -189,7 +189,7 @@ export function PublishProgressModal({
           </div>
           <div>
             <h2 className="text-lg font-semibold">Publishing hit a snag</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Your draft is safe — nothing was lost.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Your draft is safe - nothing was lost.</p>
           </div>
           <div className="w-full rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-left text-sm text-destructive">
             {error || 'Something went wrong while publishing.'}

@@ -73,7 +73,7 @@ export function TopUpCreditsModal({ open, onOpenChange }: TopUpCreditsModalProps
           Cancel
         </Button>
         <Button onClick={() => void handleCheckout()} disabled={busy}>
-          {busy ? 'Processing…' : `Continue — $${selected.price}`}
+          {busy ? 'Processing…' : `Continue - $${selected.price}`}
         </Button>
       </DialogFooter>
     </Dialog>

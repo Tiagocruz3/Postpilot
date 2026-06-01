@@ -62,7 +62,7 @@ const COLUMNS: Array<{ key: SortKey; label: string; numeric?: boolean; metric?: 
   { key: 'ctr', label: 'CTR', numeric: true, metric: 'ctr', format: fmtPercent },
   { key: 'cpc', label: 'CPC', numeric: true, metric: 'cpc', format: (n) => fmtCurrency(n) },
   { key: 'cpm', label: 'CPM', numeric: true, metric: 'cpm', format: (n) => fmtCurrency(n) },
-  { key: 'frequency', label: 'Freq.', numeric: true, metric: 'frequency', format: (n) => (n ? n.toFixed(2) : '—') },
+  { key: 'frequency', label: 'Freq.', numeric: true, metric: 'frequency', format: (n) => (n ? n.toFixed(2) : ' - ') },
   { key: 'leads', label: 'Leads', numeric: true, metric: 'leads', format: fmtNumber },
   { key: 'conversions', label: 'Conv.', numeric: true, metric: 'conversions', format: fmtNumber },
   { key: 'roas', label: 'ROAS', numeric: true, metric: 'roas', format: fmtRatio },
@@ -208,7 +208,7 @@ export function AdsAnalyticsDashboard({ workspaceId, facebookPageId = null }: Ad
             <KpiCard label="CTR" value={fmtPercent(totals.ctr)} trend={trends.map((t) => t.ctr)} />
             <KpiCard label="CPC" value={fmtCurrency(totals.cpc)} trend={trends.map((t) => t.cpc)} />
             <KpiCard label="CPM" value={fmtCurrency(totals.cpm)} trend={trends.map((t) => t.cpm)} />
-            <KpiCard label="Freq." value={totals.frequency ? totals.frequency.toFixed(2) : '—'} />
+            <KpiCard label="Freq." value={totals.frequency ? totals.frequency.toFixed(2) : ' - '} />
             <KpiCard label="Leads" value={fmtNumber(totals.leads)} trend={trends.map((t) => t.leads)} />
             <KpiCard label="Conversions" value={fmtNumber(totals.conversions)} trend={trends.map((t) => t.conversions)} />
             <KpiCard label="Purchases" value={fmtNumber(totals.purchases)} />

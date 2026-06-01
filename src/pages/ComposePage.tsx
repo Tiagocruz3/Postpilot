@@ -398,7 +398,7 @@ export function ComposePage() {
       try {
         window.sessionStorage.setItem(key, JSON.stringify(snapshot))
       } catch {
-        // sessionStorage quota — silently ignore; user just won't see persistence.
+        // sessionStorage quota - silently ignore; user just won't see persistence.
       }
     }
   }, [
@@ -520,7 +520,7 @@ export function ComposePage() {
       const cleanContent = sanitizeComposeCopy(content)
       const mediaSnapshot = [...media]
       // `scheduleAt` is a datetime-local value (wall-clock, no timezone). Parse it
-      // as local time and convert to a proper UTC ISO string — storing the raw
+      // as local time and convert to a proper UTC ISO string - storing the raw
       // string made Postgres read it as UTC, so scheduled posts fired at the
       // wrong time (off by the user's UTC offset).
       let targetTime: string
@@ -535,7 +535,7 @@ export function ComposePage() {
           return
         }
         if (parsed.getTime() <= Date.now()) {
-          setMessage('That scheduled time is in the past — pick a future date and time.')
+          setMessage('That scheduled time is in the past - pick a future date and time.')
           setLoading(false)
           publishingRef.current = false
           return
@@ -1330,7 +1330,7 @@ export function ComposePage() {
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               {videoLoading
                                 ? 'This can take up to a minute.'
-                                : 'Usually ready in 10–20 seconds.'}
+                                : 'Usually ready in 10-20 seconds.'}
                             </p>
                           </div>
                           <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">

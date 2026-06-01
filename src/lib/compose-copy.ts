@@ -17,7 +17,7 @@ export const COMPOSE_CHAR_LIMITS: Record<ComposePlatform, number> = {
 /** Strip em/en dashes and tidy spacing after AI or manual edits. */
 export function sanitizeComposeCopy(text: string): string {
   return text
-    .replace(/\s*[—–]\s*/g, ', ')
+    .replace(/\s*[ - -]\s*/g, ', ')
     .replace(/,{2,}/g, ',')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

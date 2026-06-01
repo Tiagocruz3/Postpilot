@@ -90,7 +90,7 @@ export function AdminUsageLogsTab() {
                         {ACTION_LABELS[log.action_type as CreditActionType] ?? log.action_type}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{log.ai_provider}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{log.model_used ?? '—'}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{log.model_used ?? ' - '}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{log.credits_used}</td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {log.balance_after == null ? '∞' : log.balance_after}

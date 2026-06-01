@@ -288,7 +288,7 @@ function Section({ title, items }: { title: string; items: CampaignWithInsights[
                 </p>
               </div>
               <Badge variant={c.status === 'ACTIVE' ? 'default' : 'secondary'} className="shrink-0">
-                {c.status || '—'}
+                {c.status || ' - '}
               </Badge>
             </div>
 
@@ -350,24 +350,24 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function fmtInt(value: string | undefined) {
   const n = Number(value ?? 0)
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return ' - '
   return Math.round(n).toLocaleString()
 }
 
 function fmtMoney(value: string | undefined) {
   const n = Number(value ?? 0)
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return ' - '
   return `$${n.toFixed(2)}`
 }
 
 function fmtPct(value: string | undefined) {
   const n = Number(value ?? 0)
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return ' - '
   return `${n.toFixed(2)}%`
 }
 
 function fmtNum(value: string | undefined) {
   const n = Number(value ?? 0)
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return ' - '
   return n.toFixed(2)
 }

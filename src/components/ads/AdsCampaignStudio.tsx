@@ -297,7 +297,7 @@ export function AdsCampaignStudio({
 
   // When the user advances (Continue), goes back, or picks a step pill, scroll
   // the studio so the step bar sits at the top and the active pill stays
-  // visible in the horizontal row — they can then work down through the step.
+  // visible in the horizontal row - they can then work down through the step.
   useEffect(() => {
     if (skipStepScrollRef.current) {
       skipStepScrollRef.current = false
@@ -427,7 +427,7 @@ export function AdsCampaignStudio({
                 <Input
                   value={draft.campaignName}
                   onChange={(event) => onDraftChange({ campaignName: event.target.value })}
-                  placeholder={`${businessName || 'Brand'} — ${draft.goal || 'Campaign'}`}
+                  placeholder={`${businessName || 'Brand'} - ${draft.goal || 'Campaign'}`}
                 />
               </div>
               <div className="grid gap-1.5">
@@ -465,7 +465,7 @@ export function AdsCampaignStudio({
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Generate 2 ad variants with AI</CardTitle>
                 <CardDescription>
-                  We'll create two different angles — pick the one you like, edit either, or regenerate just one.
+                  We'll create two different angles - pick the one you like, edit either, or regenerate just one.
                   Both variants are saved to your Ad Library.
                 </CardDescription>
               </CardHeader>
@@ -492,7 +492,7 @@ export function AdsCampaignStudio({
                 ) : null}
 
                 {options.length === 0 && !generatingCopy ? (
-                  <p className="text-sm text-muted-foreground">No variants yet — click Generate to create two side-by-side.</p>
+                  <p className="text-sm text-muted-foreground">No variants yet - click Generate to create two side-by-side.</p>
                 ) : null}
 
                 {options.length === 0 && generatingCopy ? (
@@ -612,7 +612,7 @@ export function AdsCampaignStudio({
                       <p className="text-muted-foreground">
                         Selected{' '}
                         <span className="font-semibold text-foreground">{selectedOption.name}</span>. Click{' '}
-                        <span className="font-semibold text-foreground">Continue</span> below to edit it — or pick the
+                        <span className="font-semibold text-foreground">Continue</span> below to edit it - or pick the
                         other variant first.
                       </p>
                     ) : (
@@ -633,7 +633,7 @@ export function AdsCampaignStudio({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Edit your ad</CardTitle>
               <CardDescription>
-                Rewrite the copy and creative — the live preview on the right updates instantly across every placement.
+                Rewrite the copy and creative - the live preview on the right updates instantly across every placement.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1059,13 +1059,13 @@ export function AdsCampaignStudio({
                   <li>
                     <span className="text-foreground">Budget:</span>{' '}
                     {budgetType === 'lifetime'
-                      ? `$${lifetimeBudget || '—'} lifetime`
+                      ? `$${lifetimeBudget || ' - '} lifetime`
                       : `$${draft.dailyBudget}/day`}
                   </li>
                   <li>
-                    <span className="text-foreground">Audience:</span> {draft.location || '—'} · {ageMin}–{ageMax} · {genders.length === 0 ? 'All' : genders.join(', ')}
+                    <span className="text-foreground">Audience:</span> {draft.location || ' - '} · {ageMin}-{ageMax} · {genders.length === 0 ? 'All' : genders.join(', ')}
                   </li>
-                  <li><span className="text-foreground">Destination:</span> {destinationType === 'meta_lead_form' ? 'Meta lead form' : (draft.destinationUrl || '—')}</li>
+                  <li><span className="text-foreground">Destination:</span> {destinationType === 'meta_lead_form' ? 'Meta lead form' : (draft.destinationUrl || ' - ')}</li>
                 </ul>
               </div>
 
@@ -1105,7 +1105,7 @@ export function AdsCampaignStudio({
                       {objective?.label ?? draft.goal} · {draft.location || 'no location'} · {ageMin}-{ageMax} ·{' '}
                       {genders.length === 0 ? 'All genders' : genders.join(', ')} ·{' '}
                       {budgetType === 'lifetime'
-                        ? `$${lifetimeBudget || '—'} lifetime`
+                        ? `$${lifetimeBudget || ' - '} lifetime`
                         : `$${draft.dailyBudget}/day`}
                     </p>
                   </div>

@@ -90,7 +90,7 @@ export function AdminBillingTab({ users, plans, topups }: AdminBillingTabProps) 
                       {user.subscription_status === 'past_due' ? (
                         <span className="text-destructive">Failed</span>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground"> - </span>
                       )}
                     </td>
                   </tr>

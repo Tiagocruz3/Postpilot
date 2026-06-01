@@ -144,7 +144,7 @@ export function GrowthAdsProfileSettings({ workspaceId, userId, onMessage }: Gro
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {onboardingComplete
-                    ? 'Onboarding complete — campaigns use this context automatically.'
+                    ? 'Onboarding complete - campaigns use this context automatically.'
                     : 'Finish onboarding in Growth Ads for better AI recommendations.'}
                 </p>
               </div>

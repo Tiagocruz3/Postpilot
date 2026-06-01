@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 
-const HOURS = Array.from({ length: 18 }, (_, i) => i + 6) // 6 AM – 11 PM
+const HOURS = Array.from({ length: 18 }, (_, i) => i + 6) // 6 AM - 11 PM
 const GRID_START_HOUR = HOURS[0]
 const GRID_END_HOUR = HOURS[HOURS.length - 1] + 1
 const GRID_TOTAL_MINUTES = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -65,7 +65,7 @@ export function PlannerPage() {
   const confirm = useConfirm()
   const { workspaces } = useWorkspaces(user?.id)
 
-  // Local workspace/page filter — lets users browse any workspace/page without
+  // Local workspace/page filter - lets users browse any workspace/page without
   // changing their global selection. Defaults to the globally-active context.
   const [filterWorkspaceId, setFilterWorkspaceId] = useState<string | null>(null)
   const [filterPageId, setFilterPageId] = useState<string | null>(null)
@@ -275,7 +275,7 @@ export function PlannerPage() {
               <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="text-sm font-medium">
-              {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+              {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
             </span>
             <button type="button" onClick={() => setWeekOffset((o) => o + 1)} className="rounded-md p-1 hover:bg-accent">
               <ChevronRight className="h-4 w-4" />
@@ -298,7 +298,7 @@ export function PlannerPage() {
               ))}
             </Select>
           ) : null}
-          {/* Account / page / profile filter — adapts to the selected platform.
+          {/* Account / page / profile filter - adapts to the selected platform.
               Facebook/Instagram filter the calendar by page; LinkedIn/X show the
               connected profile for visibility (read-only). */}
           {accountsForPlatform.length > 0 ? (
@@ -593,7 +593,7 @@ export function PlannerPage() {
               </Select>
             </div>
           </div>
-          {/* Page / account selector — only shown when the platform has connected accounts */}
+          {/* Page / account selector - only shown when the platform has connected accounts */}
           {editingTask?.platform === 'facebook' && filterPages.length > 0 ? (
             <div className="space-y-2">
               <label className="text-sm font-medium">Facebook Page</label>
@@ -605,7 +605,7 @@ export function PlannerPage() {
                   )
                 }
               >
-                <option value="">— choose a page —</option>
+                <option value=""> - choose a page - </option>
                 {filterPages.map((page) => (
                   <option key={page.id} value={page.id}>{page.name}</option>
                 ))}
@@ -622,7 +622,7 @@ export function PlannerPage() {
                   )
                 }
               >
-                <option value="">— choose an account —</option>
+                <option value=""> - choose an account - </option>
                 {filterIgAccounts.map((acct) => (
                   <option key={acct.id} value={acct.id}>@{acct.username}</option>
                 ))}

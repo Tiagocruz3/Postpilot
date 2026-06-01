@@ -72,7 +72,7 @@ export function AdsAudienceFields({
           <Textarea
             value={value.description}
             onChange={(event) => onChange({ ...value, description: event.target.value })}
-            placeholder="e.g. Homeowners aged 30–55 interested in kitchen renovations within 25 km of Brisbane"
+            placeholder="e.g. Homeowners aged 30-55 interested in kitchen renovations within 25 km of Brisbane"
             rows={3}
             className="resize-none"
           />

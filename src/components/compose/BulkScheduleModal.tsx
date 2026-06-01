@@ -181,7 +181,7 @@ export function BulkScheduleModal({
       if (media.url) {
         updateVariant(variant.id, { imageUrl: media.url })
       } else {
-        setMessage('Image came back empty — try again or upload your own.')
+        setMessage('Image came back empty - try again or upload your own.')
       }
     } catch (err) {
       setMessage(err instanceof Error ? `Couldn't regenerate image: ${err.message}` : "Couldn't regenerate image.")
@@ -403,8 +403,8 @@ export function BulkScheduleModal({
             </div>
             <p className="text-xs text-muted-foreground">
               {slots.length >= count
-                ? `First post: ${slots[0]?.toLocaleString() ?? '—'}`
-                : `Only ${slots.length} future slot${slots.length === 1 ? '' : 's'} fit — add days/times or lower the count.`}
+                ? `First post: ${slots[0]?.toLocaleString() ?? ' - '}`
+                : `Only ${slots.length} future slot${slots.length === 1 ? '' : 's'} fit - add days/times or lower the count.`}
             </p>
           </div>
 

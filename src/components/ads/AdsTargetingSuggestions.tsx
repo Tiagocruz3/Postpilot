@@ -36,7 +36,7 @@ export type AdsTargetingSuggestion = {
   title: string
   value: string
   reasoning: string
-  /** Display-only — caller is responsible for applying the patch. */
+  /** Display-only - caller is responsible for applying the patch. */
   applied?: boolean
 }
 

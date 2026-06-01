@@ -263,7 +263,7 @@ export function Layout() {
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title={`${currentWorkspace.name} — expand to switch`}
+                title={`${currentWorkspace.name} - expand to switch`}
                 aria-label={`Current workspace: ${currentWorkspace.name}. Expand to switch.`}
               >
                 <Building2 className="h-4 w-4" />
@@ -272,7 +272,7 @@ export function Layout() {
           </div>
         ) : null}
 
-        {/* Page switcher — shows only when a FB integration has pages */}
+        {/* Page switcher - shows only when a FB integration has pages */}
         {currentPage ? (
           <div className={cn('pb-2', SIDEBAR_TRANSITION, sidebarOpen ? 'px-3' : 'px-2')}>
             {sidebarOpen ? (

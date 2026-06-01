@@ -348,7 +348,7 @@ export function AdDetailPage() {
                 <Kpi label="CTR" value={fmtPercent(metrics?.ctr ?? 0)} trend={trends.map((t) => t.ctr)} />
                 <Kpi label="CPC" value={fmtCurrency(metrics?.cpc ?? 0)} trend={trends.map((t) => t.cpc)} />
                 <Kpi label="CPM" value={fmtCurrency(metrics?.cpm ?? 0)} trend={trends.map((t) => t.cpm)} />
-                <Kpi label="Frequency" value={metrics?.frequency ? metrics.frequency.toFixed(2) : '—'} />
+                <Kpi label="Frequency" value={metrics?.frequency ? metrics.frequency.toFixed(2) : ' - '} />
                 <Kpi label="Leads" value={fmtNumber(metrics?.leads ?? 0)} trend={trends.map((t) => t.leads)} />
                 <Kpi label="Conversions" value={fmtNumber(metrics?.conversions ?? 0)} trend={trends.map((t) => t.conversions)} />
                 <Kpi label="Purchases" value={fmtNumber(metrics?.purchases ?? 0)} />
@@ -427,25 +427,25 @@ export function AdDetailPage() {
               <CardTitle className="text-base">Snapshot</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <Row icon={<Target className="h-4 w-4" />} label="Goal" value={creative.goal || '—'} />
+              <Row icon={<Target className="h-4 w-4" />} label="Goal" value={creative.goal || ' - '} />
               <Row
                 icon={<Wallet className="h-4 w-4" />}
                 label="Budget"
                 value={
                   creative.budget?.type === 'lifetime'
-                    ? `$${creative.budget?.lifetime ?? '—'} lifetime`
-                    : `$${creative.budget?.daily ?? '—'} / day`
+                    ? `$${creative.budget?.lifetime ?? ' - '} lifetime`
+                    : `$${creative.budget?.daily ?? ' - '} / day`
                 }
               />
               <Row
                 icon={<Users className="h-4 w-4" />}
                 label="Audience"
-                value={`${creative.audience?.location ?? '—'} · ${creative.audience?.age_min ?? '—'}-${creative.audience?.age_max ?? '—'} · ${(creative.audience?.genders ?? []).join(', ') || 'all'}`}
+                value={`${creative.audience?.location ?? ' - '} · ${creative.audience?.age_min ?? ' - '}-${creative.audience?.age_max ?? ' - '} · ${(creative.audience?.genders ?? []).join(', ') || 'all'}`}
               />
               <Row
                 icon={<Calendar className="h-4 w-4" />}
                 label="Schedule"
-                value={`${creative.schedule_start ?? '—'} → ${creative.schedule_end ?? 'open ended'}`}
+                value={`${creative.schedule_start ?? ' - '} → ${creative.schedule_end ?? 'open ended'}`}
               />
               <Row
                 icon={<MapPin className="h-4 w-4" />}
@@ -463,7 +463,7 @@ export function AdDetailPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Ad preview</CardTitle>
               <CardDescription>
-                Pick a placement and device — one surface at a time so nothing overlaps.
+                Pick a placement and device - one surface at a time so nothing overlaps.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

@@ -117,7 +117,7 @@ function MediaArea({
     const Icon = data.mediaType === 'video' ? Video : ImageIcon
     const label = data.mediaType === 'video' ? 'Rendering your video' : 'Designing your image'
     const sublabel =
-      data.mediaType === 'video' ? 'This can take up to a minute' : 'Usually ready in 10–20 seconds'
+      data.mediaType === 'video' ? 'This can take up to a minute' : 'Usually ready in 10-20 seconds'
     return (
       <div
         className={cn(

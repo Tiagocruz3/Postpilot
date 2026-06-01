@@ -626,7 +626,7 @@ export function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-sm text-muted-foreground">
           Connect social accounts, choose AI models for your workspace, and manage profile preferences. API keys for
-          OpenRouter, Lovable, and fal are configured by the platform owner—not individual subscribers.
+          OpenRouter, Lovable, and fal are configured by the platform owner - not individual subscribers.
         </p>
       </div>
 
@@ -780,7 +780,7 @@ export function SettingsPage() {
             </Card>
           </div>
 
-          {/* Brand logo — used as the avatar in post previews across Create Studio */}
+          {/* Brand logo - used as the avatar in post previews across Create Studio */}
           {isWorkspaceAdmin ? (
             <Card>
               <CardHeader>

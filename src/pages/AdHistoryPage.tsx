@@ -212,7 +212,7 @@ export function AdHistoryPage() {
                             <p className="text-sm font-semibold">{group.campaignName}</p>
                             <p className="text-[11px] text-muted-foreground">
                               {group.items.length} ad{group.items.length === 1 ? '' : 's'} ·
-                              {' '}last activity {group.latest ? new Date(group.latest).toLocaleDateString() : '—'}
+                              {' '}last activity {group.latest ? new Date(group.latest).toLocaleDateString() : ' - '}
                             </p>
                           </div>
                         </div>

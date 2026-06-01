@@ -33,7 +33,7 @@ const DEMO_REPORT: ResearchReport = {
     'Real estate moves fast. The agents winning right now are not working harder, they are working smarter with AI for listings, follow-ups, and client updates. Start small: pick one repetitive task this week and automate it.',
   hashtags: ['RealEstate', 'PropTech', 'AIForAgents'],
   visual_idea: 'Split-screen: stressed agent at laptop vs calm agent reviewing leads on phone.',
-  suggested_posting_time: 'Tuesday or Thursday, 9:00–11:00 AM local time',
+  suggested_posting_time: 'Tuesday or Thursday, 9:00-11:00 AM local time',
   sources: [{ title: 'Demo trend research', url: 'https://adguru.app' }],
 }
 

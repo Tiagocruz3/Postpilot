@@ -139,7 +139,7 @@ export async function saveGeneratedMediaToVault(input: SaveVaultInput): Promise<
       return edgeResult
     }
     if (edgeResult && !edgeResult.saved) {
-      // Edge failed — try browser upload for data URLs and same-origin assets.
+      // Edge failed - try browser upload for data URLs and same-origin assets.
       if (input.sourceUrl.startsWith('data:')) {
         return saveViaClientUpload(input)
       }

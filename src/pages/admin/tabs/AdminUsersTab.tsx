@@ -157,7 +157,7 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
         role: createForm.role,
         plan: createForm.plan,
       })
-      onMessage(`Created ${email}. They can sign in immediately — no email confirmation needed.`)
+      onMessage(`Created ${email}. They can sign in immediately - no email confirmation needed.`)
       setCreateOpen(false)
       setCreateForm(EMPTY_CREATE_FORM)
       await onRefresh()
@@ -391,7 +391,7 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
         <DialogHeader>
           <DialogTitle>Create user</DialogTitle>
           <DialogDescription>
-            The account is confirmed instantly — no email verification required.
+            The account is confirmed instantly - no email verification required.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
@@ -417,7 +417,7 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
               placeholder="At least 8 characters"
             />
             <p className="text-[11px] text-muted-foreground">
-              Share this with the user — they can sign in immediately.
+              Share this with the user - they can sign in immediately.
             </p>
           </div>
           <div className="grid gap-1.5">

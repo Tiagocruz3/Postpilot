@@ -53,7 +53,7 @@ export function ComposeAiWriteSection({
           </label>
           <Textarea
             id="compose-ai-prompt"
-            placeholder="e.g. New listing in downtown Austin — highlight walkability, schools, and open house Saturday…"
+            placeholder="e.g. New listing in downtown Austin - highlight walkability, schools, and open house Saturday…"
             value={draftTopic}
             onChange={(event) => onDraftTopicChange(event.target.value)}
             onKeyDown={handleKeyDown}

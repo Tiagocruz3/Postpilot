@@ -1,7 +1,7 @@
 /**
  * Client-side estimated reach calculator. Produces a deterministic range based on the
  * user's selected budget, location, age range, gender, interests, objective, placement
- * and ad format. Not live Meta data — designed to feel realistic and to react sensibly
+ * and ad format. Not live Meta data - designed to feel realistic and to react sensibly
  * to every meaningful change in targeting.
  */
 
@@ -41,7 +41,7 @@ export type ReachEstimate = {
   min: number
   /** Upper bound of estimated reach (people). */
   max: number
-  /** Human-readable formatted range, e.g. "18K – 62K". */
+  /** Human-readable formatted range, e.g. "18K - 62K". */
   label: string
   /** Indicative population pool the estimate was drawn from. */
   audiencePool: number
@@ -51,7 +51,7 @@ export type ReachEstimate = {
 
 /**
  * Approximate addressable Meta audience by location key. Used purely as a starting
- * pool — the estimator scales it down based on targeting.
+ * pool - the estimator scales it down based on targeting.
  */
 const LOCATION_POOL: Record<string, number> = {
   worldwide: 2_900_000_000,
@@ -61,12 +61,12 @@ const LOCATION_POOL: Record<string, number> = {
   australia: 21_000_000,
   'new zealand': 4_300_000,
   singapore: 5_600_000,
-  'australia — queensland': 4_700_000,
-  'australia — brisbane': 2_300_000,
-  'australia — gold coast': 720_000,
-  'australia — sydney': 4_900_000,
-  'australia — melbourne': 4_600_000,
-  'worldwide — english speakers': 980_000_000,
+  'australia - queensland': 4_700_000,
+  'australia - brisbane': 2_300_000,
+  'australia - gold coast': 720_000,
+  'australia - sydney': 4_900_000,
+  'australia - melbourne': 4_600_000,
+  'worldwide - english speakers': 980_000_000,
 }
 
 const DEFAULT_POOL = 8_000_000
@@ -79,7 +79,7 @@ function poolForLocation(location?: string | null): number {
     if (key.includes(pattern)) return pool
   }
   // City-style fallback (assume ~1.5M reachable adults)
-  if (/—|,/.test(location)) return 1_500_000
+  if (/ - |,/.test(location)) return 1_500_000
   // Country-style fallback
   return 12_000_000
 }
@@ -240,7 +240,7 @@ export function estimateReach(inputs: ReachEstimateInputs): ReachEstimate {
   const expectedImpressions = (totalBudget * 1000) / Math.max(1, cpm)
   const uniqueReachCenter = Math.max(0, expectedImpressions / AVERAGE_FREQUENCY)
 
-  // Cap reach by available audience pool — most campaigns never exhaust a pool, but
+  // Cap reach by available audience pool - most campaigns never exhaust a pool, but
   // we keep this honest for tiny audiences and huge budgets.
   const cappedCenter = Math.min(uniqueReachCenter, audiencePool * 0.7)
 
@@ -265,7 +265,7 @@ export function estimateReach(inputs: ReachEstimateInputs): ReachEstimate {
     notes.push('Sales campaigns usually need higher budgets to find purchasers.')
   }
   if ((interests?.length ?? 0) + (behaviours?.length ?? 0) >= 4) {
-    notes.push('Multiple interests narrow your audience — try removing one to widen reach.')
+    notes.push('Multiple interests narrow your audience - try removing one to widen reach.')
   }
 
   return {
@@ -278,8 +278,8 @@ export function estimateReach(inputs: ReachEstimateInputs): ReachEstimate {
 }
 
 export function formatReachRange(min: number, max: number): string {
-  if (max <= 0) return '—'
-  return `${formatAbbrev(min)} – ${formatAbbrev(max)}`
+  if (max <= 0) return ' - '
+  return `${formatAbbrev(min)} - ${formatAbbrev(max)}`
 }
 
 export function formatAbbrev(value: number): string {

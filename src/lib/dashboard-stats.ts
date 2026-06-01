@@ -241,9 +241,9 @@ export function buildAdsSnapshot(tasks: PlannerTask[]): DashboardAdsSnapshot {
   if (activeAds === 0 && adTasks.length === 0) {
     return {
       activeAds: 0,
-      spendLabel: '—',
-      leadsLabel: '—',
-      cplLabel: '—',
+      spendLabel: ' - ',
+      leadsLabel: ' - ',
+      cplLabel: ' - ',
       hasLiveData: false,
     }
   }

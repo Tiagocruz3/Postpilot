@@ -249,7 +249,7 @@ export function DashboardPage() {
                     <tr key={task.id} className="border-b border-border/60 last:border-0">
                       <td className="py-3.5 pr-4 font-medium">{task.title}</td>
                       <td className="py-3.5 pr-4 capitalize text-muted-foreground">
-                        {task.platform?.replace('_', ' ') || (task.kind === 'ad' ? 'Meta Ads' : '—')}
+                        {task.platform?.replace('_', ' ') || (task.kind === 'ad' ? 'Meta Ads' : ' - ')}
                       </td>
                       <td className="py-3.5 pr-4 text-muted-foreground">
                         {formatScheduledLabel(task.scheduled_at)}

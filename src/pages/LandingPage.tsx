@@ -141,7 +141,7 @@ export function LandingPage() {
               {/* Urgency pill */}
               <p className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur">
                 <span className="alive-status-dot" />
-                Limited launch pricing — lock in your rate today
+                Limited launch pricing - lock in your rate today
               </p>
 
               <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl">
@@ -151,14 +151,14 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground md:text-lg">
-                Ad Guru replaces your content calendar, AI writer, image generator, and ad manager with one beautiful workspace. Write, design, schedule, and launch — all from a single tab.
+                Ad Guru replaces your content calendar, AI writer, image generator, and ad manager with one beautiful workspace. Write, design, schedule, and launch - all from a single tab.
               </p>
 
               {/* Inline testimonial */}
               <div className="mt-5 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 backdrop-blur">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky-500 text-sm font-bold text-white">S</div>
                 <div>
-                  <p className="text-sm leading-relaxed text-foreground">"I used to spend 3 hours a day on social media. Now it's 20 minutes — and my engagement is up 40%."</p>
+                  <p className="text-sm leading-relaxed text-foreground">"I used to spend 3 hours a day on social media. Now it's 20 minutes - and my engagement is up 40%."</p>
                   <p className="mt-1 text-xs text-muted-foreground">Sarah M. · E-commerce founder</p>
                 </div>
               </div>
@@ -169,7 +169,7 @@ export function LandingPage() {
                   onClick={() => navigate(primaryCtaHref)}
                   className="h-13 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-7 text-base font-semibold text-white shadow-lg shadow-primary/30 alive-glow hover:shadow-xl hover:shadow-primary/40"
                 >
-                  {primaryCtaLabel} — It's Free
+                  {primaryCtaLabel} - It's Free
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button
@@ -278,7 +278,7 @@ export function LandingPage() {
                       <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">New</span>
                     </div>
                     <p className="mt-2 text-sm text-foreground">
-                      "Your Tuesday post outperformed by 3×. Turn it into a lead ad — I'll write 3 variants."
+                      "Your Tuesday post outperformed by 3×. Turn it into a lead ad - I'll write 3 variants."
                     </p>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       <span className="rounded-full border bg-background px-2.5 py-0.5 text-[11px] font-medium">Create ad →</span>

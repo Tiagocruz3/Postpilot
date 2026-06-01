@@ -93,9 +93,9 @@ type CampaignDraftState = {
   destinationUrl: string
   dailyBudget: string
   placements: string
-  /** Lower bound age (inclusive). 13–65. */
+  /** Lower bound age (inclusive). 13-65. */
   ageMin: number
-  /** Upper bound age (inclusive). 13–65. */
+  /** Upper bound age (inclusive). 13-65. */
   ageMax: number
   /** Selected genders. Empty array = all genders. */
   genders: string[]
@@ -439,7 +439,7 @@ export function AdsPage() {
       setOnboardingStep(1)
       setOptions([])
       setSelectedId(null)
-      setMessage('Set up Growth Ads again — complete each onboarding step or skip sections you will fill later.')
+      setMessage('Set up Growth Ads again - complete each onboarding step or skip sections you will fill later.')
       if (currentWorkspaceId && user?.id) {
         void fetchAdsStudioProfile(currentWorkspaceId, user.id).then((saved) => {
           setProfile(saved ?? createDefaultAdsStudioProfile(user.id))
@@ -740,7 +740,7 @@ export function AdsPage() {
     const isOnboarded = onboardedPageIds.includes(pageId)
 
     // First-ever onboarding hasn't even been completed, so just let them move
-    // around — they're still in the wizard for whatever Page they were on.
+    // around - they're still in the wizard for whatever Page they were on.
     if (!profile.onboardingCompleted) {
       await applyFacebookPageSwitch(pageId, pageName)
       return
@@ -842,7 +842,7 @@ export function AdsPage() {
       const ageRangeText = String(data.age_range || '')
       const ageMinRaw = Number(data.age_min)
       const ageMaxRaw = Number(data.age_max)
-      const [parsedMin, parsedMax] = ageRangeText.split(/[-–]/).map((n) => Number(n.replace(/[^\d]/g, '')))
+      const [parsedMin, parsedMax] = ageRangeText.split(/[--]/).map((n) => Number(n.replace(/[^\d]/g, '')))
       const ageMin = Number.isFinite(ageMinRaw) && ageMinRaw > 0
         ? ageMinRaw
         : Number.isFinite(parsedMin) && parsedMin > 0
@@ -883,7 +883,7 @@ export function AdsPage() {
         audienceProfile: {
           ...prev.audienceProfile,
           description: String(data.audience_description || prev.audienceProfile.description),
-          // Keep the user's chosen location — only fall back to the AI's when
+          // Keep the user's chosen location - only fall back to the AI's when
           // none is set. Location is still offered as an applyable suggestion.
           locations: prev.audienceProfile.locations || String(data.locations || ''),
           ageRange: ageRangeText || prev.audienceProfile.ageRange,
@@ -906,7 +906,7 @@ export function AdsPage() {
         suggestions.push({
           field: 'age',
           title: 'Recommended age range',
-          value: `${ageMin}–${ageMax}`,
+          value: `${ageMin}-${ageMax}`,
           reasoning: reasons.age || 'Best fit based on who is most likely to buy this offer.',
         })
       }
@@ -1003,7 +1003,7 @@ export function AdsPage() {
     if (isDemoMode) {
       applySuggestion({
         audience_description: `People interested in ${profile.offerProfile.mainProductService || 'your offer'} near ${profile.audienceProfile.locations || 'your area'}.`,
-        locations: profile.audienceProfile.locations || 'Australia — Brisbane',
+        locations: profile.audienceProfile.locations || 'Australia - Brisbane',
         age_range: '25-54',
         gender: 'All',
         interests: ['Small business owners', 'Online shopping', profile.businessProfile.industry || 'Marketing'].filter(Boolean),
@@ -1121,8 +1121,8 @@ export function AdsPage() {
           id: `demo-A`,
           name: 'Variant A',
           angle: 'direct-offer',
-          primaryText: `${profile.offerProfile.mainOffer || 'Your offer'} — built for ${draft.audience || 'your audience'}. Get the result you've been after, fast.`,
-          headline: `${profile.businessProfile.businessName || 'Your brand'} — ${profile.offerProfile.mainProductService || 'Offer'}`,
+          primaryText: `${profile.offerProfile.mainOffer || 'Your offer'} - built for ${draft.audience || 'your audience'}. Get the result you've been after, fast.`,
+          headline: `${profile.businessProfile.businessName || 'Your brand'} - ${profile.offerProfile.mainProductService || 'Offer'}`,
           description: 'Booked in minutes. No surprises.',
           cta: profile.brandVoice.ctaStyle || 'Learn more',
           previewUrl: null,
@@ -1140,7 +1140,7 @@ export function AdsPage() {
           cta: 'Get Offer',
           previewUrl: null,
           previewType,
-          creativeDirection: 'Before / after layout — bold contrast.',
+          creativeDirection: 'Before / after layout - bold contrast.',
           targetingAngle: 'People who have tried alternatives and are frustrated.',
         },
       ]
@@ -1324,7 +1324,7 @@ export function AdsPage() {
     if (isDemoMode) {
       const fresh: AdOption = {
         ...existing,
-        primaryText: `${existing.primaryText.split('.')[0]}. Here's a fresh take — punchier opening and a tighter promise.`,
+        primaryText: `${existing.primaryText.split('.')[0]}. Here's a fresh take - punchier opening and a tighter promise.`,
         headline: `${existing.headline} ✦`,
       }
       setOptions((list) => list.map((o) => (o.id === variantId ? fresh : o)))
@@ -1729,7 +1729,7 @@ export function AdsPage() {
           <DialogTitle>Onboarding required for this Page</DialogTitle>
           <DialogDescription>
             {pendingPageSwitch
-              ? `${pendingPageSwitch.pageName} hasn't gone through Growth Ads onboarding yet. You'll need to complete the onboarding process — business, offer, audience, brand voice, and creative preferences — before you can publish ads to this Page.`
+              ? `${pendingPageSwitch.pageName} hasn't gone through Growth Ads onboarding yet. You'll need to complete the onboarding process - business, offer, audience, brand voice, and creative preferences - before you can publish ads to this Page.`
               : null}
           </DialogDescription>
         </DialogHeader>
@@ -2120,7 +2120,7 @@ export function AdsPage() {
             audienceProfile={profile.audienceProfile}
             onAudienceProfileChange={(audienceProfile) => {
               setProfile((p) => ({ ...p, audienceProfile }))
-              // Pass the new value as a patch — a bare saveProfile() reads the
+              // Pass the new value as a patch - a bare saveProfile() reads the
               // stale profile closure and would re-save the previous location
               // (e.g. revert Gold Coast back to Australia).
               void saveProfile({ audienceProfile })
@@ -2435,7 +2435,7 @@ export function AdsPage() {
             <div className="min-w-0">
               <DialogTitle>Edit AI Profile</DialogTitle>
               <DialogDescription>
-                Short context AI Guru uses to write better ads. Fill out as much or as little as you want — you can
+                Short context AI Guru uses to write better ads. Fill out as much or as little as you want - you can
                 always finish it later from the onboarding flow.
               </DialogDescription>
             </div>

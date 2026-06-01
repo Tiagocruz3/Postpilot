@@ -20,7 +20,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'How do I cancel or change my subscription?',
-    a: 'You can upgrade, downgrade, or cancel your subscription at any time from Settings → Billing. Cancellations take effect at the end of the current billing period — you keep full access until then.',
+    a: 'You can upgrade, downgrade, or cancel your subscription at any time from Settings → Billing. Cancellations take effect at the end of the current billing period - you keep full access until then.',
   },
   {
     q: 'Can I get a refund?',
@@ -215,7 +215,7 @@ export function SupportPage() {
           </div>
           <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Still need help?</h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-            Our support team is standing by. Send us an email and we'll get back to you within one business day — usually much faster.
+            Our support team is standing by. Send us an email and we'll get back to you within one business day - usually much faster.
           </p>
           <a
             href="mailto:support@adguru.app"

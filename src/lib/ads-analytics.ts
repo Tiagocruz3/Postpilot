@@ -332,23 +332,23 @@ export async function loadAdTrends(params: {
 }
 
 export function fmtCurrency(value: number, currency = 'USD'): string {
-  if (!Number.isFinite(value)) return '—'
+  if (!Number.isFinite(value)) return ' - '
   return value.toLocaleString(undefined, { style: 'currency', currency, maximumFractionDigits: value >= 100 ? 0 : 2 })
 }
 
 export function fmtNumber(value: number): string {
-  if (!Number.isFinite(value)) return '—'
+  if (!Number.isFinite(value)) return ' - '
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
   if (value >= 10_000) return `${(value / 1000).toFixed(1)}K`
   return Math.round(value).toLocaleString()
 }
 
 export function fmtPercent(value: number): string {
-  if (!Number.isFinite(value)) return '—'
+  if (!Number.isFinite(value)) return ' - '
   return `${value.toFixed(2)}%`
 }
 
 export function fmtRatio(value: number): string {
-  if (!Number.isFinite(value) || value === 0) return '—'
+  if (!Number.isFinite(value) || value === 0) return ' - '
   return `${value.toFixed(2)}x`
 }

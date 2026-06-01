@@ -74,7 +74,7 @@ export function AccountMenu({ displayName, email, avatarUrl, sidebarOpen, onSign
             >
               <p className="truncate text-sm font-medium leading-tight">{resolvedName}</p>
               <p className="truncate text-[11px] text-muted-foreground leading-tight">
-                {balance.isAdmin ? 'Unlimited credits' : `${balance.totalRemaining === Infinity ? '—' : balance.totalRemaining.toLocaleString()} credits`}
+                {balance.isAdmin ? 'Unlimited credits' : `${balance.totalRemaining === Infinity ? ' - ' : balance.totalRemaining.toLocaleString()} credits`}
               </p>
             </div>
             <ChevronDown
@@ -97,7 +97,7 @@ export function AccountMenu({ displayName, email, avatarUrl, sidebarOpen, onSign
               </Avatar>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{resolvedName}</p>
-                <p className="truncate text-xs text-muted-foreground">{email ?? '—'}</p>
+                <p className="truncate text-xs text-muted-foreground">{email ?? ' - '}</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   <Badge variant="secondary" className="text-[10px] font-medium">
                     {planLabel}

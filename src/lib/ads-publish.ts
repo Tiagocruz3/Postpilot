@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 
 /**
  * `supabase.functions.invoke` surfaces a non-2xx response as a FunctionsHttpError
- * whose `.context` is the raw Response — its generic `.message` ("Edge Function
+ * whose `.context` is the raw Response - its generic `.message` ("Edge Function
  * returned a non-2xx status code") hides the function's own error body. Read the
  * body so users see the real reason (e.g. a Meta API error detail).
  */
@@ -24,14 +24,14 @@ async function readFunctionError(error: unknown, fallback: string): Promise<stri
         .filter(Boolean)
         .join(', ')
       const detail = base ? (codes ? `${base} [${codes}]` : base) : codes ? `[${codes}]` : undefined
-      if (typeof body?.error === 'string') return detail ? `${body.error} — ${detail}` : body.error
+      if (typeof body?.error === 'string') return detail ? `${body.error} - ${detail}` : body.error
       if (typeof detail === 'string') return detail
     } catch {
       try {
         const text = await context.clone().text()
         if (text) return text
       } catch {
-        // ignore — fall through to message/fallback
+        // ignore - fall through to message/fallback
       }
     }
   }

@@ -70,7 +70,7 @@ export function LoginPage() {
               <span className="text-white/80">Amplified.</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-white/70">
-              Everything you need to create, schedule, and grow — all in one beautiful workspace.
+              Everything you need to create, schedule, and grow - all in one beautiful workspace.
             </p>
 
             {/* Benefit list */}

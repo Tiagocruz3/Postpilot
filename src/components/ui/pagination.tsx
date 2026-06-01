@@ -44,7 +44,7 @@ export function Pagination({
   return (
     <div className={cn('flex flex-wrap items-center justify-between gap-3 pt-1', className)}>
       <p className="text-xs text-muted-foreground">
-        Showing <span className="font-medium text-foreground">{start.toLocaleString()}</span>–
+        Showing <span className="font-medium text-foreground">{start.toLocaleString()}</span>-
         <span className="font-medium text-foreground">{end.toLocaleString()}</span> of{' '}
         <span className="font-medium text-foreground">{totalItems.toLocaleString()}</span> {itemLabel}
       </p>
