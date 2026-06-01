@@ -304,8 +304,22 @@ export function AdsCampaignStudio({
       return
     }
     const scroller = (navRef.current?.closest('main') ?? document.querySelector('main')) as HTMLElement | null
-    scroller?.scrollTo({ top: 0, behavior: 'smooth' })
-    stepButtonRefs.current[step]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    // Run after the new step's content has rendered so the scroll target is right.
+    requestAnimationFrame(() => {
+      // Vertical: bring the step bar to the top so the user works straight down.
+      scroller?.scrollTo({ top: 0, behavior: 'smooth' })
+      // Horizontal: centre the active pill on its own row only. Using
+      // scrollIntoView here would cancel the vertical scroll-to-top above
+      // (both act on `main`), which is why navigation felt stuck mid-page.
+      const pill = stepButtonRefs.current[step]
+      const row = pill?.parentElement
+      if (pill && row && row.scrollWidth > row.clientWidth + 1) {
+        const pillRect = pill.getBoundingClientRect()
+        const rowRect = row.getBoundingClientRect()
+        const delta = pillRect.left + pillRect.width / 2 - (rowRect.left + rowRect.width / 2)
+        row.scrollBy({ left: delta, behavior: 'smooth' })
+      }
+    })
   }, [step])
 
   return (
