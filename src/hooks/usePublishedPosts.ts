@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isDemoMode } from '@/lib/demo'
 import { supabase } from '@/lib/supabase'
 
@@ -44,6 +44,7 @@ type RawRow = {
 }
 
 export function usePublishedPosts(workspaceId: string | null | undefined, pageId?: string | null) {
+  const instanceId = useRef(Math.random().toString(36).slice(2, 8))
   const [posts, setPosts] = useState<PublishedPost[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -116,7 +117,7 @@ export function usePublishedPosts(workspaceId: string | null | undefined, pageId
   useEffect(() => {
     if (!workspaceId || isDemoMode) return
     const channel = supabase
-      .channel(`scheduled_posts_${workspaceId}${pageId ? `_${pageId}` : ''}`)
+      .channel(`scheduled_posts_${workspaceId}${pageId ? `_${pageId}` : ''}_${instanceId.current}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'scheduled_posts' },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PlannerTask } from '@/types'
 import { isDemoMode, plannerTasksForWorkspace } from '@/lib/demo'
@@ -14,6 +14,7 @@ function sortByScheduledAt(items: PlannerTask[]) {
 }
 
 export function usePlannerTasks(workspaceId?: string, pageId?: string | null) {
+  const instanceId = useRef(Math.random().toString(36).slice(2, 8))
   const [tasks, setTasks] = useState<PlannerTask[]>([])
   const [loading, setLoading] = useState(!isDemoMode)
 
@@ -60,7 +61,7 @@ export function usePlannerTasks(workspaceId?: string, pageId?: string | null) {
     void fetchTasks()
 
     const channel = supabase
-      .channel(`planner_tasks_${workspaceId}${pageId ? `_${pageId}` : ''}`)
+      .channel(`planner_tasks_${workspaceId}${pageId ? `_${pageId}` : ''}_${instanceId.current}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'planner_tasks', filter: `workspace_id=eq.${workspaceId}` },

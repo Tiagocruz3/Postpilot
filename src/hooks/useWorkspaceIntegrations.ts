@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isDemoMode } from '@/lib/demo'
 import { supabase } from '@/lib/supabase'
 import type { IntegrationProvider, UserIntegration } from '@/types'
@@ -11,6 +11,7 @@ export interface UseWorkspaceIntegrationsResult {
 }
 
 export function useWorkspaceIntegrations(workspaceId: string | null | undefined): UseWorkspaceIntegrationsResult {
+  const instanceId = useRef(Math.random().toString(36).slice(2, 8))
   const [integrations, setIntegrations] = useState<UserIntegration[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -39,7 +40,7 @@ export function useWorkspaceIntegrations(workspaceId: string | null | undefined)
       return
     }
     const channel = supabase
-      .channel(`user_integrations_${workspaceId}`)
+      .channel(`user_integrations_${workspaceId}_${instanceId.current}`)
       .on(
         'postgres_changes',
         {
