@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useDashboardData } from '@/hooks/useDashboardData'
-import type { Workspace } from '@/types'
+import type { AppOutletContext } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,11 +26,6 @@ import { cn } from '@/lib/utils'
 import { APP_PAGE } from '@/lib/app-labels'
 import { formatScheduledLabel } from '@/lib/dashboard-stats'
 import { getPreferredDisplayName, loadUserPreferences } from '@/lib/user-preferences'
-
-interface OutletContext {
-  currentWorkspaceId: string | null
-  currentWorkspace: Workspace | null
-}
 
 function formatCount(value: number): string {
   return value.toLocaleString()
@@ -87,12 +82,12 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
 
 export function DashboardPage() {
   const navigate = useNavigate()
-  const { currentWorkspace } = useOutletContext<OutletContext>()
+  const { currentWorkspace, currentPageId } = useOutletContext<AppOutletContext>()
   const { profile } = useAuth()
   const userPreferences = loadUserPreferences()
   const displayName = getPreferredDisplayName(profile?.display_name, userPreferences)
   const { counts, metrics, activity, suggestions, upcomingScheduled, topPosts, ads, loading } =
-    useDashboardData(currentWorkspace?.id)
+    useDashboardData(currentWorkspace?.id, currentPageId)
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 p-6 pb-10">

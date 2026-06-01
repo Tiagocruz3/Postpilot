@@ -13,7 +13,7 @@ function sortByScheduledAt(items: PlannerTask[]) {
   )
 }
 
-export function usePlannerTasks(workspaceId?: string) {
+export function usePlannerTasks(workspaceId?: string, pageId?: string | null) {
   const [tasks, setTasks] = useState<PlannerTask[]>([])
   const [loading, setLoading] = useState(!isDemoMode)
 
@@ -35,15 +35,19 @@ export function usePlannerTasks(workspaceId?: string) {
     setLoading(true)
 
     const fetchTasks = async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('planner_tasks')
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('scheduled_at', { ascending: true })
 
-      if (!active) {
-        return
+      if (pageId) {
+        query = query.eq('facebook_page_id', pageId)
       }
+
+      const { data, error } = await query
+
+      if (!active) return
 
       if (error) {
         setTasks([])
@@ -56,17 +60,25 @@ export function usePlannerTasks(workspaceId?: string) {
     void fetchTasks()
 
     const channel = supabase
-      .channel(`planner_tasks_changes_${workspaceId}`)
+      .channel(`planner_tasks_${workspaceId}${pageId ? `_${pageId}` : ''}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'planner_tasks', filter: `workspace_id=eq.${workspaceId}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setTasks((prev) => sortByScheduledAt([...prev, payload.new as PlannerTask]))
+            const newTask = payload.new as PlannerTask
+            if (!pageId || newTask.facebook_page_id === pageId) {
+              setTasks((prev) => sortByScheduledAt([...prev, newTask]))
+            }
           } else if (payload.eventType === 'UPDATE') {
-            setTasks((prev) =>
-              sortByScheduledAt(prev.map((task) => (task.id === payload.new.id ? (payload.new as PlannerTask) : task)))
-            )
+            const updated = payload.new as PlannerTask
+            if (pageId && updated.facebook_page_id !== pageId) {
+              setTasks((prev) => prev.filter((task) => task.id !== updated.id))
+            } else {
+              setTasks((prev) =>
+                sortByScheduledAt(prev.map((task) => (task.id === updated.id ? updated : task)))
+              )
+            }
           } else if (payload.eventType === 'DELETE') {
             setTasks((prev) => prev.filter((task) => task.id !== payload.old.id))
           }
@@ -78,7 +90,7 @@ export function usePlannerTasks(workspaceId?: string) {
       active = false
       void supabase.removeChannel(channel)
     }
-  }, [workspaceId])
+  }, [workspaceId, pageId])
 
   const createTask = async (task: PlannerTaskInsert) => {
     if (isDemoMode) {

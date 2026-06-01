@@ -60,6 +60,11 @@ export type GoogleCalendarSelection = {
 export interface IntegrationMetadata {
   page_id?: string
   page_name?: string
+  /** Explicitly-selected active page within the workspace. */
+  selected_page_id?: string
+  /** Pages the user has enabled for this workspace (subset of all connected pages).
+   *  When absent, all connected pages are considered available. */
+  workspace_page_ids?: string[]
   linkedin_id?: string
   handle?: string
   avatar?: string
@@ -97,6 +102,7 @@ export interface PlannerTask {
   id: string
   user_id: string
   workspace_id: string
+  facebook_page_id: string | null
   title: string
   description: string | null
   scheduled_at: string
@@ -253,4 +259,14 @@ export interface CalendarEvent {
   kind: TaskKind
   platform?: PlannerPlatform | null
   external?: boolean
+}
+
+/** Shared outlet context passed from Layout to every app page. */
+export interface AppOutletContext {
+  currentWorkspaceId: string | null
+  currentWorkspace: Workspace | null
+  /** Active Facebook Page ID for the current workspace (null when no FB integration). */
+  currentPageId: string | null
+  /** Active Facebook Page for the current workspace (null when no FB integration). */
+  currentPage: { id: string; name: string } | null
 }

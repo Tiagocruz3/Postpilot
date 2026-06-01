@@ -3,7 +3,9 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { usePlannerTasks } from '@/hooks/usePlannerTasks'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
-import { CalendarEvent, PlannerTask, Workspace } from '@/types'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
+import { CalendarEvent, PlannerTask, AppOutletContext } from '@/types'
+import { parseFacebookPages } from '@/lib/meta-integration-options'
 import {
   addDays,
   addHours,
@@ -26,11 +28,6 @@ import { APP_PAGE } from '@/lib/app-labels'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
-
-interface OutletContext {
-  currentWorkspaceId: string | null
-  currentWorkspace: Workspace | null
-}
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 const GRID_START_HOUR = HOURS[0]
@@ -62,12 +59,33 @@ const KIND_BADGES: Array<{ id: 'post' | 'ad' | 'event'; label: string; symbol: s
 ]
 
 export function PlannerPage() {
-  const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
+  const { currentWorkspaceId, currentWorkspace, currentPageId } = useOutletContext<AppOutletContext>()
   const { user } = useAuth()
   const navigate = useNavigate()
   const confirm = useConfirm()
-  const { tasks, createTask, updateTask, deleteTask, loading } = usePlannerTasks(currentWorkspaceId || undefined)
-  const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
+  const { workspaces } = useWorkspaces(user?.id)
+
+  // Local workspace/page filter — lets users browse any workspace/page without
+  // changing their global selection. Defaults to the globally-active context.
+  const [filterWorkspaceId, setFilterWorkspaceId] = useState<string | null>(null)
+  const [filterPageId, setFilterPageId] = useState<string | null>(null)
+
+  const effectiveWorkspaceId = filterWorkspaceId ?? currentWorkspaceId
+  const effectivePageId = filterPageId ?? currentPageId
+
+  const { tasks, createTask, updateTask, deleteTask, loading } = usePlannerTasks(
+    effectiveWorkspaceId || undefined,
+    effectivePageId,
+  )
+  const { integrations } = useWorkspaceIntegrations(effectiveWorkspaceId)
+
+  // Pages available for the currently-filtered workspace.
+  const filterFbIntegration = useMemo(
+    () => integrations.find((i) => i.provider === 'facebook' || i.provider === 'meta') ?? null,
+    [integrations],
+  )
+  const filterPages = useMemo(() => parseFacebookPages(filterFbIntegration), [filterFbIntegration])
+
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
@@ -147,6 +165,7 @@ export function PlannerPage() {
       external_id: null,
       external_calendar_id: null,
       payload: null,
+      facebook_page_id: null,
       created_at: '',
       updated_at: '',
     })
@@ -216,6 +235,37 @@ export function PlannerPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
+          {/* Workspace filter */}
+          {workspaces.length > 1 ? (
+            <Select
+              value={filterWorkspaceId ?? ''}
+              onChange={(e) => {
+                setFilterWorkspaceId(e.target.value || null)
+                setFilterPageId(null)
+              }}
+              className="h-9 w-40"
+              aria-label="Filter calendar by workspace"
+            >
+              <option value="">Current workspace</option>
+              {workspaces.map((ws) => (
+                <option key={ws.id} value={ws.id}>{ws.name}</option>
+              ))}
+            </Select>
+          ) : null}
+          {/* Page filter — shown when the effective workspace has FB pages */}
+          {filterPages.length > 0 ? (
+            <Select
+              value={filterPageId ?? ''}
+              onChange={(e) => setFilterPageId(e.target.value || null)}
+              className="h-9 w-44"
+              aria-label="Filter calendar by Facebook Page"
+            >
+              <option value="">All pages</option>
+              {filterPages.map((page) => (
+                <option key={page.id} value={page.id}>{page.name}</option>
+              ))}
+            </Select>
+          ) : null}
           <Select
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}

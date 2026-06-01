@@ -43,7 +43,7 @@ type RawRow = {
   planner_tasks?: { workspace_id: string; scheduled_at: string; title: string } | null
 }
 
-export function usePublishedPosts(workspaceId: string | null | undefined) {
+export function usePublishedPosts(workspaceId: string | null | undefined, pageId?: string | null) {
   const [posts, setPosts] = useState<PublishedPost[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +58,7 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
 
     setLoading(true)
     setError(null)
-    const { data, error: queryError } = await supabase
+    let query = supabase
       .from('scheduled_posts')
       .select(
         'id, planner_task_id, platform, content, media_urls, published_at, permalink_url, published_url, preview_image_url, platform_post_id, metrics, metrics_updated_at, metrics_error, error, created_at, planner_tasks!inner(workspace_id, scheduled_at, title)',
@@ -66,6 +66,12 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
       .eq('planner_tasks.workspace_id', workspaceId)
       .order('published_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
+
+    if (pageId) {
+      query = query.eq('facebook_page_id', pageId)
+    }
+
+    const { data, error: queryError } = await query
 
     if (queryError) {
       setError(queryError.message)
@@ -94,7 +100,7 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
       setPosts(flat)
     }
     setLoading(false)
-  }, [workspaceId])
+  }, [workspaceId, pageId])
 
   useEffect(() => {
     setPosts([])
@@ -105,12 +111,12 @@ export function usePublishedPosts(workspaceId: string | null | undefined) {
     }
     setLoading(true)
     void load()
-  }, [workspaceId, load])
+  }, [workspaceId, pageId, load])
 
   useEffect(() => {
     if (!workspaceId || isDemoMode) return
     const channel = supabase
-      .channel(`scheduled_posts_${workspaceId}`)
+      .channel(`scheduled_posts_${workspaceId}${pageId ? `_${pageId}` : ''}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'scheduled_posts' },

@@ -40,7 +40,8 @@ import {
   loadAiSettings,
   saveAiSettings,
 } from '@/lib/ai-settings'
-import { IntegrationProvider, UserIntegration } from '@/types'
+import type { AppOutletContext, IntegrationProvider, UserIntegration } from '@/types'
+import { findFacebookIntegration, parseFacebookPages } from '@/lib/meta-integration-options'
 import {
   formatUserDateTime,
   getInitials,
@@ -51,11 +52,6 @@ import {
   type UserPreferences,
 } from '@/lib/user-preferences'
 import type { Database } from '@/types/database'
-
-interface OutletContext {
-  currentWorkspaceId: string | null
-  currentWorkspace: { id: string; name: string; owner_id: string } | null
-}
 
 type SettingsTab =
   | 'profile'
@@ -130,7 +126,7 @@ function makeDemoIntegrations(): UserIntegration[] {
 export function SettingsPage() {
   const location = useLocation()
   const confirm = useConfirm()
-  const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
+  const { currentWorkspaceId, currentWorkspace } = useOutletContext<AppOutletContext>()
   const { user, profile } = useAuth()
   const { balance: creditBalance } = useCredits()
   const { canManage: canManageTeam } = useWorkspaceTeam(currentWorkspaceId, user?.id)
@@ -158,6 +154,11 @@ export function SettingsPage() {
   const [lmStudioLoading, setLmStudioLoading] = useState(false)
   const [workspaceAiSettingsSaving, setWorkspaceAiSettingsSaving] = useState(false)
   const [settingsMessage, setSettingsMessage] = useState('')
+  const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(new Set())
+  const [pageSelectionSaving, setPageSelectionSaving] = useState(false)
+
+  const fbIntegration = useMemo(() => findFacebookIntegration(integrations), [integrations])
+  const fbPages = useMemo(() => parseFacebookPages(fbIntegration), [fbIntegration])
 
   useEffect(() => {
     const tab = (location.state as { tab?: SettingsTab } | null)?.tab
@@ -165,6 +166,21 @@ export function SettingsPage() {
       setActiveTab(tab)
     }
   }, [location.state])
+
+  useEffect(() => {
+    if (!fbIntegration) {
+      setSelectedPageIds(new Set())
+      return
+    }
+    const saved = fbIntegration.metadata?.workspace_page_ids
+    if (Array.isArray(saved) && saved.length > 0) {
+      setSelectedPageIds(new Set(saved as string[]))
+    } else {
+      setSelectedPageIds(new Set(fbPages.map((p) => p.id)))
+    }
+  // Re-init when FB integration row changes (reconnect/disconnect)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fbIntegration?.id])
 
   useEffect(() => {
     if (!isPlatformAdmin && PLATFORM_ADMIN_TABS.has(activeTab)) {
@@ -336,6 +352,28 @@ export function SettingsPage() {
     () => Array.from(new Set([userPreferences.timeZone, ...commonTimeZones])),
     [userPreferences.timeZone]
   )
+
+  const savePageSelection = async () => {
+    if (!fbIntegration || isDemoMode) return
+    setPageSelectionSaving(true)
+    const { error } = await supabase
+      .from('user_integrations')
+      .update({ metadata: { ...fbIntegration.metadata, workspace_page_ids: Array.from(selectedPageIds) } } as never)
+      .eq('id', fbIntegration.id)
+    setPageSelectionSaving(false)
+    if (error) {
+      setSettingsMessage(error.message)
+    } else {
+      setSettingsMessage('Facebook page selection saved.')
+      setIntegrations((prev) =>
+        prev.map((i) =>
+          i.id === fbIntegration.id
+            ? { ...i, metadata: { ...i.metadata, workspace_page_ids: Array.from(selectedPageIds) } }
+            : i,
+        ),
+      )
+    }
+  }
 
   const disconnect = async (id: string, providerName: string) => {
     const confirmed = await confirm({
@@ -848,40 +886,82 @@ export function SettingsPage() {
               {providers.map((provider) => {
                 const connected = integrations.find((integration) => integration.provider === provider.key)
                 return (
-                  <div key={provider.key} className="flex items-center justify-between rounded-xl border p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
-                        {provider.name[0]}
+                  <div key={provider.key} className="rounded-xl border">
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+                          {provider.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{provider.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {connected ? `Connected ${new Date(connected.created_at).toLocaleDateString()}` : 'Not connected'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{provider.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {connected ? `Connected ${new Date(connected.created_at).toLocaleDateString()}` : 'Not connected'}
-                        </p>
-                      </div>
+                      {connected ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => connect(provider.oauthKey, provider.key)}
+                            title="Re-authorise to refresh access and permissions (needed for ad publishing)"
+                          >
+                            <RefreshCcw className="mr-2 h-3 w-3" />
+                            Reconnect
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => void disconnect(connected.id, provider.name)}>
+                            <Trash2 className="mr-2 h-3 w-3" />
+                            Disconnect
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => connect(provider.oauthKey, provider.key)}>
+                          <Link className="mr-2 h-3 w-3" />
+                          Connect
+                        </Button>
+                      )}
                     </div>
-                    {connected ? (
-                      <div className="flex items-center gap-2">
+                    {provider.key === 'facebook' && connected && fbPages.length > 1 ? (
+                      <div className="border-t px-4 py-3 space-y-3">
+                        <div>
+                          <p className="text-sm font-medium">Pages in this workspace</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Choose which pages appear in the page switcher for this workspace.
+                          </p>
+                        </div>
+                        <div className="grid gap-2">
+                          {fbPages.map((page) => (
+                            <label key={page.id} className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedPageIds.has(page.id)}
+                                onChange={(e) => {
+                                  setSelectedPageIds((prev) => {
+                                    const next = new Set(prev)
+                                    if (e.target.checked) {
+                                      next.add(page.id)
+                                    } else {
+                                      next.delete(page.id)
+                                    }
+                                    return next
+                                  })
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 accent-primary"
+                              />
+                              <span className="text-sm">{page.name}</span>
+                            </label>
+                          ))}
+                        </div>
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => connect(provider.oauthKey, provider.key)}
-                          title="Re-authorise to refresh access and permissions (needed for ad publishing)"
+                          onClick={() => void savePageSelection()}
+                          disabled={pageSelectionSaving || selectedPageIds.size === 0}
                         >
-                          <RefreshCcw className="mr-2 h-3 w-3" />
-                          Reconnect
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => void disconnect(connected.id, provider.name)}>
-                          <Trash2 className="mr-2 h-3 w-3" />
-                          Disconnect
+                          {pageSelectionSaving ? 'Saving...' : 'Save page selection'}
                         </Button>
                       </div>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => connect(provider.oauthKey, provider.key)}>
-                        <Link className="mr-2 h-3 w-3" />
-                        Connect
-                      </Button>
-                    )}
+                    ) : null}
                   </div>
                 )
               })}

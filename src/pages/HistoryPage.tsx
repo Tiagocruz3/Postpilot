@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import type { Workspace } from '@/types'
+import type { AppOutletContext } from '@/types'
 import { APP_PAGE } from '@/lib/app-labels'
 import { usePublishedPosts, type PublishedPost } from '@/hooks/usePublishedPosts'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
@@ -37,11 +37,6 @@ import {
 import { BoostPostModal } from '@/components/ads/BoostPostModal'
 import { supabase } from '@/lib/supabase'
 import { isDemoMode } from '@/lib/demo'
-
-interface OutletContext {
-  currentWorkspaceId: string | null
-  currentWorkspace: Workspace | null
-}
 
 const PLATFORM_LABEL: Record<string, string> = {
   facebook: 'Facebook',
@@ -127,8 +122,8 @@ function pickThumbnail(post: PublishedPost): { kind: 'image' | 'video'; src: str
 export function HistoryPage() {
   const confirm = useConfirm()
   const navigate = useNavigate()
-  const { currentWorkspaceId } = useOutletContext<OutletContext>()
-  const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId)
+  const { currentWorkspaceId, currentPageId } = useOutletContext<AppOutletContext>()
+  const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId, currentPageId)
   const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const [boostTarget, setBoostTarget] = useState<PublishedPost | null>(null)
   const metaAccountId = useMemo(() => {

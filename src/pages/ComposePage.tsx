@@ -21,7 +21,7 @@ import { ResearchTopicModal } from '@/components/compose/ResearchTopicModal'
 import { RemixPostModal } from '@/components/compose/RemixPostModal'
 import { StockImagePicker, type StockImageMeta } from '@/components/compose/StockImagePicker'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
-import type { Workspace } from '@/types'
+import type { AppOutletContext } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { isDemoMode } from '@/lib/demo'
@@ -49,10 +49,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
-interface OutletContext {
-  currentWorkspaceId: string | null
-  currentWorkspace: Workspace | null
-}
 
 type MediaSourceType = 'ai-image' | 'ai-video' | 'stock-image' | 'user-media'
 type MediaItem = { url: string; type: 'image' | 'video'; source: MediaSourceType; meta?: StockImageMeta | Record<string, unknown> }
@@ -133,7 +129,7 @@ function clearDraftSnapshot(workspaceId: string | null) {
 export function ComposePage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { currentWorkspaceId, currentWorkspace } = useOutletContext<OutletContext>()
+  const { currentWorkspaceId, currentWorkspace, currentPageId } = useOutletContext<AppOutletContext>()
   const { user } = useAuth()
 
   const initialSnapshot = loadDraftSnapshot(currentWorkspaceId)
@@ -549,7 +545,10 @@ export function ComposePage() {
         payload: { media_urls: mediaUrls, media_types: mediaTypes, link_url: linkUrl },
       }
 
-      const taskRes = await supabase.from('planner_tasks').insert(plannerTask as never).select().single()
+      const taskRes = await supabase.from('planner_tasks').insert({
+        ...plannerTask,
+        facebook_page_id: currentPageId || null,
+      } as never).select().single()
       if (taskRes.error) throw taskRes.error
 
       const createdTask = taskRes.data as { id: string }
@@ -560,7 +559,10 @@ export function ComposePage() {
         media_urls: mediaUrls.length ? mediaUrls : null,
       }
 
-      const scheduledPostRes = await supabase.from('scheduled_posts').insert(scheduledPost as never)
+      const scheduledPostRes = await supabase.from('scheduled_posts').insert({
+        ...scheduledPost,
+        facebook_page_id: currentPageId || null,
+      } as never)
       if (scheduledPostRes.error) throw scheduledPostRes.error
 
       let permalinkUrl: string | null = null

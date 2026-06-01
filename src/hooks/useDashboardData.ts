@@ -15,9 +15,9 @@ import { usePlannerTasks } from '@/hooks/usePlannerTasks'
 import { usePublishedPosts } from '@/hooks/usePublishedPosts'
 import type { PlannerTask } from '@/types'
 
-export function useDashboardData(workspaceId: string | null | undefined) {
-  const { tasks, loading: tasksLoading } = usePlannerTasks(workspaceId || undefined)
-  const { posts, loading: postsLoading } = usePublishedPosts(workspaceId)
+export function useDashboardData(workspaceId: string | null | undefined, pageId?: string | null) {
+  const { tasks, loading: tasksLoading } = usePlannerTasks(workspaceId || undefined, pageId)
+  const { posts, loading: postsLoading } = usePublishedPosts(workspaceId, pageId)
 
   const data = useMemo(() => {
     const postTasks = tasks.filter((task) => task.kind === 'post')
