@@ -1616,17 +1616,19 @@ export function AdsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">Growth Ads Profile {completion}% complete</Badge>
-        {!onboardingDone ? (
-          <Badge variant="secondary" className="alive-soft-pulse">
-            Step {onboardingStep} active
-          </Badge>
-        ) : null}
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="alive-shimmer h-full rounded-full bg-primary/35" style={{ width: `${Math.max(8, completion)}%` }} />
-      </div>
+      {!onboardingDone ? (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Growth Ads Profile {completion}% complete</Badge>
+            <Badge variant="secondary" className="alive-soft-pulse">
+              Step {onboardingStep} active
+            </Badge>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="alive-shimmer h-full rounded-full bg-primary/35" style={{ width: `${Math.max(8, completion)}%` }} />
+          </div>
+        </>
+      ) : null}
 
       {onboardingDone && facebookPagesForToggle.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/20 px-4 py-3">
