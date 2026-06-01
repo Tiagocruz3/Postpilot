@@ -14,11 +14,16 @@ async function readFunctionError(error: unknown, fallback: string): Promise<stri
       const metaError = body?.detail?.error
       // Meta's error_user_msg / error_user_title are the human-readable specifics;
       // `message` is the generic line (e.g. "Invalid parameter"). Prefer the former.
-      const detail =
+      const base =
         metaError?.error_user_msg ??
         metaError?.error_user_title ??
         metaError?.message ??
         body?.detail?.message
+      // Append Meta's code/subcode so account-type/permission errors are pinpointable.
+      const codes = [metaError?.code && `code ${metaError.code}`, metaError?.error_subcode && `subcode ${metaError.error_subcode}`]
+        .filter(Boolean)
+        .join(', ')
+      const detail = base ? (codes ? `${base} [${codes}]` : base) : codes ? `[${codes}]` : undefined
       if (typeof body?.error === 'string') return detail ? `${body.error} — ${detail}` : body.error
       if (typeof detail === 'string') return detail
     } catch {
