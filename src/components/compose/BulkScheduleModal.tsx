@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { supabase } from '@/lib/supabase'
 import { sanitizeComposeCopy } from '@/lib/compose-copy'
 import { computeScheduleSlots, WEEKDAYS } from '@/lib/bulk-schedule'
@@ -54,6 +55,7 @@ export function BulkScheduleModal({
   invokeAi,
   onScheduled,
 }: BulkScheduleModalProps) {
+  const confirm = useConfirm()
   const [topic, setTopic] = useState('')
   const [count, setCount] = useState(5)
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 3, 5])
@@ -239,6 +241,20 @@ export function BulkScheduleModal({
       setMessage('Add some caption text before scheduling.')
       return
     }
+
+    const withoutImage = ready.filter((v) => !v.imageUrl).length
+    if (withoutImage > 0) {
+      const confirmed = await confirm({
+        title: `${withoutImage} post${withoutImage === 1 ? '' : 's'} ${withoutImage === 1 ? 'has' : 'have'} no image`,
+        description:
+          `${withoutImage === 1 ? 'It' : 'They'} will be scheduled as text-only. You can regenerate or upload an ` +
+          'image for each post in the list first. Schedule anyway?',
+        confirmLabel: 'Schedule anyway',
+        cancelLabel: 'Go back',
+      })
+      if (!confirmed) return
+    }
+
     setBusy(true)
     setMessage('')
     let scheduled = 0
