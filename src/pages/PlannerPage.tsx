@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
+const HOURS = Array.from({ length: 18 }, (_, i) => i + 6) // 6 AM – 11 PM
 const GRID_START_HOUR = HOURS[0]
 const GRID_END_HOUR = HOURS[HOURS.length - 1] + 1
 const GRID_TOTAL_MINUTES = (GRID_END_HOUR - GRID_START_HOUR) * 60
