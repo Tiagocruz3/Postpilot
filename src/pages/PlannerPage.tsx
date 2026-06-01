@@ -69,9 +69,15 @@ export function PlannerPage() {
   // changing their global selection. Defaults to the globally-active context.
   const [filterWorkspaceId, setFilterWorkspaceId] = useState<string | null>(null)
   const [filterPageId, setFilterPageId] = useState<string | null>(null)
+  const [platformFilter, setPlatformFilter] = useState<string>('all')
+
+  // Only Facebook/Instagram tasks carry a facebook_page_id, so the page-level
+  // data filter only applies in those contexts.
+  const isPageFilterablePlatform =
+    platformFilter === 'all' || platformFilter === 'facebook' || platformFilter === 'instagram'
 
   const effectiveWorkspaceId = filterWorkspaceId ?? currentWorkspaceId
-  const effectivePageId = filterPageId ?? currentPageId
+  const effectivePageId = isPageFilterablePlatform ? filterPageId ?? currentPageId : null
 
   const { tasks, createTask, updateTask, deleteTask, loading } = usePlannerTasks(
     effectiveWorkspaceId || undefined,
@@ -87,10 +93,49 @@ export function PlannerPage() {
   const filterPages = useMemo(() => parseFacebookPages(filterFbIntegration), [filterFbIntegration])
   const filterIgAccounts = useMemo(() => parseInstagramAccounts(filterFbIntegration), [filterFbIntegration])
 
+  // Connected accounts for the currently-selected platform filter. Facebook /
+  // Instagram drive real per-page data filtering; LinkedIn / X show their
+  // connected profile so the user can see what's linked for that platform.
+  const accountsForPlatform = useMemo<{ id: string; name: string }[]>(() => {
+    switch (platformFilter) {
+      case 'all':
+      case 'facebook':
+        return filterPages
+      case 'instagram':
+        return filterIgAccounts.map((a) => ({ id: a.id, name: `@${a.username}` }))
+      case 'linkedin': {
+        const li = integrations.find((i) => i.provider === 'linkedin')
+        const profiles = li?.metadata?.profiles
+        if (Array.isArray(profiles)) {
+          return profiles
+            .map((p) => {
+              const rec = p as { id?: unknown; name?: unknown }
+              const id = rec.id != null ? String(rec.id) : null
+              return id ? { id, name: typeof rec.name === 'string' ? rec.name : id } : null
+            })
+            .filter((p): p is { id: string; name: string } => Boolean(p))
+        }
+        const name = li?.metadata?.linkedin_name
+        const id = li?.metadata?.linkedin_id
+        if (typeof name === 'string' && typeof id === 'string') return [{ id, name }]
+        return []
+      }
+      case 'x': {
+        const x = integrations.find((i) => i.provider === 'x')
+        const handle = x?.metadata?.handle
+        return typeof handle === 'string' ? [{ id: handle, name: `@${handle}` }] : []
+      }
+      default:
+        return []
+    }
+  }, [platformFilter, filterPages, filterIgAccounts, integrations])
+
+  // Label adapts to the platform (pages vs profiles).
+  const accountFilterLabel = platformFilter === 'linkedin' || platformFilter === 'x' ? 'profile' : 'page'
+
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
-  const [platformFilter, setPlatformFilter] = useState<string>('all')
   const [previewTask, setPreviewTask] = useState<PlannerTask | null>(null)
   const [plannerMessage, setPlannerMessage] = useState('')
 
@@ -253,19 +298,35 @@ export function PlannerPage() {
               ))}
             </Select>
           ) : null}
-          {/* Page filter — only relevant when viewing Facebook/Instagram or all platforms */}
-          {filterPages.length > 0 && (platformFilter === 'all' || platformFilter === 'facebook' || platformFilter === 'instagram') ? (
-            <Select
-              value={filterPageId ?? ''}
-              onChange={(e) => setFilterPageId(e.target.value || null)}
-              className="h-9 w-44"
-              aria-label="Filter calendar by Facebook Page"
-            >
-              <option value="">All pages</option>
-              {filterPages.map((page) => (
-                <option key={page.id} value={page.id}>{page.name}</option>
-              ))}
-            </Select>
+          {/* Account / page / profile filter — adapts to the selected platform.
+              Facebook/Instagram filter the calendar by page; LinkedIn/X show the
+              connected profile for visibility (read-only). */}
+          {accountsForPlatform.length > 0 ? (
+            isPageFilterablePlatform ? (
+              <Select
+                value={filterPageId ?? ''}
+                onChange={(e) => setFilterPageId(e.target.value || null)}
+                className="h-9 w-44"
+                aria-label={`Filter calendar by ${accountFilterLabel}`}
+              >
+                <option value="">{`All ${accountFilterLabel}s`}</option>
+                {accountsForPlatform.map((account) => (
+                  <option key={account.id} value={account.id}>{account.name}</option>
+                ))}
+              </Select>
+            ) : (
+              <Select
+                value={accountsForPlatform[0].id}
+                disabled
+                className="h-9 w-44"
+                aria-label={`Connected ${accountFilterLabel}`}
+                title={`Connected ${platformFilter === 'x' ? 'X' : 'LinkedIn'} ${accountFilterLabel}`}
+              >
+                {accountsForPlatform.map((account) => (
+                  <option key={account.id} value={account.id}>{account.name}</option>
+                ))}
+              </Select>
+            )
           ) : null}
           <Select
             value={platformFilter}
