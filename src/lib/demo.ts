@@ -25,6 +25,7 @@ export const demoWorkspaces: Workspace[] = [
     name: 'Acme Marketing',
     slug: 'acme-marketing',
     owner_id: 'demo-user-id',
+    logo_url: null,
     created_at: new Date().toISOString(),
   },
   {
@@ -32,6 +33,7 @@ export const demoWorkspaces: Workspace[] = [
     name: 'Northwind Agency',
     slug: 'northwind-agency',
     owner_id: 'demo-user-id',
+    logo_url: null,
     created_at: new Date().toISOString(),
   },
 ]

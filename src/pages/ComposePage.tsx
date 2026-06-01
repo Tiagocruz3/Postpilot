@@ -315,6 +315,7 @@ export function ComposePage() {
   }
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
+  const brandLogoUrl = currentWorkspace?.logo_url ?? null
 
   const maxChars = COMPOSE_CHAR_LIMITS[activeTab]
   const charCount = content.length
@@ -1676,6 +1677,7 @@ export function ComposePage() {
               <PlatformPostPreview
                 platform={completedPost.platform as PreviewPlatform}
                 brandName={brandName}
+                avatarUrl={brandLogoUrl}
                 content={completedPost.content}
                 mediaUrl={
                   completedPost.previewImageUrl ||

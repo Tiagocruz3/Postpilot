@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
 import {
   UserRound,
   Bot,
   Image as ImageIcon,
   Link,
+  Loader2,
   Lock,
   MonitorSmartphone,
   Globe2,
@@ -138,6 +139,8 @@ export function SettingsPage() {
     return tab ?? 'profile'
   })
   const [integrations, setIntegrations] = useState<UserIntegration[]>(isDemoMode ? makeDemoIntegrations() : [])
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string>(currentWorkspace?.logo_url ?? '')
+  const [logoSaving, setLogoSaving] = useState(false)
   const [aiSettings, setAiSettings] = useState<AiSettings>(() => loadAiSettings())
   const [userPreferences, setUserPreferences] = useState<UserPreferences>(() => loadUserPreferences())
   const [openRouterTextModels, setOpenRouterTextModels] = useState<OpenRouterModelOption[]>([])
@@ -181,6 +184,10 @@ export function SettingsPage() {
   // Re-init when FB integration row changes (reconnect/disconnect)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fbIntegration?.id])
+
+  useEffect(() => {
+    setBrandLogoUrl(currentWorkspace?.logo_url ?? '')
+  }, [currentWorkspace?.id, currentWorkspace?.logo_url])
 
   useEffect(() => {
     if (!isPlatformAdmin && PLATFORM_ADMIN_TABS.has(activeTab)) {
@@ -352,6 +359,38 @@ export function SettingsPage() {
     () => Array.from(new Set([userPreferences.timeZone, ...commonTimeZones])),
     [userPreferences.timeZone]
   )
+
+  const saveBrandLogo = async (url: string) => {
+    if (!currentWorkspaceId || isDemoMode) return
+    setLogoSaving(true)
+    const { error } = await supabase
+      .from('workspaces')
+      .update({ logo_url: url || null } as never)
+      .eq('id', currentWorkspaceId)
+    setLogoSaving(false)
+    if (error) {
+      setSettingsMessage(error.message)
+    } else {
+      setSettingsMessage('Brand logo saved.')
+    }
+  }
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !currentWorkspaceId || !user?.id) return
+    setLogoSaving(true)
+    const path = `${currentWorkspaceId}/${user.id}/logo_${Date.now()}_${file.name}`
+    const { data, error } = await supabase.storage.from('media').upload(path, file)
+    if (error || !data) {
+      setLogoSaving(false)
+      setSettingsMessage(error?.message ?? 'Upload failed.')
+      return
+    }
+    const { data: urlData } = supabase.storage.from('media').getPublicUrl(data.path)
+    setBrandLogoUrl(urlData.publicUrl)
+    await saveBrandLogo(urlData.publicUrl)
+  }
 
   const savePageSelection = async () => {
     if (!fbIntegration || isDemoMode) return
@@ -740,6 +779,55 @@ export function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Brand logo — used as the avatar in post previews across Create Studio */}
+          {isWorkspaceAdmin ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  Workspace brand logo
+                </CardTitle>
+                <CardDescription>
+                  Shown as the page avatar in post previews (Create Studio, Activity Log). Upload an image or paste a URL.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  {brandLogoUrl ? (
+                    <img src={brandLogoUrl} alt="Brand logo" className="h-14 w-14 rounded-full border object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full border bg-muted text-xs text-muted-foreground">
+                      No logo
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      placeholder="https://example.com/logo.png"
+                      value={brandLogoUrl}
+                      onChange={(e) => setBrandLogoUrl(e.target.value)}
+                      onBlur={(e) => void saveBrandLogo(e.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Label
+                        htmlFor="logo-upload"
+                        className="inline-flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                      >
+                        {logoSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageIcon className="h-3 w-3" />}
+                        {logoSaving ? 'Uploading…' : 'Upload image'}
+                      </Label>
+                      <input id="logo-upload" type="file" accept="image/*" className="hidden" onChange={(e) => void handleLogoUpload(e)} />
+                      {brandLogoUrl ? (
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:bg-destructive/10" onClick={() => { setBrandLogoUrl(''); void saveBrandLogo('') }}>
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </TabsContent>
 
         <TabsContent value="regional" activeValue={activeTab}>

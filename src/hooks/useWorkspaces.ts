@@ -73,6 +73,7 @@ export function useWorkspaces(userId?: string) {
         name,
         slug: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
         owner_id: 'demo-user-id',
+        logo_url: null,
         created_at: new Date().toISOString(),
       }
       setWorkspaces((prev) => [...prev, ws])
