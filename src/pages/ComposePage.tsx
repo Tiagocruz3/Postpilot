@@ -46,6 +46,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
 interface OutletContext {
@@ -997,7 +998,7 @@ export function ComposePage() {
       {visibleMessage ? (
         <div className="alive-enter mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{visibleMessage}</div>
       ) : null}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="space-y-6">
       <Card className="alive-enter">
         <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
           <div className="space-y-1">
@@ -1165,42 +1166,78 @@ export function ComposePage() {
                           ? 'AI Video clips target a 15-second minimum.'
                           : 'Generate an AI image, or attach media later.'}
                   </p>
-                </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-end justify-between gap-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your post</p>
-                    <span
-                      className={`text-xs font-medium tabular-nums ${
-                        charCount > maxChars
-                          ? 'text-destructive'
-                          : charCount > maxChars * 0.9
-                            ? 'text-amber-600'
-                            : 'text-muted-foreground'
-                      }`}
-                      aria-live="polite"
-                    >
-                      {charCount.toLocaleString()} / {maxChars.toLocaleString()} for {platformLabel(activeTab)}
-                    </span>
-                  </div>
-                  <Textarea
-                    placeholder="What's on your mind?"
-                    value={content}
-                    onChange={(event) => setContent(event.target.value)}
-                    onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
-                    className="min-h-[180px] resize-none border-primary/20 bg-background text-base leading-relaxed shadow-sm"
-                  />
-                  <div className="h-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${charCount > maxChars ? 'bg-destructive' : 'bg-primary'}`}
-                      style={{ width: `${Math.min(100, Math.max(2, (charCount / maxChars) * 100))}%` }}
-                    />
-                  </div>
-                  {charCount > maxChars ? (
-                    <p className="text-xs text-destructive">
-                      Over the {platformLabel(activeTab)} limit by {(charCount - maxChars).toLocaleString()} character
-                      {charCount - maxChars === 1 ? '' : 's'}. Trim before publishing.
-                    </p>
+                  {showImageMediaTools ? (
+                    <div className="mt-3 space-y-2 border-t pt-3">
+                      <Input
+                        placeholder="Image direction (optional)"
+                        value={imageHint}
+                        onChange={(event) => setImageHint(event.target.value)}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="outline" disabled={imageLoading} onClick={() => void generateImage(false)} className="flex-1">
+                          {imageLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                          {imageLoading ? 'Generating...' : 'Generate'}
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" disabled={imageLoading || !hasImageMedia} onClick={() => void generateImage(true)} className="flex-1">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Regenerate
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {showVideoMediaTools ? (
+                    <div className="mt-3 space-y-2 border-t pt-3">
+                      <Input
+                        placeholder="Video direction (optional)"
+                        value={videoHint}
+                        onChange={(event) => setVideoHint(event.target.value)}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)} className="flex-1">
+                          {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                          {videoLoading ? 'Generating...' : 'Generate'}
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" disabled={videoLoading || !hasVideoMedia} onClick={() => void generateVideo(true)} className="flex-1">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Regenerate
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {showStockMediaTools ? (
+                    <div className="mt-3 border-t pt-3">
+                      <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)} className="w-full">
+                        Browse stock library
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {showUserMediaTools ? (
+                    <div className="mt-3 border-t pt-3">
+                      <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()} className="w-full">
+                        Upload media
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {hasVisual ? (
+                    <div className="mt-3 space-y-2 border-t pt-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Replace media</p>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Button type="button" size="sm" variant="outline" onClick={() => { setReplaceInPreview(true); setShowStockPicker(true) }} className="flex-1">
+                          Stock
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => { setReplaceInPreview(true); userMediaInputRef.current?.click() }} className="flex-1">
+                          Your media
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" disabled={videoLoading || !hasVideoMedia} onClick={() => void generateVideo(true)} className="flex-1" title="Regenerate AI video">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   ) : null}
                 </div>
 
@@ -1295,159 +1332,75 @@ export function ComposePage() {
                     setShowRemix(true)
                   }}
                 />
+
+                <div className="space-y-2">
+                  <div className="flex items-end justify-between gap-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your post</p>
+                    <span
+                      className={`text-xs font-medium tabular-nums ${
+                        charCount > maxChars
+                          ? 'text-destructive'
+                          : charCount > maxChars * 0.9
+                            ? 'text-amber-600'
+                            : 'text-muted-foreground'
+                      }`}
+                      aria-live="polite"
+                    >
+                      {charCount.toLocaleString()} / {maxChars.toLocaleString()} for {platformLabel(activeTab)}
+                    </span>
+                  </div>
+                  <Textarea
+                    placeholder="What's on your mind?"
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                    onBlur={() => setContent((current) => sanitizeComposeCopy(current))}
+                    className="min-h-[180px] resize-none border-primary/20 bg-background text-base leading-relaxed shadow-sm"
+                  />
+                  <div className="h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${charCount > maxChars ? 'bg-destructive' : 'bg-primary'}`}
+                      style={{ width: `${Math.min(100, Math.max(2, (charCount / maxChars) * 100))}%` }}
+                    />
+                  </div>
+                  {charCount > maxChars ? (
+                    <p className="text-xs text-destructive">
+                      Over the {platformLabel(activeTab)} limit by {(charCount - maxChars).toLocaleString()} character
+                      {charCount - maxChars === 1 ? '' : 's'}. Trim before publishing.
+                    </p>
+                  ) : null}
+                </div>
         </CardContent>
       </Card>
 
-      <aside className="lg:sticky lg:top-6 lg:self-start">
-        <Card className="alive-enter">
-          <CardHeader>
-            <CardTitle className="text-base">Publish</CardTitle>
-            <CardDescription className="mt-1">
-              Media tools, link, schedule, and posting — all here.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3 rounded-2xl border bg-muted/20 p-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {mediaSource === 'ai-image' && 'AI image'}
-                  {mediaSource === 'ai-video' && 'AI video'}
-                  {mediaSource === 'stock-image' && 'Stock image'}
-                  {mediaSource === 'user-media' && 'Your media'}
-                </p>
-
-                {showImageMediaTools ? (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Image direction (optional)"
-                      value={imageHint}
-                      onChange={(event) => setImageHint(event.target.value)}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" disabled={imageLoading} onClick={() => void generateImage(false)} className="flex-1">
-                        {imageLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        {imageLoading ? 'Generating...' : 'Generate'}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={imageLoading || !hasImageMedia}
-                        onClick={() => void generateImage(true)}
-                        className="flex-1"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Regenerate
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {showVideoMediaTools ? (
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Video direction (optional)"
-                      value={videoHint}
-                      onChange={(event) => setVideoHint(event.target.value)}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" disabled={videoLoading} onClick={() => void generateVideo(false)} className="flex-1">
-                        {videoLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        {videoLoading ? 'Generating...' : 'Generate'}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={videoLoading || !hasVideoMedia}
-                        onClick={() => void generateVideo(true)}
-                        className="flex-1"
-                      >
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Regenerate
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {showStockMediaTools ? (
-                  <Button size="sm" variant="outline" onClick={() => setShowStockPicker(true)} className="w-full">
-                    Browse stock library
-                  </Button>
-                ) : null}
-
-                {showUserMediaTools ? (
-                  <Button size="sm" variant="outline" onClick={() => userMediaInputRef.current?.click()} className="w-full">
-                    Upload media
-                  </Button>
-                ) : null}
-
-                {hasVisual ? (
-                  <div className="space-y-2 border-t pt-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Replace media</p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setReplaceInPreview(true)
-                          setShowStockPicker(true)
-                        }}
-                        className="flex-1"
-                      >
-                        Stock
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setReplaceInPreview(true)
-                          userMediaInputRef.current?.click()
-                        }}
-                        className="flex-1"
-                      >
-                        Your media
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={videoLoading || !hasVideoMedia}
-                        onClick={() => void generateVideo(true)}
-                        className="flex-1"
-                        title="Regenerate AI video"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-            <div className="space-y-2">
+      <Card className="alive-enter">
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-[200px] flex-1 space-y-2">
               <Label htmlFor="compose-link" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Link
               </Label>
-              {linkUrl ? (
-                <div className="flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2 text-sm">
-                  <Link className="h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1 truncate">{linkUrl}</span>
-                  <button type="button" onClick={() => setLinkUrl('')} className="text-muted-foreground hover:text-foreground">
-                    ×
-                  </button>
-                </div>
-              ) : (
+              <div className="relative">
+                <Link className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="compose-link"
                   placeholder="Add a link..."
                   value={linkUrl}
                   onChange={(event) => setLinkUrl(event.target.value)}
+                  className={cn('pl-9', linkUrl && 'pr-9')}
                 />
-              )}
+                {linkUrl ? (
+                  <button
+                    type="button"
+                    aria-label="Clear link"
+                    onClick={() => setLinkUrl('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
             </div>
-
-            <div className="space-y-2">
+            <div className="min-w-[200px] flex-1 space-y-2">
               <Label htmlFor="compose-schedule" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Schedule
               </Label>
@@ -1458,13 +1411,8 @@ export function ComposePage() {
                 onChange={(event) => setScheduleAt(event.target.value)}
               />
             </div>
-
-            <div className="space-y-2 border-t pt-3">
-              <Button
-                onClick={() => publish('now')}
-                disabled={loading || (!content.trim() && !hasVisual)}
-                className="w-full"
-              >
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button onClick={() => publish('now')} disabled={loading || (!content.trim() && !hasVisual)}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 {loading ? 'Publishing...' : 'Publish Now'}
               </Button>
@@ -1472,28 +1420,27 @@ export function ComposePage() {
                 variant="outline"
                 onClick={() => publish('schedule')}
                 disabled={loading || (!content.trim() && !hasVisual) || !scheduleAt}
-                className="w-full"
                 title={!scheduleAt ? 'Pick a date and time above first.' : undefined}
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
                 {loading ? 'Saving...' : 'Schedule Post'}
               </Button>
               {activeTab === 'facebook' ? (
-                <Button type="button" variant="ghost" onClick={() => setShowBulk(true)} className="w-full">
+                <Button type="button" variant="ghost" onClick={() => setShowBulk(true)}>
                   <Layers className="mr-2 h-4 w-4" />
                   Bulk schedule variants
                 </Button>
               ) : null}
               {hasVisual ? (
-                <Button type="button" variant="ghost" onClick={() => setShowPreview(true)} className="w-full">
+                <Button type="button" variant="ghost" onClick={() => setShowPreview(true)}>
                   <Eye className="mr-2 h-4 w-4" />
                   Preview post
                 </Button>
               ) : null}
             </div>
-          </CardContent>
-        </Card>
-      </aside>
+          </div>
+        </CardContent>
+      </Card>
       </div>
 
       <ComposeFlowProgressModal

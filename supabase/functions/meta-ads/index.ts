@@ -319,9 +319,21 @@ const OPTIMIZATION_FOR_OBJECTIVE: Record<string, string> = {
   OUTCOME_LEADS: 'LEAD_GENERATION',
   OUTCOME_TRAFFIC: 'LINK_CLICKS',
   OUTCOME_ENGAGEMENT: 'POST_ENGAGEMENT',
-  OUTCOME_SALES: 'OFFSITE_CONVERSIONS',
+  // The sales objective is published optimizing for LINK_CLICKS, not
+  // OFFSITE_CONVERSIONS. Conversion optimization requires the ad set to carry a
+  // `promoted_object` (a pixel + custom_event_type, app event, etc.) as its
+  // conversion-tracking source; we have no pixel infrastructure, so requesting
+  // OFFSITE_CONVERSIONS makes Meta reject ad creation with code 100, subcode
+  // 1487888. Optimizing for link clicks still drives traffic to the destination
+  // URL and needs no conversion source. See SALES_NO_PIXEL_WARNING below.
+  OUTCOME_SALES: 'LINK_CLICKS',
   OUTCOME_AWARENESS: 'REACH',
 }
+
+// Shown to users when a sales-objective ad is published. Once pixel support
+// exists, set a `promoted_object` + OFFSITE_CONVERSIONS and drop this.
+const SALES_NO_PIXEL_WARNING =
+  'This sales ad is optimized for link clicks because no Meta Pixel / conversion source is connected. Add a pixel in Meta Ads Manager to optimize for purchases.'
 
 const CTA_MAP: Record<string, string> = {
   'learn more': 'LEARN_MORE',
@@ -462,6 +474,7 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   const c = creative as Record<string, unknown>
   const audience = (c.audience as Record<string, unknown> | null) ?? {}
   const budget = (c.budget as Record<string, unknown> | null) ?? {}
+  const warnings: string[] = []
 
   // 1. Upload image (videos skipped in v1 — Meta video upload is async + polling-heavy)
   // Use the same token as the creative so the returned image hash is visible to it.
@@ -473,6 +486,7 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   // 2. Campaign
   let campaignId = (c.meta_campaign_id as string | null) || null
   const objective = mapGoalToObjective(c.goal as string | null)
+  if (objective === 'OUTCOME_SALES') warnings.push(SALES_NO_PIXEL_WARNING)
   if (!campaignId) {
     const campRes = await fetch(`${apiBase}/act_${accountId}/campaigns`, {
       method: 'POST',
@@ -602,7 +616,9 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
       adset_id: adsetId,
       ad_id: adJson.id,
       uploaded_image: Boolean(imageHash),
-      warnings: c.media_type === 'video' ? ['Video upload not yet supported — ad created without media. Add the video in Meta Ads Manager.'] : [],
+      warnings: c.media_type === 'video'
+        ? [...warnings, 'Video upload not yet supported — ad created without media. Add the video in Meta Ads Manager.']
+        : warnings,
     },
   }
 }
