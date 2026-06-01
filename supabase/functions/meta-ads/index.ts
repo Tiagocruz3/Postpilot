@@ -288,6 +288,19 @@ serve(withCors(async (req) => {
     })
   }
 
+  if (action === 'boost_post') {
+    const result = await boostExistingPost({
+      apiBase,
+      token,
+      pageToken: (facebookIntegration?.metadata?.user_access_token as string | undefined) ?? null,
+      params,
+    })
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
 }))
 
@@ -591,5 +604,106 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
       uploaded_image: Boolean(imageHash),
       warnings: c.media_type === 'video' ? ['Video upload not yet supported — ad created without media. Add the video in Meta Ads Manager.'] : [],
     },
+  }
+}
+
+// --- Boost an existing published Page post --------------------------------------
+
+type BoostParams = {
+  apiBase: string
+  token: string
+  pageToken: string | null
+  params: Record<string, unknown>
+}
+
+async function boostExistingPost({ apiBase, token, pageToken, params }: BoostParams) {
+  const rawAccountId = String(params.account_id || '')
+  const postId = String(params.post_id || '')
+  if (!rawAccountId) return { status: 400, body: { error: 'Missing account_id' } }
+  if (!postId) return { status: 400, body: { error: 'Missing the published post to boost.' } }
+  const accountId = rawAccountId.replace(/^act_/, '')
+  // The creative references an existing Page post — needs the page-capable token.
+  const creativeToken = pageToken || token
+  const lifetimeBudgetCents = Math.max(100, Math.round(Number(params.total_budget ?? 0) * 100))
+  const durationDays = Math.max(1, Math.round(Number(params.duration_days ?? 7)))
+  const country = deriveCountry(typeof params.location === 'string' ? (params.location as string) : null)
+  const name = `Boosted post — ${new Date().toISOString().slice(0, 10)}`
+
+  // 1. Campaign — post engagement objective.
+  const campRes = await fetch(`${apiBase}/act_${accountId}/campaigns`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      objective: 'OUTCOME_ENGAGEMENT',
+      status: 'PAUSED',
+      special_ad_categories: [],
+      is_adset_budget_sharing_enabled: false,
+      access_token: token,
+    }),
+  })
+  const campJson = (await campRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
+  if (!campRes.ok || !campJson.id) {
+    return { status: 502, body: { error: 'Failed to create campaign', detail: campJson } }
+  }
+
+  // 2. Ad set — lifetime budget over the chosen duration.
+  const start = new Date(Date.now() + 5 * 60 * 1000) // a few minutes out
+  const end = new Date(Date.now() + durationDays * 86400000)
+  const adsetRes = await fetch(`${apiBase}/act_${accountId}/adsets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: `${name} — Ad set`,
+      campaign_id: campJson.id,
+      optimization_goal: 'POST_ENGAGEMENT',
+      billing_event: 'IMPRESSIONS',
+      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+      lifetime_budget: lifetimeBudgetCents,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      targeting: {
+        geo_locations: { countries: [country] },
+        targeting_automation: { advantage_audience: 0 },
+      },
+      status: 'PAUSED',
+      access_token: token,
+    }),
+  })
+  const adsetJson = (await adsetRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
+  if (!adsetRes.ok || !adsetJson.id) {
+    return { status: 502, body: { error: 'Failed to create ad set', detail: adsetJson } }
+  }
+
+  // 3. Ad creative from the existing post (object_story_id), 4. Ad.
+  const creativeRes = await fetch(`${apiBase}/act_${accountId}/adcreatives`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: `${name} creative`, object_story_id: postId, access_token: creativeToken }),
+  })
+  const creativeJson = (await creativeRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
+  if (!creativeRes.ok || !creativeJson.id) {
+    return { status: 502, body: { error: 'Failed to create ad creative from the post.', detail: creativeJson } }
+  }
+
+  const adRes = await fetch(`${apiBase}/act_${accountId}/ads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      adset_id: adsetJson.id,
+      creative: { creative_id: creativeJson.id },
+      status: 'PAUSED',
+      access_token: creativeToken,
+    }),
+  })
+  const adJson = (await adRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
+  if (!adRes.ok || !adJson.id) {
+    return { status: 502, body: { error: 'Failed to create ad', detail: adJson } }
+  }
+
+  return {
+    status: 200,
+    body: { ok: true, campaign_id: campJson.id, adset_id: adsetJson.id, ad_id: adJson.id },
   }
 }

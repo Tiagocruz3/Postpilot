@@ -73,6 +73,31 @@ export async function publishCreativeToMeta(params: {
   }
 }
 
+export async function boostPost(params: {
+  workspaceId: string
+  metaAccountId: string
+  /** The published Page post id (object_story_id), e.g. "{pageId}_{postId}". */
+  postId: string
+  totalBudget: number
+  durationDays: number
+  location: string
+}): Promise<PublishResult> {
+  const { data, error } = await supabase.functions.invoke('meta-ads', {
+    body: {
+      action: 'boost_post',
+      workspace_id: params.workspaceId,
+      account_id: params.metaAccountId,
+      post_id: params.postId,
+      total_budget: params.totalBudget,
+      duration_days: params.durationDays,
+      location: params.location,
+    },
+  })
+  if (error) return { ok: false, error: await readFunctionError(error, 'Boost failed') }
+  if (data?.error) return { ok: false, error: typeof data.error === 'string' ? data.error : 'Boost failed' }
+  return { ok: true, campaign_id: data?.campaign_id, adset_id: data?.adset_id, ad_id: data?.ad_id }
+}
+
 export async function setMetaAdStatus(params: {
   workspaceId: string
   creativeId?: string

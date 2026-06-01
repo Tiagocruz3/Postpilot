@@ -28,6 +28,11 @@
 }
 
 @layer base {
+  /* Scale the whole UI down ~10% for a denser, more refined feel. Tailwind's
+     rem-based sizing scales proportionally, so the layout is preserved. */
+  html {
+    font-size: 90%;
+  }
   * {
     @apply border-border;
   }

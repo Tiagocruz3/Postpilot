@@ -12,6 +12,7 @@ import {
   Play,
   RefreshCw,
   Repeat2,
+  Rocket,
   Send,
   Share2,
   Trash2,
@@ -27,6 +28,13 @@ import { Input } from '@/components/ui/input'
 import type { Workspace } from '@/types'
 import { APP_PAGE } from '@/lib/app-labels'
 import { usePublishedPosts, type PublishedPost } from '@/hooks/usePublishedPosts'
+import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
+import {
+  findFacebookIntegration,
+  findMetaAdsIntegration,
+  parseMetaAdAccounts,
+} from '@/lib/meta-integration-options'
+import { BoostPostModal } from '@/components/ads/BoostPostModal'
 import { supabase } from '@/lib/supabase'
 import { isDemoMode } from '@/lib/demo'
 
@@ -121,6 +129,12 @@ export function HistoryPage() {
   const navigate = useNavigate()
   const { currentWorkspaceId } = useOutletContext<OutletContext>()
   const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId)
+  const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
+  const [boostTarget, setBoostTarget] = useState<PublishedPost | null>(null)
+  const metaAccountId = useMemo(() => {
+    const accounts = parseMetaAdAccounts(findMetaAdsIntegration(integrations), findFacebookIntegration(integrations))
+    return accounts[0]?.id ? `act_${accounts[0].id}` : null
+  }, [integrations])
   const [platformFilter, setPlatformFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [query, setQuery] = useState('')
@@ -465,6 +479,19 @@ export function HistoryPage() {
                               View on {platformLabel(post.platform)}
                             </a>
                           ) : null}
+                          {postStatus === 'published' && post.platform === 'facebook' && post.platform_post_id ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="bg-[#1877F2] hover:bg-[#1877F2]/90"
+                              onClick={() => setBoostTarget(post)}
+                              disabled={!metaAccountId}
+                              title={!metaAccountId ? 'Connect a Meta ad account to boost posts.' : 'Promote this post as a Meta ad'}
+                            >
+                              <Rocket className="mr-2 h-3.5 w-3.5" />
+                              Boost post
+                            </Button>
+                          ) : null}
                           {postStatus === 'failed' ? (
                             <Button
                               size="sm"
@@ -556,6 +583,18 @@ export function HistoryPage() {
           )}
         </CardContent>
       </Card>
+
+      <BoostPostModal
+        open={Boolean(boostTarget)}
+        onOpenChange={(next) => {
+          if (!next) setBoostTarget(null)
+        }}
+        workspaceId={currentWorkspaceId}
+        metaAccountId={metaAccountId}
+        postId={boostTarget?.platform_post_id ?? null}
+        postPreview={boostTarget?.content}
+        onBoosted={() => setRefreshMessage('Boost created on Meta as paused. Activate it in Ads Manager to go live.')}
+      />
     </div>
   )
 }
