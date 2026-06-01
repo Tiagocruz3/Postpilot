@@ -38,8 +38,8 @@ const SIDEBAR_TRANSITION = 'transition-[width,padding,margin] duration-200 ease-
 export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, profile } = useAuth()
-  const { workspaces, loading } = useWorkspaces(profile?.id)
+  const { user, profile, loading: authLoading } = useAuth()
+  const { workspaces, loading: workspacesLoading } = useWorkspaces(authLoading ? undefined : profile?.id)
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('sidebar_open') !== 'false')
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() =>
     localStorage.getItem('current_workspace_id')
@@ -138,7 +138,17 @@ export function Layout() {
   const userPreferences = loadUserPreferences()
   const displayName = getPreferredDisplayName(profile?.display_name, userPreferences)
 
-  if (!loading && workspaces.length === 0) {
+  // Block ALL rendering until both auth and workspace data are ready.
+  // This eliminates the onboarding-card flash and layout shift on load/reload.
+  if (authLoading || workspacesLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!authLoading && !workspacesLoading && workspaces.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-xl rounded-3xl border bg-card p-8 shadow-sm">
