@@ -4,7 +4,6 @@ import {
   Calendar,
   Check,
   CheckCircle2,
-  Eye,
   Image as ImageIcon,
   Loader2,
   Link,
@@ -166,7 +165,10 @@ export function ComposePage() {
   const { integrations, isConnected, refresh: refreshIntegrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const { consumeCredits } = useCredits()
   const userMediaInputRef = useRef<HTMLInputElement | null>(null)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
   const [updatingTarget, setUpdatingTarget] = useState(false)
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(currentWorkspace?.logo_url ?? null)
+  const [logoSaving, setLogoSaving] = useState(false)
 
   const invokeAi = useCallback(
     <T,>(functionName: string, body: Record<string, unknown>) =>
@@ -315,7 +317,10 @@ export function ComposePage() {
   }
 
   const brandName = currentWorkspace?.name ?? 'Your brand'
-  const brandLogoUrl = currentWorkspace?.logo_url ?? null
+
+  useEffect(() => {
+    setBrandLogoUrl(currentWorkspace?.logo_url ?? null)
+  }, [currentWorkspace?.id, currentWorkspace?.logo_url])
 
   const maxChars = COMPOSE_CHAR_LIMITS[activeTab]
   const charCount = content.length
@@ -663,6 +668,39 @@ export function ComposePage() {
     event.target.value = ''
   }
 
+  const saveBrandLogo = async (url: string | null) => {
+    setBrandLogoUrl(url)
+    if (!currentWorkspaceId || isDemoMode) return
+    setLogoSaving(true)
+    const { error } = await supabase
+      .from('workspaces')
+      .update({ logo_url: url || null } as never)
+      .eq('id', currentWorkspaceId)
+    setLogoSaving(false)
+    setMessage(error ? error.message : url ? 'Brand logo saved.' : 'Brand logo removed.')
+  }
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (isDemoMode) {
+      void saveBrandLogo(URL.createObjectURL(file))
+      return
+    }
+    if (!currentWorkspaceId || !user?.id) return
+    setLogoSaving(true)
+    const path = `${currentWorkspaceId}/${user.id}/logo_${Date.now()}_${file.name}`
+    const { data, error } = await supabase.storage.from('media').upload(path, file)
+    if (error || !data) {
+      setLogoSaving(false)
+      setMessage(error?.message ?? 'Logo upload failed.')
+      return
+    }
+    const { data: urlData } = supabase.storage.from('media').getPublicUrl(data.path)
+    await saveBrandLogo(urlData.publicUrl)
+  }
+
   const draftWithAi = async () => {
     if (!draftTopic.trim()) {
       setMessage('Add a topic or angle for the AI draft.')
@@ -996,7 +1034,7 @@ export function ComposePage() {
   const hasVideoMedia = media.some((item) => item.type === 'video')
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-7xl p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{APP_PAGE.createStudio}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -1007,7 +1045,7 @@ export function ComposePage() {
       {visibleMessage ? (
         <div className="alive-enter mb-4 rounded-2xl border bg-primary/5 px-4 py-3 text-sm text-foreground">{visibleMessage}</div>
       ) : null}
-      <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
       <Card className="alive-enter">
         <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
           <div className="space-y-1">
@@ -1232,22 +1270,6 @@ export function ComposePage() {
                     </div>
                   ) : null}
 
-                  {hasVisual ? (
-                    <div className="mt-3 space-y-2 border-t pt-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Replace media</p>
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <Button type="button" size="sm" variant="outline" onClick={() => { setReplaceInPreview(true); setShowStockPicker(true) }} className="flex-1">
-                          Stock
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => { setReplaceInPreview(true); userMediaInputRef.current?.click() }} className="flex-1">
-                          Your media
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" disabled={videoLoading || !hasVideoMedia} onClick={() => void generateVideo(true)} className="flex-1" title="Regenerate AI video">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
                 </div>
 
                 {media.length || imageLoading || videoLoading ? (
@@ -1381,10 +1403,58 @@ export function ComposePage() {
         </CardContent>
       </Card>
 
-      <Card className="alive-enter">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="min-w-[200px] flex-1 space-y-2">
+      {/* Right sidebar: live preview + publish controls */}
+      <div className="space-y-6 lg:sticky lg:top-6">
+        <Card className="alive-enter overflow-hidden">
+          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0 pb-3">
+            <CardTitle className="text-sm">Live preview</CardTitle>
+            <div className="flex items-center gap-1.5">
+              {brandLogoUrl ? (
+                <img src={brandLogoUrl} alt="Brand logo" className="h-7 w-7 rounded-full border object-cover" />
+              ) : null}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs"
+                disabled={logoSaving}
+                onClick={() => logoInputRef.current?.click()}
+                title="Upload a logo to use as the page avatar in previews and posts"
+              >
+                {logoSaving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-1 h-3 w-3" />}
+                {brandLogoUrl ? 'Change logo' : 'Add logo'}
+              </Button>
+              {brandLogoUrl ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => void saveBrandLogo(null)}
+                  title="Remove logo"
+                >
+                  ×
+                </Button>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent className="bg-muted/30 p-4">
+            <PlatformPostPreview
+              platform={activeTab as PreviewPlatform}
+              brandName={brandName}
+              avatarUrl={brandLogoUrl}
+              content={content || 'Your post text will appear here as you write…'}
+              mediaUrl={activeMedia?.url ?? null}
+              mediaType={activeMedia?.type === 'video' ? 'video' : 'image'}
+              scheduledAt={scheduleAt || null}
+              status={scheduleAt ? 'scheduled' : 'posted'}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="alive-enter">
+          <CardContent className="space-y-4 pt-6">
+            <div className="space-y-2">
               <Label htmlFor="compose-link" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Link
               </Label>
@@ -1409,7 +1479,7 @@ export function ComposePage() {
                 ) : null}
               </div>
             </div>
-            <div className="min-w-[200px] flex-1 space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="compose-schedule" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Schedule
               </Label>
@@ -1420,12 +1490,13 @@ export function ComposePage() {
                 onChange={(event) => setScheduleAt(event.target.value)}
               />
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button onClick={() => publish('now')} disabled={loading || (!content.trim() && !hasVisual)}>
+            <div className="space-y-2">
+              <Button className="w-full" onClick={() => publish('now')} disabled={loading || (!content.trim() && !hasVisual)}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 {loading ? 'Publishing...' : 'Publish Now'}
               </Button>
               <Button
+                className="w-full"
                 variant="outline"
                 onClick={() => publish('schedule')}
                 disabled={loading || (!content.trim() && !hasVisual) || !scheduleAt}
@@ -1435,22 +1506,24 @@ export function ComposePage() {
                 {loading ? 'Saving...' : 'Schedule Post'}
               </Button>
               {activeTab === 'facebook' ? (
-                <Button type="button" variant="ghost" onClick={() => setShowBulk(true)}>
+                <Button type="button" className="w-full" variant="ghost" onClick={() => setShowBulk(true)}>
                   <Layers className="mr-2 h-4 w-4" />
                   Bulk schedule variants
                 </Button>
               ) : null}
-              {hasVisual ? (
-                <Button type="button" variant="ghost" onClick={() => setShowPreview(true)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview post
-                </Button>
-              ) : null}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
+      </div>
+
+      <input
+        ref={logoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void handleLogoUpload(e)}
+      />
 
       <ComposeFlowProgressModal
         open={flowModalOpen}
