@@ -46,6 +46,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import type { Database } from '@/types/database'
 
 interface OutletContext {
@@ -1429,22 +1430,29 @@ export function ComposePage() {
               <Label htmlFor="compose-link" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Link
               </Label>
-              {linkUrl ? (
-                <div className="flex items-center gap-2 rounded-xl border bg-muted/30 px-3 py-2 text-sm">
-                  <Link className="h-4 w-4 text-muted-foreground" />
-                  <span className="flex-1 truncate">{linkUrl}</span>
-                  <button type="button" onClick={() => setLinkUrl('')} className="text-muted-foreground hover:text-foreground">
-                    ×
-                  </button>
-                </div>
-              ) : (
+              {/* Always render the editable input. A conditional that swapped the
+                  input for a read-only chip on the first keystroke unmounted the
+                  field mid-type, so only paste (a single onChange) worked. */}
+              <div className="relative">
+                <Link className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="compose-link"
                   placeholder="Add a link..."
                   value={linkUrl}
                   onChange={(event) => setLinkUrl(event.target.value)}
+                  className={cn('pl-9', linkUrl && 'pr-9')}
                 />
-              )}
+                {linkUrl ? (
+                  <button
+                    type="button"
+                    aria-label="Clear link"
+                    onClick={() => setLinkUrl('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <div className="space-y-2">
