@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { usePlannerTasks } from '@/hooks/usePlannerTasks'
+import { useWorkspaceIntegrations } from '@/hooks/useWorkspaceIntegrations'
 import { CalendarEvent, PlannerTask, Workspace } from '@/types'
 import {
   addDays,
@@ -66,6 +67,7 @@ export function PlannerPage() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const { tasks, createTask, updateTask, deleteTask, loading } = usePlannerTasks(currentWorkspaceId || undefined)
+  const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const [weekOffset, setWeekOffset] = useState(0)
   const [showDialog, setShowDialog] = useState(false)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
@@ -94,12 +96,31 @@ export function PlannerPage() {
     })
   }, [tasks])
 
-  // Accounts actually present on the calendar, for the filter dropdown.
+  // Accounts to offer in the filter: every connected account, plus any platform
+  // already on the calendar (covers posts from a since-disconnected account).
   const availablePlatforms = useMemo(() => {
     const set = new Set<string>()
     for (const task of tasks) if (task.platform) set.add(task.platform)
-    return Array.from(set)
-  }, [tasks])
+    for (const integration of integrations) {
+      switch (integration.provider) {
+        case 'facebook':
+        case 'meta': {
+          set.add('facebook')
+          const ig = integration.metadata?.instagram_accounts
+          if (Array.isArray(ig) && ig.length > 0) set.add('instagram')
+          break
+        }
+        case 'linkedin':
+          set.add('linkedin')
+          break
+        case 'x':
+          set.add('x')
+          break
+      }
+    }
+    // Keep a stable, sensible order.
+    return ['facebook', 'instagram', 'linkedin', 'x', 'meta_ads', 'google'].filter((p) => set.has(p))
+  }, [tasks, integrations])
 
   const visibleEvents = useMemo(
     () => (platformFilter === 'all' ? events : events.filter((event) => event.platform === platformFilter)),
