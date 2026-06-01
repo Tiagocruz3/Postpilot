@@ -128,7 +128,7 @@ function clearDraftSnapshot(workspaceId: string | null) {
 export function ComposePage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { currentWorkspaceId, currentWorkspace, currentPageId, currentPage } = useOutletContext<AppOutletContext>()
+  const { currentWorkspaceId, currentWorkspace, currentPageId } = useOutletContext<AppOutletContext>()
   const { user } = useAuth()
 
   const initialSnapshot = loadDraftSnapshot(currentWorkspaceId)
