@@ -149,6 +149,7 @@ export function ComposePage() {
   const [linkUrl, setLinkUrl] = useState(initialSnapshot?.linkUrl ?? '')
   const [scheduleAt, setScheduleAt] = useState(initialSnapshot?.scheduleAt ?? '')
   const [loading, setLoading] = useState(false)
+  const publishingRef = useRef(false)
   const [copyLoading, setCopyLoading] = useState(false)
   const [copyAction, setCopyAction] = useState<'draft' | 'polish' | null>(null)
   const [imageLoading, setImageLoading] = useState(false)
@@ -481,6 +482,8 @@ export function ComposePage() {
 
   const publish = async (action: 'now' | 'schedule') => {
     if (!currentWorkspaceId) return
+    if (publishingRef.current) return
+    publishingRef.current = true
 
     setLoading(true)
     setMessage('')
@@ -500,11 +503,13 @@ export function ComposePage() {
         if (!parsed || Number.isNaN(parsed.getTime())) {
           setMessage('Pick a date and time to schedule this post.')
           setLoading(false)
+          publishingRef.current = false
           return
         }
         if (parsed.getTime() <= Date.now()) {
           setMessage('That scheduled time is in the past — pick a future date and time.')
           setLoading(false)
+          publishingRef.current = false
           return
         }
         targetTime = parsed.toISOString()
@@ -625,6 +630,7 @@ export function ComposePage() {
       setMessage(error instanceof Error ? error.message : 'Unable to save this post right now.')
     } finally {
       setLoading(false)
+      publishingRef.current = false
     }
   }
 
