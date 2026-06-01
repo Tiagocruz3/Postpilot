@@ -622,8 +622,6 @@ async function boostExistingPost({ apiBase, token, pageToken, params }: BoostPar
   if (!rawAccountId) return { status: 400, body: { error: 'Missing account_id' } }
   if (!postId) return { status: 400, body: { error: 'Missing the published post to boost.' } }
   const accountId = rawAccountId.replace(/^act_/, '')
-  // The creative references an existing Page post — needs the page-capable token.
-  const creativeToken = pageToken || token
   const lifetimeBudgetCents = Math.max(100, Math.round(Number(params.total_budget ?? 0) * 100))
   const durationDays = Math.max(1, Math.round(Number(params.duration_days ?? 7)))
   const country = deriveCountry(typeof params.location === 'string' ? (params.location as string) : null)
@@ -675,26 +673,41 @@ async function boostExistingPost({ apiBase, token, pageToken, params }: BoostPar
     return { status: 502, body: { error: 'Failed to create ad set', detail: adsetJson } }
   }
 
-  // 3. Ad creative from the existing post (object_story_id), 4. Ad.
-  const creativeRes = await fetch(`${apiBase}/act_${accountId}/adcreatives`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: `${name} creative`, object_story_id: postId, access_token: creativeToken }),
-  })
-  const creativeJson = (await creativeRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
-  if (!creativeRes.ok || !creativeJson.id) {
-    return { status: 502, body: { error: 'Failed to create ad creative from the post.', detail: creativeJson } }
+  // 3. Ad creative from the existing post. Boosting needs the post to be visible
+  // to the ad account, so try the account-owner token first, then the
+  // page-capable token. Whichever Meta accepts is reused for the ad.
+  const candidateTokens = pageToken && pageToken !== token ? [token, pageToken] : [token]
+  let creativeId: string | null = null
+  let usedToken = token
+  let creativeDetail: unknown = null
+  for (const candidate of candidateTokens) {
+    const res = await fetch(`${apiBase}/act_${accountId}/adcreatives`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `${name} creative`, object_story_id: postId, access_token: candidate }),
+    })
+    const json = (await res.json().catch(() => ({}))) as { id?: string; error?: unknown }
+    if (res.ok && json.id) {
+      creativeId = json.id
+      usedToken = candidate
+      break
+    }
+    creativeDetail = json
+  }
+  if (!creativeId) {
+    return { status: 502, body: { error: 'Failed to create ad creative from the post.', detail: creativeDetail } }
   }
 
+  // 4. Ad — same token that created the creative.
   const adRes = await fetch(`${apiBase}/act_${accountId}/ads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name,
       adset_id: adsetJson.id,
-      creative: { creative_id: creativeJson.id },
+      creative: { creative_id: creativeId },
       status: 'PAUSED',
-      access_token: creativeToken,
+      access_token: usedToken,
     }),
   })
   const adJson = (await adRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
