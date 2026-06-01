@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { CalendarClock, Loader2, Sparkles, Trash2, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { CalendarClock, ImageOff, ImagePlus, Loader2, RefreshCw, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { isDemoMode } from '@/lib/demo'
 import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,6 +65,9 @@ export function BulkScheduleModal({
   const [variants, setVariants] = useState<Variant[]>([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
+  const uploadInputRef = useRef<HTMLInputElement | null>(null)
+  const uploadTargetId = useRef<string | null>(null)
 
   const slots = useMemo(
     () => computeScheduleSlots({ startDate, weekdays: selectedDays, times: timeSlots, count }),
@@ -161,6 +165,69 @@ export function BulkScheduleModal({
   const removeVariant = (id: string) => {
     setVariants((list) => list.filter((v) => v.id !== id))
   }
+
+  const regenerateImage = async (variant: Variant) => {
+    setRegeneratingId(variant.id)
+    setMessage('')
+    try {
+      const media = await invokeAi<{ url?: string }>('generate-image', {
+        platform,
+        post_text: variant.caption,
+        topic,
+        prompt: `${topic || variant.caption}. Fresh composition and visual treatment.`,
+      })
+      if (media.url) {
+        updateVariant(variant.id, { imageUrl: media.url })
+      } else {
+        setMessage('Image came back empty — try again or upload your own.')
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? `Couldn't regenerate image: ${err.message}` : "Couldn't regenerate image.")
+    } finally {
+      setRegeneratingId(null)
+    }
+  }
+
+  const openUpload = (id: string) => {
+    uploadTargetId.current = id
+    uploadInputRef.current?.click()
+  }
+
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    const targetId = uploadTargetId.current
+    event.target.value = ''
+    if (!file || !targetId) return
+
+    if (isDemoMode) {
+      updateVariant(targetId, { imageUrl: URL.createObjectURL(file) })
+      return
+    }
+
+    if (!workspaceId || !userId) {
+      setMessage('Pick a workspace before uploading an image.')
+      return
+    }
+
+    setRegeneratingId(targetId)
+    setMessage('')
+    try {
+      const path = `${workspaceId}/${userId}/${Date.now()}_${file.name}`
+      const { data, error } = await supabase.storage.from('media').upload(path, file)
+      if (error || !data) {
+        setMessage(error?.message ?? 'Upload failed.')
+        return
+      }
+      const { data: urlData } = supabase.storage.from('media').getPublicUrl(data.path)
+      updateVariant(targetId, { imageUrl: urlData.publicUrl })
+    } finally {
+      setRegeneratingId(null)
+    }
+  }
+
+  const clearImage = (id: string) => updateVariant(id, { imageUrl: null })
+
+  const missingImages = variants.filter((v) => !v.imageUrl).length
 
   const scheduleAll = async () => {
     if (!workspaceId || !userId) {
@@ -353,18 +420,72 @@ export function BulkScheduleModal({
       {phase === 'review' ? (
         <div className="space-y-3 py-2">
           <p className="text-sm text-muted-foreground">
-            Review and tweak, then schedule. {variants.length} post{variants.length === 1 ? '' : 's'} ready.
+            Review and tweak each post before it&apos;s scheduled. Edit the caption, and use the buttons on each image to
+            regenerate, upload your own, or remove it. {variants.length} post{variants.length === 1 ? '' : 's'} ready.
           </p>
+          {missingImages > 0 ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <ImageOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                {missingImages} post{missingImages === 1 ? '' : 's'} {missingImages === 1 ? 'has' : 'have'} no image and
+                will be scheduled as text-only unless you add a photo below.
+              </span>
+            </div>
+          ) : null}
           <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
             {variants.map((variant) => (
               <div key={variant.id} className="flex gap-3 rounded-xl border p-3">
-                {variant.imageUrl ? (
-                  <img src={variant.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-lg border object-cover" />
-                ) : (
-                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border bg-muted text-[10px] text-muted-foreground">
-                    No image
+                <div className="flex shrink-0 flex-col items-center gap-1.5">
+                  <div className="relative h-20 w-20">
+                    {variant.imageUrl ? (
+                      <img src={variant.imageUrl} alt="" className="h-20 w-20 rounded-lg border object-cover" />
+                    ) : (
+                      <div className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-muted text-[10px] text-muted-foreground">
+                        <ImageOff className="h-4 w-4" />
+                        No image
+                      </div>
+                    )}
+                    {regeneratingId === variant.id ? (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/70">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      </div>
+                    ) : null}
                   </div>
-                )}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => void regenerateImage(variant)}
+                      disabled={regeneratingId === variant.id}
+                      className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                      title="Regenerate image with AI"
+                      aria-label="Regenerate image"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openUpload(variant.id)}
+                      disabled={regeneratingId === variant.id}
+                      className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                      title="Upload your own image"
+                      aria-label="Upload image"
+                    >
+                      {variant.imageUrl ? <Upload className="h-3.5 w-3.5" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                    </button>
+                    {variant.imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => clearImage(variant.id)}
+                        disabled={regeneratingId === variant.id}
+                        className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                        title="Remove image"
+                        aria-label="Remove image"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
@@ -404,6 +525,14 @@ export function BulkScheduleModal({
           </DialogFooter>
         </div>
       ) : null}
+
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void handleUpload(e)}
+      />
     </Dialog>
   )
 }
