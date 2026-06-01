@@ -15,6 +15,7 @@ import {
   Rocket,
   Send,
   Share2,
+  ScanEye,
   Trash2,
   XCircle,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { PostCommentsPanel } from '@/components/history/PostCommentsPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import type { AppOutletContext } from '@/types'
@@ -35,6 +37,7 @@ import {
   parseMetaAdAccounts,
 } from '@/lib/meta-integration-options'
 import { BoostPostModal } from '@/components/ads/BoostPostModal'
+import { PlatformPostPreview, type PreviewPlatform } from '@/components/preview/PlatformPostPreview'
 import { supabase } from '@/lib/supabase'
 import { isDemoMode } from '@/lib/demo'
 
@@ -126,6 +129,7 @@ export function HistoryPage() {
   const { posts, loading, error, refresh, deletePost } = usePublishedPosts(currentWorkspaceId, currentPageId)
   const { integrations } = useWorkspaceIntegrations(currentWorkspaceId)
   const [boostTarget, setBoostTarget] = useState<PublishedPost | null>(null)
+  const [previewPost, setPreviewPost] = useState<PublishedPost | null>(null)
   const metaAccountId = useMemo(() => {
     const accounts = parseMetaAdAccounts(findMetaAdsIntegration(integrations), findFacebookIntegration(integrations))
     return accounts[0]?.id ? `act_${accounts[0].id}` : null
@@ -528,6 +532,16 @@ export function HistoryPage() {
                               Refresh metrics
                             </Button>
                           )}
+                          {['facebook', 'instagram', 'linkedin', 'x'].includes(post.platform) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setPreviewPost(post)}
+                            >
+                              <ScanEye className="mr-2 h-3.5 w-3.5" />
+                              Preview
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             variant="outline"
@@ -578,6 +592,48 @@ export function HistoryPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(previewPost)}
+        onOpenChange={(open) => { if (!open) setPreviewPost(null) }}
+        panelClassName="w-full max-w-lg p-0"
+      >
+        {previewPost ? (
+          <div className="flex max-h-[92vh] flex-col">
+            <DialogHeader className="border-b px-6 py-4">
+              <DialogTitle className="flex items-center gap-2">
+                <ScanEye className="h-4 w-4 text-primary" />
+                Post preview · {platformLabel(previewPost.platform)}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <PlatformPostPreview
+                platform={previewPost.platform as PreviewPlatform}
+                brandName="Your page"
+                content={previewPost.content}
+                mediaUrl={previewPost.media_urls?.[0] ?? previewPost.preview_image_url ?? null}
+                mediaType={isVideoUrl(previewPost.media_urls?.[0]) ? 'video' : 'image'}
+                scheduledAt={previewPost.published_at ?? previewPost.scheduled_at}
+                status={previewPost.published_at ? 'posted' : 'scheduled'}
+              />
+            </div>
+            <DialogFooter className="border-t px-6 py-4">
+              {previewPost.permalink_url || previewPost.published_url ? (
+                <a
+                  href={previewPost.permalink_url ?? previewPost.published_url ?? ''}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  View live on {platformLabel(previewPost.platform)}
+                </a>
+              ) : null}
+              <Button variant="outline" onClick={() => setPreviewPost(null)}>Close</Button>
+            </DialogFooter>
+          </div>
+        ) : null}
+      </Dialog>
 
       <BoostPostModal
         open={Boolean(boostTarget)}
