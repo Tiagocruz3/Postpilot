@@ -7,7 +7,7 @@ export function TermsPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
               P
             </div>
             <div className="leading-tight">

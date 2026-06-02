@@ -54,7 +54,7 @@ export function SignupPage() {
       <div className="relative hidden w-[46%] flex-col overflow-hidden lg:flex">
         <div className="alive-mesh absolute inset-0 opacity-90" />
         <div className="alive-grid-bg absolute inset-0" />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-sky-600/70 to-cyan-600/60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-blue-600/70 to-blue-700/60" />
 
         <div className="relative flex h-full flex-col p-10">
           <Link to="/" className="flex items-center gap-2.5">
@@ -110,7 +110,7 @@ export function SignupPage() {
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         {/* Mobile logo */}
         <Link to="/" className="mb-8 flex items-center gap-2 lg:hidden">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
             A
           </div>
           <span className="text-sm font-semibold">Ad Guru</span>
@@ -230,7 +230,7 @@ export function SignupPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="h-11 w-full bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
+                  className="h-11 w-full bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
                 >
                   {loading ? 'Creating account...' : 'Create free account'}
                 </Button>

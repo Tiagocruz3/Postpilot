@@ -74,7 +74,7 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-sm">
         <Link to="/" className="mb-8 flex items-center justify-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
             A
           </div>
           <span className="text-sm font-semibold">Ad Guru</span>
@@ -167,7 +167,7 @@ export function ResetPasswordPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="h-11 w-full bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
+                className="h-11 w-full bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
               >
                 {loading ? 'Updating…' : 'Update password'}
               </Button>

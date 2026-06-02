@@ -5,24 +5,24 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 210 40% 10%;
+    --foreground: 220 47% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 210 40% 10%;
+    --card-foreground: 220 47% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 10%;
-    --primary: 200 85% 53%;
+    --popover-foreground: 220 47% 13%;
+    --primary: 213 83% 54%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 210 40% 10%;
-    --muted: 210 20% 96%;
-    --muted-foreground: 210 15% 45%;
-    --accent: 210 20% 96%;
-    --accent-foreground: 210 40% 10%;
+    --secondary: 214 30% 96%;
+    --secondary-foreground: 220 47% 13%;
+    --muted: 214 30% 96%;
+    --muted-foreground: 216 16% 45%;
+    --accent: 214 30% 96%;
+    --accent-foreground: 220 47% 13%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 200 85% 53%;
+    --border: 215 32% 91%;
+    --input: 215 32% 91%;
+    --ring: 213 83% 54%;
     --radius: 0.75rem;
   }
 }
@@ -134,10 +134,10 @@
   }
   .alive-mesh {
     background:
-      radial-gradient(at 12% 18%, hsl(200 85% 53% / 0.28) 0px, transparent 45%),
-      radial-gradient(at 82% 12%, hsl(210 95% 62% / 0.22) 0px, transparent 45%),
-      radial-gradient(at 65% 88%, hsl(190 90% 58% / 0.18) 0px, transparent 45%),
-      radial-gradient(at 18% 78%, hsl(220 90% 70% / 0.18) 0px, transparent 45%);
+      radial-gradient(at 12% 18%, hsl(213 83% 54% / 0.28) 0px, transparent 45%),
+      radial-gradient(at 82% 12%, hsl(221 83% 60% / 0.22) 0px, transparent 45%),
+      radial-gradient(at 65% 88%, hsl(208 88% 52% / 0.18) 0px, transparent 45%),
+      radial-gradient(at 18% 78%, hsl(226 84% 66% / 0.18) 0px, transparent 45%);
     animation: alive-mesh-drift 14s ease-in-out infinite;
   }
 
@@ -150,7 +150,7 @@
   }
 
   .alive-gradient-text {
-    background: linear-gradient(120deg, hsl(200 85% 53%), hsl(210 95% 60%) 45%, hsl(190 90% 55%));
+    background: linear-gradient(120deg, hsl(213 83% 54%), hsl(221 83% 58%) 45%, hsl(208 88% 50%));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -160,7 +160,7 @@
     box-shadow:
       0 0 0 1px hsl(var(--primary) / 0.3),
       0 18px 60px -22px hsl(var(--primary) / 0.7),
-      0 4px 16px -6px hsl(210 95% 62% / 0.45);
+      0 4px 16px -6px hsl(221 83% 60% / 0.45);
   }
 
   .alive-card-tilt {

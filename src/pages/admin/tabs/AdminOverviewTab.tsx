@@ -86,7 +86,7 @@ export function AdminOverviewTab({ users, plans, onJumpToUsers }: AdminOverviewT
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-sky-500"
+                  className="h-full rounded-full bg-gradient-to-r from-primary to-blue-600"
                   style={{ width: `${(p.count / maxPlanCount) * 100}%` }}
                 />
               </div>

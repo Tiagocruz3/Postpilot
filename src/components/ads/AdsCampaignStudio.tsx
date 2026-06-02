@@ -1411,7 +1411,7 @@ function VariantSkeletonCard({
           <div className="h-2.5 w-9/12 rounded-full bg-muted/60" />
           <div className="h-2.5 w-7/12 rounded-full bg-muted/40" />
         </div>
-        <div className="aspect-square w-full overflow-hidden rounded-lg bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10">
+        <div className="aspect-square w-full overflow-hidden rounded-lg bg-gradient-to-br from-primary/10 via-blue-500/5 to-blue-600/10">
           <div className="alive-shimmer h-full w-full" />
         </div>
         <div className="flex items-center justify-between gap-2 pt-1">

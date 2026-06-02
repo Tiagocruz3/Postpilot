@@ -121,7 +121,7 @@ function MediaArea({
     return (
       <div
         className={cn(
-          'relative w-full overflow-hidden bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10',
+          'relative w-full overflow-hidden bg-gradient-to-br from-primary/10 via-blue-500/5 to-blue-600/10',
           aspectClass,
         )}
         aria-live="polite"

@@ -58,7 +58,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
               P
               <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
             </div>
@@ -104,7 +104,7 @@ export function LandingPage() {
             </Button>
             <Button
               onClick={() => navigate(primaryCtaHref)}
-              className="bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40"
+              className="bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40"
             >
               {primaryCtaLabel}
               <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -156,7 +156,7 @@ export function LandingPage() {
 
               {/* Inline testimonial */}
               <div className="mt-5 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 backdrop-blur">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-sky-500 text-sm font-bold text-white">S</div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-blue-600 text-sm font-bold text-white">S</div>
                 <div>
                   <p className="text-sm leading-relaxed text-foreground">"I used to spend 3 hours a day on social media. Now it's 20 minutes - and my engagement is up 40%."</p>
                   <p className="mt-1 text-xs text-muted-foreground">Sarah M. · E-commerce founder</p>
@@ -167,7 +167,7 @@ export function LandingPage() {
                 <Button
                   size="lg"
                   onClick={() => navigate(primaryCtaHref)}
-                  className="h-13 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-7 text-base font-semibold text-white shadow-lg shadow-primary/30 alive-glow hover:shadow-xl hover:shadow-primary/40"
+                  className="h-13 bg-gradient-to-r from-primary via-blue-500 to-blue-600 px-7 text-base font-semibold text-white shadow-lg shadow-primary/30 alive-glow hover:shadow-xl hover:shadow-primary/40"
                 >
                   {primaryCtaLabel} - It's Free
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -201,7 +201,7 @@ export function LandingPage() {
 
             {/* Hero product preview */}
             <div className="relative">
-              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-sky-500/20 to-cyan-500/20 blur-3xl" />
+              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-blue-500/20 to-blue-600/20 blur-3xl" />
 
               {/* Floating badges */}
               <div className="alive-float absolute -left-6 top-6 hidden rounded-2xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex">
@@ -218,7 +218,7 @@ export function LandingPage() {
 
               <div className="alive-float-slow absolute -right-4 bottom-10 hidden rounded-2xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-600">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600">
                     <Sparkles className="h-4 w-4" />
                   </div>
                   <div className="text-xs leading-tight">
@@ -232,7 +232,7 @@ export function LandingPage() {
                 <div className="rounded-[1.5rem] bg-card p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-sky-500 text-xs font-bold text-white">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 text-xs font-bold text-white">
                         A
                       </div>
                       <p className="text-sm font-semibold">Ad Guru Dashboard</p>
@@ -247,7 +247,7 @@ export function LandingPage() {
                     {[
                       { label: 'Scheduled posts', value: '12', accent: 'from-primary/20 to-primary/5', icon: CalendarDays, delta: '↑ 4 this week' },
                       { label: 'Engagement', value: '+41%', accent: 'from-emerald-500/20 to-emerald-500/5', icon: BarChart3, delta: 'vs last month' },
-                      { label: 'Active ads', value: '3', accent: 'from-cyan-500/20 to-cyan-500/5', icon: Megaphone, delta: '$12/day spend' },
+                      { label: 'Active ads', value: '3', accent: 'from-blue-500/20 to-blue-500/5', icon: Megaphone, delta: '$12/day spend' },
                       { label: 'Leads collected', value: '47', accent: 'from-amber-500/20 to-amber-500/5', icon: Target, delta: '↑ 19 this week' },
                     ].map((stat) => {
                       const Icon = stat.icon
@@ -402,7 +402,7 @@ export function LandingPage() {
 
               <Card className="border-primary/20 bg-background shadow-xl shadow-primary/10">
                 <CardHeader>
-                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white">
+                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 text-white">
                     <Rocket className="h-5 w-5" />
                   </div>
                   <CardTitle>Start creating in minutes</CardTitle>
@@ -410,7 +410,7 @@ export function LandingPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Button
-                    className="w-full bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white"
+                    className="w-full bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-white"
                     onClick={() => navigate(primaryCtaHref)}
                   >
                     Start Creating Now
@@ -450,7 +450,7 @@ export function LandingPage() {
             </div>
 
             <div className="relative mt-12">
-              <div className="pointer-events-none absolute inset-x-20 -top-10 bottom-0 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-sky-500/10 to-cyan-500/10 blur-3xl" />
+              <div className="pointer-events-none absolute inset-x-20 -top-10 bottom-0 -z-10 rounded-[2.5rem] bg-gradient-to-br from-primary/15 via-blue-500/10 to-blue-600/10 blur-3xl" />
 
               <div className="rounded-[1.75rem] border bg-background p-3 shadow-2xl shadow-primary/10">
                 <div className="grid gap-4 md:grid-cols-3">
@@ -472,8 +472,8 @@ export function LandingPage() {
                     {
                       title: 'Performance',
                       icon: BarChart3,
-                      tint: 'from-cyan-500/15 to-transparent',
-                      iconBg: 'bg-cyan-500/15 text-cyan-600',
+                      tint: 'from-blue-500/15 to-transparent',
+                      iconBg: 'bg-blue-500/15 text-blue-600',
                       items: ['Engagement', 'Leads', 'Active ads'],
                     },
                   ].map((block) => {
@@ -557,8 +557,8 @@ export function LandingPage() {
                 title="Ad Studio"
                 desc="3 AI ad options, edit copy + creative, lead forms, publish to Meta."
                 icon={Megaphone}
-                iconBg="bg-cyan-500/15 text-cyan-600"
-                tint="from-cyan-500/10 to-transparent"
+                iconBg="bg-blue-500/15 text-blue-600"
+                tint="from-blue-500/10 to-transparent"
               />
               <FeatureCard
                 className="md:col-span-2"
@@ -583,7 +583,7 @@ export function LandingPage() {
                 <ImageIcon className="h-3.5 w-3.5 text-primary" /> AI Images
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
-                <Video className="h-3.5 w-3.5 text-cyan-600" /> AI Videos
+                <Video className="h-3.5 w-3.5 text-blue-600" /> AI Videos
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
                 <Target className="h-3.5 w-3.5 text-emerald-600" /> Lead Forms
@@ -599,11 +599,11 @@ export function LandingPage() {
         </section>
 
         {/* === Ad Studio Highlight === */}
-        <section className="relative overflow-hidden border-b bg-gradient-to-br from-cyan-500/[0.05] via-background to-primary/[0.05]">
+        <section className="relative overflow-hidden border-b bg-gradient-to-br from-blue-500/[0.05] via-background to-primary/[0.05]">
           <div className="mx-auto max-w-6xl px-4 py-20">
             <div className="grid gap-10 md:grid-cols-[1.1fr_minmax(0,420px)] md:items-center">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-600">Ad Studio</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">Ad Studio</p>
                 <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
                   Build better ads without opening Ads Manager
                 </h2>
@@ -620,19 +620,19 @@ export function LandingPage() {
                   <Button
                     size="lg"
                     onClick={() => navigate(primaryCtaHref)}
-                    className="bg-gradient-to-r from-cyan-500 via-sky-500 to-primary text-white shadow-md shadow-cyan-500/20"
+                    className="bg-gradient-to-r from-blue-500 via-sky-500 to-primary text-white shadow-md shadow-blue-500/20"
                   >
                     Create My First Ad
                     <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                   <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
+                    <Sparkles className="h-3.5 w-3.5 text-blue-600" />
                     AI-assisted setup in under 3 minutes
                   </span>
                 </div>
               </div>
 
-              <Card className="border-cyan-500/20 bg-background shadow-2xl shadow-cyan-500/10">
+              <Card className="border-blue-500/20 bg-background shadow-2xl shadow-blue-500/10">
                 <CardHeader>
                   <CardTitle className="text-base">Ad Studio steps</CardTitle>
                   <CardDescription>From offer → live ads in a guided flow.</CardDescription>
@@ -650,7 +650,7 @@ export function LandingPage() {
                       className={cn(
                         'flex items-center gap-3 rounded-xl border px-3 py-2.5',
                         index === 2
-                          ? 'border-cyan-500/30 bg-cyan-500/5'
+                          ? 'border-blue-500/30 bg-blue-500/5'
                           : 'bg-muted/10',
                       )}
                     >
@@ -658,7 +658,7 @@ export function LandingPage() {
                         className={cn(
                           'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold',
                           index === 2
-                            ? 'bg-gradient-to-br from-cyan-500 to-sky-500 text-white'
+                            ? 'bg-gradient-to-br from-blue-500 to-sky-500 text-white'
                             : 'bg-muted text-muted-foreground',
                         )}
                       >
@@ -666,7 +666,7 @@ export function LandingPage() {
                       </span>
                       <span className="text-foreground">{step}</span>
                       {index === 2 ? (
-                        <span className="ml-auto rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-600">
+                        <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-600">
                           AI
                         </span>
                       ) : null}
@@ -702,7 +702,7 @@ export function LandingPage() {
                     className="relative rounded-2xl border bg-card p-5 alive-card-tilt"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-sky-500 text-white">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 text-white">
                         <Icon className="h-4 w-4" />
                       </div>
                       <span className="text-xs font-semibold text-muted-foreground">Step {idx + 1}</span>
@@ -754,7 +754,7 @@ export function LandingPage() {
                       <span className="font-semibold">570 / 750</span>
                     </div>
                     <div className="mt-3 h-2 rounded-full bg-muted">
-                      <div className="h-full w-[76%] rounded-full bg-gradient-to-r from-amber-500 to-cyan-500" />
+                      <div className="h-full w-[76%] rounded-full bg-gradient-to-r from-amber-500 to-blue-500" />
                     </div>
                     <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                       <span>Resets in 12 days</span>
@@ -834,8 +834,8 @@ export function LandingPage() {
                 >
                   {plan.popular ? (
                     <>
-                      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10" />
-                      <div className="absolute right-3 top-3 z-10 rounded-full bg-gradient-to-r from-primary to-cyan-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-primary/10 via-blue-500/5 to-blue-600/10" />
+                      <div className="absolute right-3 top-3 z-10 rounded-full bg-gradient-to-r from-primary to-blue-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
                         Most Popular
                       </div>
                     </>
@@ -868,7 +868,7 @@ export function LandingPage() {
                       className={cn(
                         'w-full',
                         plan.popular
-                          ? 'bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white'
+                          ? 'bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-white'
                           : '',
                       )}
                       variant={plan.popular ? 'default' : 'outline'}
@@ -899,14 +899,14 @@ export function LandingPage() {
                   name: 'Sarah K.',
                   role: 'Founder · DTC Skincare',
                   initials: 'SK',
-                  bg: 'from-blue-500 to-cyan-500',
+                  bg: 'from-blue-500 to-blue-500',
                 },
                 {
                   quote: '"Ad Studio makes creating Facebook campaigns feel simple. The AI options give us a strong starting point every time."',
                   name: 'Marcus T.',
                   role: 'Marketing Lead · Local Gym',
                   initials: 'MT',
-                  bg: 'from-primary to-sky-500',
+                  bg: 'from-primary to-blue-600',
                 },
                 {
                   quote: '"We stopped jumping between five different tools. Now content, ads, and analytics all live in one place."',
@@ -965,7 +965,7 @@ export function LandingPage() {
                     <Button
                       size="lg"
                       onClick={() => navigate(primaryCtaHref)}
-                      className="h-12 bg-gradient-to-r from-primary via-sky-500 to-cyan-500 px-6 text-base text-white alive-glow"
+                      className="h-12 bg-gradient-to-r from-primary via-blue-500 to-blue-600 px-6 text-base text-white alive-glow"
                     >
                       {primaryCtaLabel}
                       <ArrowRight className="ml-2 h-4 w-4" />
@@ -1013,7 +1013,7 @@ export function LandingPage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-sky-500 to-cyan-500 text-sm font-bold text-white shadow-md shadow-primary/30">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
                 P
               </div>
               <div>

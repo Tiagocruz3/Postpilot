@@ -154,7 +154,7 @@ export function UpgradePromptModal({ state, balance, onOpenChange }: UpgradeProm
             ) : null}
             <Button
               onClick={goToBilling}
-              className="bg-gradient-to-r from-primary via-sky-500 to-cyan-500 text-white"
+              className="bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-white"
             >
               <TrendingUp className="mr-1.5 h-4 w-4" />
               {isPlanLocked && minPlan ? `Upgrade to ${minPlan.name}` : 'Upgrade plan'}

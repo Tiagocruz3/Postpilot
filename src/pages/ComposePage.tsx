@@ -1309,7 +1309,7 @@ export function ComposePage() {
                     </p>
                     {imageLoading || videoLoading ? (
                       <div
-                        className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-sky-500/5 to-cyan-500/10"
+                        className="relative aspect-square w-full max-w-[260px] overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-blue-500/5 to-blue-600/10"
                         aria-live="polite"
                         aria-busy="true"
                       >
