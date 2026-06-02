@@ -310,7 +310,16 @@ const OBJECTIVE_MAP: Record<string, string> = {
   'get leads': 'OUTCOME_LEADS',
   'send traffic to website': 'OUTCOME_TRAFFIC',
   'get messages': 'OUTCOME_ENGAGEMENT',
-  'increase sales': 'OUTCOME_SALES',
+  // "Increase sales" is published as a TRAFFIC objective, not OUTCOME_SALES.
+  // A sales (conversions) campaign requires a conversion-tracking source — a
+  // Meta Pixel + custom_event_type set on the ad set's `promoted_object`. We
+  // have no pixel infrastructure, so an OUTCOME_SALES campaign makes Meta reject
+  // ad creation with code 100, subcode 1487888 ("no conversion tracking source
+  // configured"), even when the ad set optimizes for link clicks. Running the
+  // ad as TRAFFIC drives clicks to the destination URL and needs no pixel.
+  // Once pixel support exists, switch this back to OUTCOME_SALES + a
+  // promoted_object and drop SALES_NO_PIXEL_WARNING.
+  'increase sales': 'OUTCOME_TRAFFIC',
   'boost engagement': 'OUTCOME_ENGAGEMENT',
   'build awareness': 'OUTCOME_AWARENESS',
 }
@@ -319,21 +328,18 @@ const OPTIMIZATION_FOR_OBJECTIVE: Record<string, string> = {
   OUTCOME_LEADS: 'LEAD_GENERATION',
   OUTCOME_TRAFFIC: 'LINK_CLICKS',
   OUTCOME_ENGAGEMENT: 'POST_ENGAGEMENT',
-  // The sales objective is published optimizing for LINK_CLICKS, not
-  // OFFSITE_CONVERSIONS. Conversion optimization requires the ad set to carry a
-  // `promoted_object` (a pixel + custom_event_type, app event, etc.) as its
-  // conversion-tracking source; we have no pixel infrastructure, so requesting
-  // OFFSITE_CONVERSIONS makes Meta reject ad creation with code 100, subcode
-  // 1487888. Optimizing for link clicks still drives traffic to the destination
-  // URL and needs no conversion source. See SALES_NO_PIXEL_WARNING below.
+  // Kept for safety if an OUTCOME_SALES objective ever reaches here (e.g. a
+  // legacy stored campaign): optimize for link clicks, never OFFSITE_CONVERSIONS,
+  // which would require a pixel-backed promoted_object.
   OUTCOME_SALES: 'LINK_CLICKS',
   OUTCOME_AWARENESS: 'REACH',
 }
 
-// Shown to users when a sales-objective ad is published. Once pixel support
-// exists, set a `promoted_object` + OFFSITE_CONVERSIONS and drop this.
+// Shown when a "sales" goal is published. It runs as a TRAFFIC objective (see
+// OBJECTIVE_MAP) because no Meta Pixel / conversion source is connected. Once
+// pixel support exists, switch to OUTCOME_SALES + a promoted_object and drop this.
 const SALES_NO_PIXEL_WARNING =
-  'This sales ad is optimized for link clicks because no Meta Pixel / conversion source is connected. Add a pixel in Meta Ads Manager to optimize for purchases.'
+  'This sales ad runs as a traffic campaign sending clicks to your destination link, because no Meta Pixel / conversion source is connected. Add a pixel in Meta Ads Manager to optimize for purchases.'
 
 const CTA_MAP: Record<string, string> = {
   'learn more': 'LEARN_MORE',
@@ -486,7 +492,9 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   // 2. Campaign
   let campaignId = (c.meta_campaign_id as string | null) || null
   const objective = mapGoalToObjective(c.goal as string | null)
-  if (objective === 'OUTCOME_SALES') warnings.push(SALES_NO_PIXEL_WARNING)
+  // Warn when the user picked a sales goal: it publishes as TRAFFIC since we
+  // have no pixel/conversion source. Check the goal, not the mapped objective.
+  if (String(c.goal ?? '').toLowerCase() === 'increase sales') warnings.push(SALES_NO_PIXEL_WARNING)
   if (!campaignId) {
     const campRes = await fetch(`${apiBase}/act_${accountId}/campaigns`, {
       method: 'POST',
