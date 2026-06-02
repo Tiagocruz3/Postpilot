@@ -332,6 +332,10 @@ const OPTIMIZATION_FOR_OBJECTIVE: Record<string, string> = {
   OUTCOME_AWARENESS: 'REACH',
 }
 
+// Objectives whose ad set must declare a Page as the object being promoted.
+// Meta rejects these with code 100, subcode 1885154 if no promoted_object is set.
+const PAGE_PROMOTED_OBJECTIVES = new Set(['OUTCOME_ENGAGEMENT', 'OUTCOME_LEADS'])
+
 // Shown when a "sales" goal is published but the ad account has no Meta Pixel,
 // so the ad runs as a traffic campaign instead of a true conversions campaign.
 const SALES_NO_PIXEL_WARNING =
@@ -580,6 +584,11 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
     // Conversions campaigns must declare the pixel + event they optimize for.
     if (isConversionAd && salesPixelId) {
       adsetPayload.promoted_object = { pixel_id: salesPixelId, custom_event_type: 'PURCHASE' }
+    } else if (PAGE_PROMOTED_OBJECTIVES.has(objective) && pageId) {
+      // Engagement and lead objectives must promote a Page object, otherwise
+      // Meta rejects the ad set with code 100, subcode 1885154 ("must include
+      // an ad set with a selected object to promote related to your objective").
+      adsetPayload.promoted_object = { page_id: pageId }
     }
     if (useLifetime) {
       adsetPayload.lifetime_budget = lifetimeBudgetCents
