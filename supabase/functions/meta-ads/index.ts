@@ -46,7 +46,11 @@ serve(withCors(async (req) => {
   }
 
   if (action === 'list_campaigns') {
-    const { json } = await fetchJson(`${apiBase}/${params.account_id}/campaigns?access_token=${token}`)
+    const accountId = String(params.account_id || '').replace(/^act_/, '')
+    if (!accountId) return new Response(JSON.stringify({ error: 'Missing account_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    const statusFilter = params.status ? `&effective_status=["${String(params.status)}"]` : ''
+    const fields = 'id,name,status,objective,effective_status,daily_budget,lifetime_budget,start_time,stop_time,created_time,updated_time'
+    const { json } = await fetchJson(`${apiBase}/act_${accountId}/campaigns?fields=${fields}${statusFilter}&limit=50&access_token=${token}`)
     return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
   }
 

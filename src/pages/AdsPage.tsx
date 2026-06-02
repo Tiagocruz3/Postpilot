@@ -43,6 +43,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { Json } from '@/types/database'
 import { PublishedAdsPanel } from '@/components/ads/PublishedAdsPanel'
 import { AdLibraryPanel } from '@/components/ads/AdLibraryPanel'
+import { LiveAdsPanel } from '@/components/ads/LiveAdsPanel'
 import { AdsAnalyticsDashboard } from '@/components/ads/AdsAnalyticsDashboard'
 import {
   insertAdCreatives,
@@ -59,7 +60,7 @@ interface OutletContext {
   currentWorkspaceId: string | null
 }
 
-type AdsTab = 'studio' | 'library' | 'media' | 'analytics'
+type AdsTab = 'studio' | 'library' | 'live' | 'media' | 'analytics'
 type Goal = 'Get leads' | 'Send traffic to website' | 'Get messages' | 'Increase sales' | 'Boost engagement' | 'Build awareness'
 type AdType = 'Single Image Ad' | 'Video Ad' | 'Carousel Ad' | 'Story / Reel Ad' | 'Lead Form Ad' | 'Website Conversion Ad' | 'Engagement Ad'
 
@@ -2056,6 +2057,7 @@ export function AdsPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>Studio</TabsTrigger>
           <TabsTrigger value="library" activeValue={activeTab} onClick={() => setActiveTab('library')}>Ad Library</TabsTrigger>
+          <TabsTrigger value="live" activeValue={activeTab} onClick={() => setActiveTab('live')}>Live Ads</TabsTrigger>
           <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>Media Library</TabsTrigger>
           <TabsTrigger value="analytics" activeValue={activeTab} onClick={() => setActiveTab('analytics')}>Analytics</TabsTrigger>
         </TabsList>
@@ -2319,6 +2321,13 @@ export function AdsPage() {
               currentGenerationId.current = creative.generation_id
               setStudioStep(4)
             }}
+          />
+        </TabsContent>
+
+        <TabsContent value="live" activeValue={activeTab}>
+          <LiveAdsPanel
+            workspaceId={currentWorkspaceId}
+            metaAccountId={profile.metaConnection.adAccountId ? `act_${profile.metaConnection.adAccountId.replace(/^act_/, '')}` : null}
           />
         </TabsContent>
 
