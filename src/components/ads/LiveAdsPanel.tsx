@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, ExternalLink, Loader2, RefreshCcw, Zap } from 'lucide-react'
+import { Activity, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, RefreshCcw, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+
+type Insights = {
+  impressions?: string
+  clicks?: string
+  spend?: string
+  ctr?: string
+  cpc?: string
+  reach?: string
+  leads?: string
+  actions?: Array<{ action_type: string; value: string }>
+}
 
 type Campaign = {
   id: string
@@ -15,17 +26,10 @@ type Campaign = {
   daily_budget?: string
   lifetime_budget?: string
   start_time?: string
+  stop_time?: string
   created_time?: string
   updated_time?: string
-  insights?: {
-    impressions?: string
-    clicks?: string
-    spend?: string
-    ctr?: string
-    cpc?: string
-    reach?: string
-    leads?: string
-  } | null
+  insights?: Insights | null
 }
 
 const OBJECTIVE_LABELS: Record<string, string> = {
@@ -46,7 +50,59 @@ const OBJECTIVE_BADGE: Record<string, string> = {
   OUTCOME_APP_PROMOTION: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
 }
 
+const STATUS_PILL: Record<string, string> = {
+  ACTIVE: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  PAUSED: 'bg-orange-500/10 text-orange-700 dark:text-orange-400',
+  ARCHIVED: 'bg-zinc-500/10 text-zinc-500',
+  COMPLETED: 'bg-sky-500/10 text-sky-700 dark:text-sky-400',
+  DELETED: 'bg-destructive/10 text-destructive',
+}
+
 const ALL = 'all'
+
+function extractLeads(ins: Insights | null | undefined): string | null {
+  if (!ins) return null
+  if (ins.leads) return Number(ins.leads).toLocaleString()
+  const leadAction = ins.actions?.find((a) => a.action_type === 'lead' || a.action_type === 'onsite_conversion.lead_grouped')
+  return leadAction ? Number(leadAction.value).toLocaleString() : null
+}
+
+async function fetchInsights(workspaceId: string, campaignId: string, datePreset: string): Promise<Insights | null> {
+  try {
+    const { data } = await supabase.functions.invoke('meta-ads', {
+      body: { action: 'insights', workspace_id: workspaceId, campaign_id: campaignId, date_preset: datePreset },
+    })
+    return Array.isArray(data?.data) ? (data.data[0] as Insights) ?? null : null
+  } catch {
+    return null
+  }
+}
+
+async function loadCampaignsWithInsights(
+  workspaceId: string,
+  metaAccountId: string,
+  statusFilter: string | null,
+  datePreset: string,
+): Promise<Campaign[]> {
+  const { data, error } = await supabase.functions.invoke('meta-ads', {
+    body: {
+      action: 'list_campaigns',
+      workspace_id: workspaceId,
+      account_id: metaAccountId,
+      status: statusFilter ?? undefined,
+      limit: 100,
+    },
+  })
+  if (error) throw new Error(error.message)
+  const rows: Campaign[] = (data?.data as Campaign[]) ?? []
+
+  return Promise.all(
+    rows.slice(0, 50).map(async (c) => ({
+      ...c,
+      insights: await fetchInsights(workspaceId, c.id, datePreset),
+    })),
+  )
+}
 
 type LiveAdsPanelProps = {
   workspaceId: string | null
@@ -54,10 +110,13 @@ type LiveAdsPanelProps = {
 }
 
 export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [liveCampaigns, setLiveCampaigns] = useState<Campaign[]>([])
+  const [pastCampaigns, setPastCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [objectiveFilter, setObjectiveFilter] = useState(ALL)
+  const [datePreset, setDatePreset] = useState('last_30d')
+  const [showPast, setShowPast] = useState(false)
 
   const accountIdClean = metaAccountId?.replace(/^act_/, '') ?? null
 
@@ -66,52 +125,41 @@ export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) 
     setLoading(true)
     setError('')
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('meta-ads', {
-        body: {
-          action: 'list_campaigns',
-          workspace_id: workspaceId,
-          account_id: metaAccountId,
-          status: 'ACTIVE',
-        },
-      })
-      if (fnErr) throw new Error(fnErr.message)
-      const rows: Campaign[] = (data?.data as Campaign[]) ?? []
-
-      // Fetch insights for each active campaign in parallel (capped at 20).
-      const withInsights = await Promise.all(
-        rows.slice(0, 20).map(async (c) => {
-          try {
-            const { data: ins } = await supabase.functions.invoke('meta-ads', {
-              body: { action: 'insights', workspace_id: workspaceId, campaign_id: c.id },
-            })
-            const insight = Array.isArray(ins?.data) ? ins.data[0] : null
-            return { ...c, insights: insight ?? null }
-          } catch {
-            return { ...c, insights: null }
-          }
-        }),
-      )
-      setCampaigns(withInsights)
+      const [live, past] = await Promise.all([
+        loadCampaignsWithInsights(workspaceId, metaAccountId, 'ACTIVE', datePreset),
+        loadCampaignsWithInsights(workspaceId, metaAccountId, null, datePreset).then((all) =>
+          all.filter((c) => c.effective_status !== 'ACTIVE'),
+        ),
+      ])
+      setLiveCampaigns(live)
+      setPastCampaigns(past)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load live campaigns.')
+      setError(err instanceof Error ? err.message : 'Could not load campaigns.')
     } finally {
       setLoading(false)
     }
-  }, [workspaceId, metaAccountId])
+  }, [workspaceId, metaAccountId, datePreset])
 
   useEffect(() => {
     void load()
   }, [load])
 
+  const allCampaigns = useMemo(() => [...liveCampaigns, ...pastCampaigns], [liveCampaigns, pastCampaigns])
+
   const objectives = useMemo(() => {
     const seen = new Set<string>()
-    for (const c of campaigns) if (c.objective) seen.add(c.objective)
+    for (const c of allCampaigns) if (c.objective) seen.add(c.objective)
     return Array.from(seen).sort()
-  }, [campaigns])
+  }, [allCampaigns])
 
-  const filtered = useMemo(
-    () => (objectiveFilter === ALL ? campaigns : campaigns.filter((c) => c.objective === objectiveFilter)),
-    [campaigns, objectiveFilter],
+  const filteredLive = useMemo(
+    () => (objectiveFilter === ALL ? liveCampaigns : liveCampaigns.filter((c) => c.objective === objectiveFilter)),
+    [liveCampaigns, objectiveFilter],
+  )
+
+  const filteredPast = useMemo(
+    () => (objectiveFilter === ALL ? pastCampaigns : pastCampaigns.filter((c) => c.objective === objectiveFilter)),
+    [pastCampaigns, objectiveFilter],
   )
 
   const adsManagerUrl = (c: Campaign) => {
@@ -127,75 +175,139 @@ export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) 
       <Card>
         <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-sm text-muted-foreground">
           <Activity className="h-6 w-6 text-muted-foreground/40" />
-          Connect a Meta ad account in Settings to see live campaigns.
+          Connect a Meta ad account in Settings to see your campaigns.
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-        <div>
-          <CardTitle className="flex items-center gap-2">
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          <FilterPill label="All objectives" active={objectiveFilter === ALL} onClick={() => setObjectiveFilter(ALL)} />
+          {objectives.map((obj) => (
+            <FilterPill
+              key={obj}
+              label={OBJECTIVE_LABELS[obj] ?? obj}
+              active={objectiveFilter === obj}
+              activeClass={OBJECTIVE_BADGE[obj]}
+              onClick={() => setObjectiveFilter(obj)}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={datePreset}
+            onChange={(e) => setDatePreset(e.target.value)}
+            className="h-8 rounded-md border bg-background px-2 text-xs"
+          >
+            <option value="last_7d">Last 7 days</option>
+            <option value="last_30d">Last 30 days</option>
+            <option value="last_90d">Last 90 days</option>
+            <option value="last_year">Last year</option>
+            <option value="maximum">All time</option>
+          </select>
+          <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}>
+            <RefreshCcw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      {/* Live campaigns */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
             <Zap className="h-4 w-4 text-emerald-500" />
-            Live campaigns
-            {campaigns.length > 0 ? (
+            Live now
+            {filteredLive.length > 0 ? (
               <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px]">
-                {campaigns.length} active
+                {filteredLive.length} active
               </Badge>
             ) : null}
           </CardTitle>
-          <CardDescription>All currently running ads on this Meta account, with live metrics.</CardDescription>
-        </div>
-        <Button size="sm" variant="outline" onClick={() => void load()} disabled={loading}>
-          <RefreshCcw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} />
-          Refresh
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
+          <CardDescription>Campaigns currently spending on your Meta account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading && liveCampaigns.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredLive.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-muted/10 p-6 text-center text-sm text-muted-foreground">
+              <Activity className="mx-auto mb-2 h-5 w-5 text-muted-foreground/40" />
+              No active campaigns. Activate an ad from the Ad Library to see it here.
+            </div>
+          ) : (
+            <div className="divide-y rounded-xl border">
+              {filteredLive.map((c) => (
+                <CampaignRow key={c.id} campaign={c} adsManagerUrl={adsManagerUrl(c)} loading={loading} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Objective filter pills */}
-        {objectives.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            <FilterPill label="All" active={objectiveFilter === ALL} onClick={() => setObjectiveFilter(ALL)} />
-            {objectives.map((obj) => (
-              <FilterPill
-                key={obj}
-                label={OBJECTIVE_LABELS[obj] ?? obj}
-                active={objectiveFilter === obj}
-                className={objectiveFilter === obj ? (OBJECTIVE_BADGE[obj] ?? '') : ''}
-                onClick={() => setObjectiveFilter(obj)}
-              />
-            ))}
+      {/* Past campaigns */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Ad history
+                {pastCampaigns.length > 0 ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {pastCampaigns.length} campaigns
+                  </Badge>
+                ) : null}
+              </CardTitle>
+              <CardDescription>All paused, completed, and archived campaigns from your account.</CardDescription>
+            </div>
+            {pastCampaigns.length > 0 ? (
+              <Button size="sm" variant="ghost" onClick={() => setShowPast((v) => !v)}>
+                {showPast ? <ChevronUp className="mr-1.5 h-4 w-4" /> : <ChevronDown className="mr-1.5 h-4 w-4" />}
+                {showPast ? 'Collapse' : 'Show all'}
+              </Button>
+            ) : null}
           </div>
-        ) : null}
-
-        {loading && campaigns.length === 0 ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : filtered.length === 0 && !loading ? (
-          <div className="rounded-xl border border-dashed bg-muted/10 p-8 text-center text-sm text-muted-foreground">
-            <Activity className="mx-auto mb-2 h-5 w-5 text-muted-foreground/40" />
-            {campaigns.length === 0
-              ? 'No active campaigns found. Activate an ad from the Ad Library to see it here.'
-              : 'No active campaigns match this objective filter.'}
-          </div>
-        ) : (
-          <div className="divide-y rounded-xl border">
-            {filtered.map((c) => (
-              <CampaignRow key={c.id} campaign={c} adsManagerUrl={adsManagerUrl(c)} loading={loading} />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          {loading && pastCampaigns.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredPast.length === 0 ? (
+            <div className="rounded-xl border border-dashed bg-muted/10 p-6 text-center text-sm text-muted-foreground">
+              No past campaigns found.
+            </div>
+          ) : (
+            <div className="divide-y rounded-xl border">
+              {(showPast ? filteredPast : filteredPast.slice(0, 5)).map((c) => (
+                <CampaignRow key={c.id} campaign={c} adsManagerUrl={adsManagerUrl(c)} loading={loading} />
+              ))}
+              {!showPast && filteredPast.length > 5 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowPast(true)}
+                  className="w-full px-4 py-3 text-center text-sm text-primary hover:bg-muted/30"
+                >
+                  Show {filteredPast.length - 5} more campaigns
+                </button>
+              ) : null}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
@@ -210,6 +322,7 @@ function CampaignRow({
 }) {
   const objLabel = OBJECTIVE_LABELS[c.objective] ?? c.objective ?? 'Unknown'
   const objBadge = OBJECTIVE_BADGE[c.objective] ?? 'bg-muted text-muted-foreground'
+  const statusPill = STATUS_PILL[c.effective_status] ?? 'bg-muted text-muted-foreground'
   const ins = c.insights
 
   const budget = c.daily_budget
@@ -218,36 +331,36 @@ function CampaignRow({
     ? `$${(Number(c.lifetime_budget) / 100).toFixed(2)} lifetime`
     : null
 
+  const leadsValue = extractLeads(ins)
+
   return (
-    <div className="flex flex-col gap-3 px-4 py-4 first:rounded-t-xl last:rounded-b-xl sm:flex-row sm:items-center">
-      {/* Name + objective */}
+    <div className="flex flex-col gap-3 px-4 py-3 first:rounded-t-xl last:rounded-b-xl sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <p className="truncate font-medium leading-tight">{c.name}</p>
-          <Badge variant="secondary" className={cn('shrink-0 text-[10px] capitalize', objBadge)}>
+          <Badge variant="secondary" className={cn('shrink-0 text-[10px]', objBadge)}>
             {objLabel}
           </Badge>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Active
+          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize', statusPill)}>
+            {c.effective_status === 'ACTIVE' ? <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> : null}
+            {(c.effective_status ?? '').toLowerCase()}
           </span>
         </div>
         {budget ? <p className="mt-0.5 text-xs text-muted-foreground">{budget}</p> : null}
       </div>
 
-      {/* Metrics */}
-      <div className="flex shrink-0 flex-wrap gap-4 text-right text-sm sm:gap-5">
-        <Metric label="Spend" value={ins?.spend ? `$${Number(ins.spend).toFixed(2)}` : loading ? '...' : '-'} />
-        <Metric label="Reach" value={ins?.reach ? Number(ins.reach).toLocaleString() : loading ? '...' : '-'} />
-        <Metric label="Impressions" value={ins?.impressions ? Number(ins.impressions).toLocaleString() : loading ? '...' : '-'} />
-        <Metric label="Clicks" value={ins?.clicks ? Number(ins.clicks).toLocaleString() : loading ? '...' : '-'} />
-        <Metric label="CTR" value={ins?.ctr ? `${Number(ins.ctr).toFixed(2)}%` : loading ? '...' : '-'} />
-        {c.objective === 'OUTCOME_LEADS' ? (
-          <Metric label="Leads" value={ins?.leads ? Number(ins.leads).toLocaleString() : loading ? '...' : '-'} highlight />
+      <div className="flex shrink-0 flex-wrap gap-4 text-right sm:gap-5">
+        <MetricCell label="Spend" value={ins?.spend ? `$${Number(ins.spend).toFixed(2)}` : loading ? '...' : '-'} />
+        <MetricCell label="Reach" value={ins?.reach ? Number(ins.reach).toLocaleString() : loading ? '...' : '-'} />
+        <MetricCell label="Clicks" value={ins?.clicks ? Number(ins.clicks).toLocaleString() : loading ? '...' : '-'} />
+        <MetricCell label="CTR" value={ins?.ctr ? `${Number(ins.ctr).toFixed(2)}%` : loading ? '...' : '-'} />
+        {leadsValue !== null ? (
+          <MetricCell label="Leads" value={leadsValue} highlight />
+        ) : ins?.spend && Number(ins.spend) > 0 && c.objective === 'OUTCOME_SALES' ? (
+          <MetricCell label="ROAS" value="-" />
         ) : null}
       </div>
 
-      {/* Ads Manager link */}
       <a
         href={adsManagerUrl}
         target="_blank"
@@ -261,13 +374,11 @@ function CampaignRow({
   )
 }
 
-function Metric({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function MetricCell({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="min-w-[48px]">
       <p className="text-[10px] text-muted-foreground">{label}</p>
-      <p className={cn('font-semibold tabular-nums', highlight && 'text-emerald-600 dark:text-emerald-400')}>
-        {value}
-      </p>
+      <p className={cn('font-semibold tabular-nums', highlight && 'text-emerald-600 dark:text-emerald-400')}>{value}</p>
     </div>
   )
 }
@@ -276,12 +387,12 @@ function FilterPill({
   label,
   active,
   onClick,
-  className,
+  activeClass,
 }: {
   label: string
   active: boolean
   onClick: () => void
-  className?: string
+  activeClass?: string
 }) {
   return (
     <button
@@ -289,7 +400,7 @@ function FilterPill({
       onClick={onClick}
       className={cn(
         'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-        active ? cn('border-transparent', className || 'bg-primary/10 text-primary') : 'hover:bg-muted',
+        active ? cn('border-transparent', activeClass || 'bg-primary/10 text-primary') : 'hover:bg-muted',
       )}
     >
       {label}

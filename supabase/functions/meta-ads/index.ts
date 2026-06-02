@@ -48,9 +48,15 @@ serve(withCors(async (req) => {
   if (action === 'list_campaigns') {
     const accountId = String(params.account_id || '').replace(/^act_/, '')
     if (!accountId) return new Response(JSON.stringify({ error: 'Missing account_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
-    const statusFilter = params.status ? `&effective_status=["${String(params.status)}"]` : ''
+    // params.status can be a single string ("ACTIVE") or omitted (return all).
+    // Build effective_status as a JSON array so Meta accepts multiple values.
+    const statusParam = params.status ? String(params.status) : null
+    const statusFilter = statusParam
+      ? `&effective_status=${encodeURIComponent(JSON.stringify([statusParam]))}`
+      : `&effective_status=${encodeURIComponent(JSON.stringify(['ACTIVE', 'PAUSED', 'ARCHIVED', 'COMPLETED', 'DELETED']))}`
     const fields = 'id,name,status,objective,effective_status,daily_budget,lifetime_budget,start_time,stop_time,created_time,updated_time'
-    const { json } = await fetchJson(`${apiBase}/act_${accountId}/campaigns?fields=${fields}${statusFilter}&limit=50&access_token=${token}`)
+    const limit = String(params.limit || 100)
+    const { json } = await fetchJson(`${apiBase}/act_${accountId}/campaigns?fields=${fields}${statusFilter}&limit=${limit}&access_token=${token}`)
     return new Response(JSON.stringify(json), { headers: { 'Content-Type': 'application/json' } })
   }
 
@@ -58,38 +64,25 @@ serve(withCors(async (req) => {
     const accountId = String(params.account_id || '').replace(/^act_/, '')
     if (!accountId) return new Response(JSON.stringify({ error: 'Missing account_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
 
+    // Pull rich creative fields in one round-trip — no separate creative fetches needed.
+    const adFields = [
+      'id', 'name', 'status', 'effective_status',
+      'campaign_id', 'adset_id', 'created_time',
+      'creative{id,name,thumbnail_url,image_url,body,title,call_to_action_type,object_story_spec}',
+    ].join(',')
+
+    const statusParam = params.status ? String(params.status) : null
+    const statusFilter = statusParam
+      ? `&effective_status=${encodeURIComponent(JSON.stringify([statusParam]))}`
+      : ''
+    const limit = String(params.limit || 50)
+    const campaignFilter = typeof params.campaign_id === 'string' ? `&campaign_id=${params.campaign_id}` : ''
+
     const { json: adsJson } = await fetchJson(
-      `${apiBase}/act_${accountId}/ads?fields=id,name,status,campaign_id,adset_id,creative{id}&limit=50&access_token=${token}`,
+      `${apiBase}/act_${accountId}/ads?fields=${encodeURIComponent(adFields)}${statusFilter}${campaignFilter}&limit=${limit}&access_token=${token}`,
     )
 
-    const ads = Array.isArray(adsJson?.data) ? adsJson.data : []
-    const campaignFilter = typeof params.campaign_id === 'string' ? params.campaign_id : null
-    const filtered = campaignFilter ? ads.filter((a: { campaign_id?: string }) => a?.campaign_id === campaignFilter) : ads
-
-    // Fetch creative thumbnails for a small subset.
-    const creativeIds = Array.from(
-      new Set(
-        filtered
-          .map((a: { creative?: { id?: string } }) => a?.creative?.id)
-          .filter(Boolean),
-      ),
-    ).slice(0, 30) as string[]
-
-    const creativeById: Record<string, unknown> = {}
-    for (const creativeId of creativeIds) {
-      const { json: creativeJson } = await fetchJson(
-        `${apiBase}/${creativeId}?fields=thumbnail_url,object_story_spec&thumbnail_width=400&thumbnail_height=400&access_token=${token}`,
-      )
-      creativeById[creativeId] = creativeJson
-    }
-
-    const merged = filtered.map((ad: { creative?: { id?: string } }) => {
-      const creativeId = ad?.creative?.id
-      const creative = creativeId ? creativeById[creativeId] : null
-      return { ...ad, creative }
-    })
-
-    return new Response(JSON.stringify({ data: merged }), { headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ data: Array.isArray(adsJson?.data) ? adsJson.data : [] }), { headers: { 'Content-Type': 'application/json' } })
   }
 
   if (action === 'create_campaign') {
