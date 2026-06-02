@@ -2055,11 +2055,11 @@ export function AdsPage() {
       ) : (
         <Tabs>
         <TabsList className="mb-4">
-          <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>Studio</TabsTrigger>
-          <TabsTrigger value="library" activeValue={activeTab} onClick={() => setActiveTab('library')}>Ad Library</TabsTrigger>
+          <TabsTrigger value="studio" activeValue={activeTab} onClick={() => setActiveTab('studio')}>Ad Studio</TabsTrigger>
           <TabsTrigger value="live" activeValue={activeTab} onClick={() => setActiveTab('live')}>Live Ads</TabsTrigger>
-          <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>Media Library</TabsTrigger>
           <TabsTrigger value="analytics" activeValue={activeTab} onClick={() => setActiveTab('analytics')}>Analytics</TabsTrigger>
+          <TabsTrigger value="library" activeValue={activeTab} onClick={() => setActiveTab('library')}>Ad Library</TabsTrigger>
+          <TabsTrigger value="media" activeValue={activeTab} onClick={() => setActiveTab('media')}>Media Library</TabsTrigger>
         </TabsList>
 
         <TabsContent value="studio" activeValue={activeTab}>

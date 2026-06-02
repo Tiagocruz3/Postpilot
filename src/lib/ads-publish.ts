@@ -122,3 +122,26 @@ export async function setMetaAdStatus(params: {
   if (data?.error) return { ok: false, error: typeof data.error === 'string' ? data.error : 'Status update failed' }
   return { ok: true }
 }
+
+/**
+ * Pause / resume / archive a whole campaign on Meta. Pausing a campaign stops
+ * all of its ad sets + ads from spending, which is how "Turn off" terminates a
+ * live campaign from the Live Ads tab.
+ */
+export async function setMetaCampaignStatus(params: {
+  workspaceId: string
+  campaignId: string
+  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED' | 'DELETED'
+}): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('meta-ads', {
+    body: {
+      action: 'set_campaign_status',
+      workspace_id: params.workspaceId,
+      campaign_id: params.campaignId,
+      status: params.status,
+    },
+  })
+  if (error) return { ok: false, error: await readFunctionError(error, 'Status update failed') }
+  if (data?.error) return { ok: false, error: typeof data.error === 'string' ? data.error : 'Status update failed' }
+  return { ok: true }
+}

@@ -145,6 +145,60 @@ export async function insertAdCreatives(rows: AdCreativeInsert[]): Promise<AdCre
   return ((data ?? []) as Record<string, unknown>[]).map(normalize)
 }
 
+/**
+ * Clone an existing creative into a fresh editable DRAFT. The Meta link ids and
+ * publish state are deliberately cleared so publishing the copy creates a
+ * brand-new ad instead of mutating (and overwriting) the original. This is what
+ * powers "Reuse" in the Ad Library. Returns the new row.
+ */
+export async function duplicateAdCreative(
+  source: AdCreative,
+  overrides: Partial<AdCreativeInsert> = {},
+): Promise<AdCreative> {
+  const insert: AdCreativeInsert = {
+    workspace_id: source.workspace_id,
+    user_id: source.user_id,
+    facebook_page_id: source.facebook_page_id,
+    generation_id:
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : null,
+    variant_label: source.variant_label || 'Variant A',
+    campaign_name: source.campaign_name ? `${source.campaign_name} (copy)` : null,
+    is_selected_variant: true,
+    status: 'draft',
+    source: source.source,
+    angle: source.angle,
+    primary_text: source.primary_text,
+    headline: source.headline,
+    description: source.description,
+    cta: source.cta,
+    media_url: source.media_url,
+    media_type: source.media_type,
+    image_prompt: source.image_prompt,
+    creative_direction: source.creative_direction,
+    targeting_angle: source.targeting_angle,
+    destination_url: source.destination_url,
+    destination_type: source.destination_type,
+    goal: source.goal,
+    placements: source.placements,
+    ad_format: source.ad_format,
+    audience: source.audience,
+    budget: source.budget,
+    schedule_start: source.schedule_start,
+    schedule_end: source.schedule_end,
+    estimated_reach: source.estimated_reach,
+    ai_recommendation: source.ai_recommendation,
+    // Cleared so the copy publishes as a brand-new Meta ad rather than reusing
+    // (and overwriting) the original campaign / ad set / ad.
+    meta_ad_id: null,
+    meta_campaign_id: null,
+    meta_adset_id: null,
+    published_at: null,
+    ...overrides,
+  }
+  const [row] = await insertAdCreatives([insert])
+  return row
+}
+
 export async function updateAdCreative(id: string, patch: AdCreativeUpdate): Promise<AdCreative | null> {
   const { data, error } = await db.from(TABLE).update(patch).eq('id', id).select('*').maybeSingle()
   if (error) throw error

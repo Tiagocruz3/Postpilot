@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Calendar, ExternalLink, Image as ImageIcon, Loader2, Play, RefreshCcw, Search, Trash2, Video } from 'lucide-react'
+import { Archive, Calendar, Copy, ExternalLink, Image as ImageIcon, Loader2, Play, RefreshCcw, Search, Trash2, Video } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import { useConfirm } from '@/components/ConfirmProvider'
 import {
   AD_CREATIVE_STATUS_LABELS,
   deleteAdCreative,
+  duplicateAdCreative,
   listAdCreatives,
   updateAdCreative,
   type AdCreative,
@@ -152,6 +153,21 @@ export function AdLibraryPanel({
     }
   }
 
+  // "Reuse" clones the creative into a fresh draft (clearing Meta link ids) so
+  // the user edits + publishes a brand-new ad in the studio instead of mutating
+  // the original published ad. The new draft is what we open in the studio.
+  const handleReuse = async (creative: AdCreative) => {
+    if (!onOpenInStudio) return
+    setError(null)
+    try {
+      const copy = await duplicateAdCreative(creative)
+      void refresh()
+      onOpenInStudio(copy)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reuse ad')
+    }
+  }
+
   const handleActivate = async (creative: AdCreative) => {
     if (!workspaceId || !creative.meta_ad_id) return
     setError(null)
@@ -253,7 +269,7 @@ export function AdLibraryPanel({
                   onArchive={() => void handleArchive(creative)}
                   onDelete={() => void handleDelete(creative)}
                   onStatusChange={(next) => void handleStatusChange(creative, next)}
-                  onOpen={onOpenInStudio ? () => onOpenInStudio(creative) : undefined}
+                  onOpen={onOpenInStudio ? () => void handleReuse(creative) : undefined}
                   onOpenDetail={() => navigate(`/app/ads/library/${creative.id}`)}
                   onActivate={
                     (creative.status === 'published' || creative.status === 'paused') && creative.meta_ad_id
@@ -393,8 +409,9 @@ function AdLibraryCard({
               </Button>
             ) : null}
             {onOpen ? (
-              <Button size="sm" variant="outline" className="flex-1" onClick={onOpen}>
-                Edit
+              <Button size="sm" variant="outline" className="flex-1" onClick={onOpen} title="Duplicate into a new editable draft">
+                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                Reuse
               </Button>
             ) : null}
           </div>

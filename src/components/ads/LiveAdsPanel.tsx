@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, RefreshCcw, Zap } from 'lucide-react'
+import { Activity, ChevronDown, ChevronUp, Clock, ExternalLink, Loader2, Power, RefreshCcw, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useConfirm } from '@/components/ConfirmProvider'
+import { setMetaCampaignStatus } from '@/lib/ads-publish'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -140,6 +142,7 @@ type LiveAdsPanelProps = {
 }
 
 export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) {
+  const confirm = useConfirm()
   const [liveCampaigns, setLiveCampaigns] = useState<Campaign[]>([])
   const [pastCampaigns, setPastCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(false)
@@ -147,6 +150,7 @@ export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) 
   const [objectiveFilter, setObjectiveFilter] = useState(ALL)
   const [datePreset, setDatePreset] = useState('maximum')
   const [showPast, setShowPast] = useState(false)
+  const [terminatingId, setTerminatingId] = useState<string | null>(null)
 
   const accountIdClean = metaAccountId?.replace(/^act_/, '') ?? null
 
@@ -173,6 +177,44 @@ export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) 
   useEffect(() => {
     void load()
   }, [load])
+
+  // "Turn off" a live campaign — pauses it on Meta so all its ad sets + ads stop
+  // spending. Optimistically moves the row out of "Live now" then refetches.
+  const handleTerminate = useCallback(
+    async (campaign: Campaign) => {
+      if (!workspaceId) return
+      const ok = await confirm({
+        title: `Turn off "${campaign.name}"?`,
+        description:
+          'This pauses the campaign on Meta — all of its ad sets and ads stop spending immediately. You can turn it back on later from Meta Ads Manager.',
+        confirmLabel: 'Turn off',
+        variant: 'destructive',
+      })
+      if (!ok) return
+      setError('')
+      setTerminatingId(campaign.id)
+      try {
+        const result = await setMetaCampaignStatus({
+          workspaceId,
+          campaignId: campaign.id,
+          status: 'PAUSED',
+        })
+        if (!result.ok) {
+          setError(result.error ?? 'Could not turn off this campaign.')
+          return
+        }
+        // Reflect the change immediately, then refetch for fresh statuses.
+        setLiveCampaigns((list) => list.filter((c) => c.id !== campaign.id))
+        setPastCampaigns((list) => [{ ...campaign, effective_status: 'PAUSED', status: 'PAUSED' }, ...list])
+        void load()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not turn off this campaign.')
+      } finally {
+        setTerminatingId(null)
+      }
+    },
+    [workspaceId, confirm, load],
+  )
 
   const allCampaigns = useMemo(() => [...liveCampaigns, ...pastCampaigns], [liveCampaigns, pastCampaigns])
 
@@ -279,7 +321,14 @@ export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) 
           ) : (
             <div className="divide-y rounded-xl border">
               {filteredLive.map((c) => (
-                <CampaignRow key={c.id} campaign={c} adsManagerUrl={adsManagerUrl(c)} loading={loading} />
+                <CampaignRow
+                  key={c.id}
+                  campaign={c}
+                  adsManagerUrl={adsManagerUrl(c)}
+                  loading={loading}
+                  onTerminate={() => void handleTerminate(c)}
+                  terminating={terminatingId === c.id}
+                />
               ))}
             </div>
           )}
@@ -345,10 +394,14 @@ function CampaignRow({
   campaign: c,
   adsManagerUrl,
   loading,
+  onTerminate,
+  terminating = false,
 }: {
   campaign: Campaign
   adsManagerUrl: string
   loading: boolean
+  onTerminate?: () => void
+  terminating?: boolean
 }) {
   const objLabel = OBJECTIVE_LABELS[c.objective] ?? c.objective ?? 'Unknown'
   const objBadge = OBJECTIVE_BADGE[c.objective] ?? 'bg-muted text-muted-foreground'
@@ -391,15 +444,30 @@ function CampaignRow({
         ) : null}
       </div>
 
-      <a
-        href={adsManagerUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Open in Ads Manager"
-        className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
-      >
-        <ExternalLink className="h-4 w-4 text-[#1877F2]" />
-      </a>
+      <div className="flex shrink-0 items-center gap-1">
+        {onTerminate ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onTerminate}
+            disabled={terminating}
+            title="Turn off this campaign on Meta"
+            className="h-8 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            {terminating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
+            <span className="ml-1.5 hidden sm:inline">{terminating ? 'Turning off…' : 'Turn off'}</span>
+          </Button>
+        ) : null}
+        <a
+          href={adsManagerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open in Ads Manager"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
+        >
+          <ExternalLink className="h-4 w-4 text-[#1877F2]" />
+        </a>
+      </div>
     </div>
   )
 }

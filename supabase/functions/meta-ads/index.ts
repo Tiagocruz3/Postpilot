@@ -262,6 +262,42 @@ serve(withCors(async (req) => {
     })
   }
 
+  if (action === 'set_campaign_status') {
+    // Pause / resume / archive a whole campaign. Pausing a campaign stops every
+    // ad set + ad under it from spending — this is how "Turn off" terminates a
+    // live campaign from the Live Ads tab. Graph API accepts the same status
+    // POST on a campaign node as it does on an ad node.
+    const { campaign_id, status } = params as { campaign_id?: string; status?: string }
+    if (!campaign_id || !status) {
+      return new Response(JSON.stringify({ error: 'Missing campaign_id or status' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const allowed = new Set(['ACTIVE', 'PAUSED', 'DELETED', 'ARCHIVED'])
+    if (!allowed.has(String(status).toUpperCase())) {
+      return new Response(JSON.stringify({ error: `Invalid status ${status}` }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const res = await fetch(`${apiBase}/${campaign_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: String(status).toUpperCase(), access_token: token }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return new Response(JSON.stringify({ error: 'set_campaign_status failed', detail: json }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return new Response(JSON.stringify({ ok: true, ...json }), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   if (action === 'publish_ad') {
     // Use the primary token (the one that owns the ad account) for the
     // campaign/adset/ad calls. The Page is referenced via object_story_spec and
