@@ -182,7 +182,10 @@ serve(
       const { data: existingUser } = await admin.auth.admin.getUserById(userId)
       const targetEmail = existingUser?.user?.email ?? null
 
-      const { error: updateError } = await admin.auth.admin.updateUserById(userId, { password })
+      const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: true,
+      })
       if (updateError) return jsonResponse({ error: updateError.message }, 500)
 
       await writeAudit(admin, caller.id, caller.email ?? 'unknown', 'set_password', userId, {
