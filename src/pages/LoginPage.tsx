@@ -19,16 +19,36 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setNotice('')
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
     if (authError) setError(authError.message)
     else navigate('/app')
+  }
+
+  const handleForgotPassword = async () => {
+    setError('')
+    setNotice('')
+    const target = email.trim().toLowerCase()
+    if (!target) {
+      setError('Enter your email above first, then click "Forgot password?".')
+      return
+    }
+    setResetting(true)
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(target, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    setResetting(false)
+    if (resetError) setError(resetError.message)
+    else setNotice(`If an account exists for ${target}, a password reset link is on its way. Check your inbox.`)
   }
 
   const handleGoogleLogin = async () => {
@@ -164,10 +184,11 @@ export function LoginPage() {
                 <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                 <button
                   type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setError('Password reset is available via email. Contact support@adguru.app.')}
+                  className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+                  disabled={resetting}
+                  onClick={() => void handleForgotPassword()}
                 >
-                  Forgot password?
+                  {resetting ? 'Sending…' : 'Forgot password?'}
                 </button>
               </div>
               <div className="relative">
@@ -194,6 +215,12 @@ export function LoginPage() {
             {error && (
               <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 {error}
+              </p>
+            )}
+
+            {notice && (
+              <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+                {notice}
               </p>
             )}
 

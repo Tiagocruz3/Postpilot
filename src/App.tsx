@@ -22,6 +22,7 @@ import { AdminRoute } from '@/components/admin/AdminRoute'
 import { PrivacyPage } from '@/pages/PrivacyPage'
 import { TermsPage } from '@/pages/TermsPage'
 import { SupportPage } from '@/pages/SupportPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 
 function App() {
   const { profile, loading } = useAuth()
@@ -44,6 +45,7 @@ function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/support" element={<SupportPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/login" element={profile ? <Navigate to="/app" /> : <LoginPage />} />
         <Route path="/signup" element={profile ? <Navigate to="/app" /> : <SignupPage />} />
         <Route path="/workspace-setup" element={!profile ? <Navigate to="/login" /> : <WorkspaceSetupPage />} />

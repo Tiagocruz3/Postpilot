@@ -215,6 +215,43 @@ export async function adminDeleteUser(userId: string): Promise<void> {
   if (data?.error) throw new Error(data.error as string)
 }
 
+export async function adminSetUserPassword(params: {
+  userId: string
+  password: string
+}): Promise<void> {
+  if (!params.userId) throw new Error('userId is required.')
+  if (!params.password || params.password.length < 8) {
+    throw new Error('Password must be at least 8 characters.')
+  }
+  if (isDemoMode) {
+    // Nothing to persist in demo mode - just succeed.
+    return
+  }
+  const { data, error } = await supabase.functions.invoke('admin-manage-user', {
+    body: { action: 'set_password', user_id: params.userId, password: params.password },
+  })
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error as string)
+}
+
+export async function adminSendRecovery(params: {
+  userId?: string
+  email?: string
+}): Promise<{ action_link: string | null }> {
+  if (isDemoMode) return { action_link: null }
+  const { data, error } = await supabase.functions.invoke('admin-manage-user', {
+    body: {
+      action: 'send_recovery',
+      user_id: params.userId,
+      email: params.email,
+      redirect_to: `${window.location.origin}/reset-password`,
+    },
+  })
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error as string)
+  return { action_link: (data?.action_link as string | null) ?? null }
+}
+
 export async function adminGetConfig(): Promise<AdminSubscriptionConfig> {
   if (isDemoMode) return loadDemoConfig()
   const { data, error } = await db.rpc('admin_get_subscription_config')

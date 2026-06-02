@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
-import { Coins, Pencil, Power, Search, Trash2, UserPlus } from 'lucide-react'
+import { Check, Coins, Copy, KeyRound, Mail, Pencil, Power, Search, Trash2, UserPlus } from 'lucide-react'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +14,8 @@ import {
   adminAdjustCredits,
   adminCreateUser,
   adminDeleteUser,
+  adminSendRecovery,
+  adminSetUserPassword,
   adminUpdateUser,
 } from '@/lib/admin/rpc'
 import type { AdminUserRow, SubscriptionPlanRow } from '@/lib/admin/types'
@@ -61,6 +63,10 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
   const [busy, setBusy] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateUserForm>(EMPTY_CREATE_FORM)
+  const [pwUser, setPwUser] = useState<AdminUserRow | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [recoveryLink, setRecoveryLink] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -192,6 +198,68 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
       onMessage(err instanceof Error ? err.message : 'Credit adjustment failed.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const openPasswordDialog = (user: AdminUserRow) => {
+    setPwUser(user)
+    setNewPassword('')
+    setRecoveryLink('')
+    setLinkCopied(false)
+  }
+
+  const submitSetPassword = async () => {
+    if (!pwUser) return
+    if (newPassword.length < 8) {
+      onMessage('Password must be at least 8 characters.')
+      return
+    }
+    const ok = await confirm({
+      title: `Set a new password for ${pwUser.name || pwUser.email}?`,
+      description: 'This immediately overrides their password. Share the new password with them securely.',
+      confirmLabel: 'Set password',
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      await adminSetUserPassword({ userId: pwUser.user_id, password: newPassword })
+      onMessage(`Password updated for ${pwUser.email}.`)
+      setPwUser(null)
+      setNewPassword('')
+    } catch (err) {
+      onMessage(err instanceof Error ? err.message : 'Could not set password.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const sendRecovery = async () => {
+    if (!pwUser) return
+    setBusy(true)
+    try {
+      const { action_link } = await adminSendRecovery({ userId: pwUser.user_id, email: pwUser.email })
+      setRecoveryLink(action_link ?? '')
+      setLinkCopied(false)
+      onMessage(
+        action_link
+          ? `Recovery link generated for ${pwUser.email}. Copy it below or it was emailed if SMTP is configured.`
+          : `Recovery email sent to ${pwUser.email}.`,
+      )
+    } catch (err) {
+      onMessage(err instanceof Error ? err.message : 'Could not send recovery.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copyRecoveryLink = async () => {
+    if (!recoveryLink) return
+    try {
+      await navigator.clipboard.writeText(recoveryLink)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch {
+      onMessage('Could not copy. Select and copy the link manually.')
     }
   }
 
@@ -335,6 +403,16 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
                           onClick={() => setEditUser({ ...user })}
                         >
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          disabled={busy}
+                          title="Reset / change password"
+                          onClick={() => openPasswordDialog(user)}
+                        >
+                          <KeyRound className="h-4 w-4" />
                         </Button>
                         {user.role !== 'admin' ? (
                           <>
@@ -536,6 +614,104 @@ export function AdminUsersTab({ users, plans, onRefresh, onMessage }: AdminUsers
           </Button>
         </DialogFooter>
       </Dialog>
+
+      <Dialog
+        open={Boolean(pwUser)}
+        onOpenChange={(open) => {
+          if (busy) return
+          if (!open) {
+            setPwUser(null)
+            setNewPassword('')
+            setRecoveryLink('')
+          }
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>Password management</DialogTitle>
+          <DialogDescription>{pwUser?.email}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5 py-2">
+          {/* Set a new password directly */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <KeyRound className="h-4 w-4 text-primary" />
+              Set a new password
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Immediately overrides the password. Share it with the user securely.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                type="button"
+                title="Generate a strong password"
+                onClick={() => setNewPassword(generatePassword())}
+              >
+                Generate
+              </Button>
+            </div>
+            <Button
+              className="w-full"
+              disabled={busy || newPassword.length < 8}
+              onClick={() => void submitSetPassword()}
+            >
+              {busy ? 'Saving…' : 'Set password'}
+            </Button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-background px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          {/* Send a self-serve recovery link */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Mail className="h-4 w-4 text-primary" />
+              Send a recovery link
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Lets the user set their own password. Emailed automatically when SMTP is configured; the link also appears below to share manually.
+            </p>
+            <Button variant="outline" className="w-full" disabled={busy} onClick={() => void sendRecovery()}>
+              {busy ? 'Generating…' : 'Generate recovery link'}
+            </Button>
+            {recoveryLink ? (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-2">
+                <code className="min-w-0 flex-1 truncate text-[11px]" title={recoveryLink}>
+                  {recoveryLink}
+                </code>
+                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => void copyRecoveryLink()}>
+                  {linkCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={() => setPwUser(null)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </>
   )
+}
+
+function generatePassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%'
+  const bytes = new Uint32Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (n) => chars[n % chars.length]).join('')
 }

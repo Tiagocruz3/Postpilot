@@ -4,13 +4,20 @@ import {
   ArrowLeft,
   CreditCard,
   Coins,
+  DollarSign,
   FileText,
+  LayoutDashboard,
   Package,
+  Power,
+  RefreshCw,
   Settings,
   Shield,
   Users,
+  UserCheck,
   Zap,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { AdminOverviewTab } from '@/pages/admin/tabs/AdminOverviewTab'
 import { AdminUsersTab } from '@/pages/admin/tabs/AdminUsersTab'
 import { AdminPlansTab } from '@/pages/admin/tabs/AdminPlansTab'
 import { AdminCreditsTab } from '@/pages/admin/tabs/AdminCreditsTab'
@@ -23,6 +30,7 @@ import type { AdminSubscriptionConfig, AdminUserRow } from '@/lib/admin/types'
 import { cn } from '@/lib/utils'
 
 const TABS = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'plans', label: 'Plans', icon: Package },
   { id: 'credits', label: 'Credits', icon: Coins },
@@ -35,7 +43,7 @@ const TABS = [
 export type AdminTabId = (typeof TABS)[number]['id']
 
 export function AdminPanelPage() {
-  const [tab, setTab] = useState<AdminTabId>('users')
+  const [tab, setTab] = useState<AdminTabId>('overview')
   const [users, setUsers] = useState<AdminUserRow[]>([])
   const [config, setConfig] = useState<AdminSubscriptionConfig | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,12 +66,14 @@ export function AdminPanelPage() {
     void reload()
   }, [])
 
-  const activeMembers = users.filter((u) => u.role === 'member' && u.subscription_status === 'active').length
-  const mrr = users.reduce((sum, u) => {
-    if (u.role === 'admin') return sum
+  const members = users.filter((u) => u.role === 'member')
+  const activeMembers = members.filter((u) => u.subscription_status === 'active').length
+  const suspendedMembers = members.filter((u) => u.suspended_at || u.subscription_status === 'suspended').length
+  const mrr = members.reduce((sum, u) => {
     const plan = config?.plans.find((p) => p.id === u.plan)
     return sum + (plan?.monthly_price ?? 0)
   }, 0)
+  const arpu = activeMembers > 0 ? Math.round(mrr / activeMembers) : 0
 
   return (
     <div className="min-h-full bg-muted/20">
@@ -85,6 +95,16 @@ export function AdminPanelPage() {
               <p className="text-sm text-muted-foreground">Subscription Management</p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void reload()}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+            Refresh
+          </Button>
         </div>
       </div>
 
@@ -117,16 +137,19 @@ export function AdminPanelPage() {
           ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Total users" value={String(users.length)} />
-            <MetricCard label="Active members" value={String(activeMembers)} />
-            <MetricCard label="Est. MRR" value={`$${mrr.toLocaleString()}`} />
-            <MetricCard label="Plans active" value={String(config?.plans.filter((p) => p.status === 'active').length ?? 0)} />
+            <MetricCard label="Total users" value={String(users.length)} icon={Users} />
+            <MetricCard label="Active members" value={String(activeMembers)} icon={UserCheck} hint={suspendedMembers > 0 ? `${suspendedMembers} suspended` : undefined} />
+            <MetricCard label="Est. MRR" value={`$${mrr.toLocaleString()}`} icon={DollarSign} hint={`$${arpu.toLocaleString()} ARPU`} />
+            <MetricCard label="Plans active" value={String(config?.plans.filter((p) => p.status === 'active').length ?? 0)} icon={Power} />
           </div>
 
           {loading || !config ? (
             <p className="text-sm text-muted-foreground">Loading subscription data…</p>
           ) : (
             <>
+              {tab === 'overview' ? (
+                <AdminOverviewTab users={users} plans={config.plans} onJumpToUsers={() => setTab('users')} />
+              ) : null}
               {tab === 'users' ? (
                 <AdminUsersTab users={users} plans={config.plans} onRefresh={reload} onMessage={setMessage} />
               ) : null}
@@ -154,11 +177,29 @@ export function AdminPanelPage() {
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  hint,
+}: {
+  label: string
+  value: string
+  icon?: typeof Users
+  hint?: string
+}) {
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        {Icon ? (
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
+      {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }

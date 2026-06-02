@@ -9,6 +9,10 @@ import { withCors } from '../_shared/cors.ts'
  *   - `create`: create a new auth user already email-confirmed, set their
  *               profile display name, role, and membership plan.
  *   - `delete`: delete the auth user (cascades through profile + related rows).
+ *   - `set_password`: directly set a new password for a user (admin override).
+ *   - `send_recovery`: generate a password-recovery link for a user and (when
+ *                      SMTP is configured) email it. The link is also returned
+ *                      so the admin can share it manually.
  *
  * Caller must be a platform admin (verified via `is_platform_admin` RPC). All
  * privileged auth + DB writes happen with the service-role key on the server.
@@ -29,7 +33,20 @@ type DeleteUserBody = {
   user_id: string
 }
 
-type Body = CreateUserBody | DeleteUserBody
+type SetPasswordBody = {
+  action: 'set_password'
+  user_id: string
+  password: string
+}
+
+type SendRecoveryBody = {
+  action: 'send_recovery'
+  user_id?: string
+  email?: string
+  redirect_to?: string
+}
+
+type Body = CreateUserBody | DeleteUserBody | SetPasswordBody | SendRecoveryBody
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -152,6 +169,52 @@ serve(
       })
 
       return jsonResponse({ status: 'deleted', user_id: userId })
+    }
+
+    if (body.action === 'set_password') {
+      const userId = body.user_id
+      const password = body.password
+      if (!userId) return jsonResponse({ error: 'user_id is required' }, 400)
+      if (!password || password.length < 8) {
+        return jsonResponse({ error: 'Password must be at least 8 characters' }, 400)
+      }
+
+      const { data: existingUser } = await admin.auth.admin.getUserById(userId)
+      const targetEmail = existingUser?.user?.email ?? null
+
+      const { error: updateError } = await admin.auth.admin.updateUserById(userId, { password })
+      if (updateError) return jsonResponse({ error: updateError.message }, 500)
+
+      await writeAudit(admin, caller.id, caller.email ?? 'unknown', 'set_password', userId, {
+        email: targetEmail,
+      })
+
+      return jsonResponse({ status: 'password_set', user_id: userId, email: targetEmail })
+    }
+
+    if (body.action === 'send_recovery') {
+      let email = body.email?.trim().toLowerCase() ?? null
+      if (!email && body.user_id) {
+        const { data: existingUser } = await admin.auth.admin.getUserById(body.user_id)
+        email = existingUser?.user?.email ?? null
+      }
+      if (!email) return jsonResponse({ error: 'A user email is required' }, 400)
+
+      const redirectTo = body.redirect_to || undefined
+      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: redirectTo ? { redirectTo } : undefined,
+      })
+      if (linkError) return jsonResponse({ error: linkError.message }, 500)
+
+      const actionLink = linkData?.properties?.action_link ?? null
+
+      await writeAudit(admin, caller.id, caller.email ?? 'unknown', 'send_recovery', body.user_id ?? email, {
+        email,
+      })
+
+      return jsonResponse({ status: 'recovery_sent', email, action_link: actionLink })
     }
 
     return jsonResponse({ error: 'Unknown action' }, 400)
