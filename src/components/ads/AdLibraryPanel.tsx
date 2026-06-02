@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, Calendar, ExternalLink, Image as ImageIcon, Loader2, RefreshCcw, Search, Trash2, Video } from 'lucide-react'
+import { Archive, Calendar, ExternalLink, Image as ImageIcon, Loader2, Play, RefreshCcw, Search, Trash2, Video } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
   type AdCreative,
   type AdCreativeStatus,
 } from '@/lib/ads-creatives'
+import { setMetaAdStatus } from '@/lib/ads-publish'
 import { cn } from '@/lib/utils'
 
 const AD_LIBRARY_PAGE_SIZE = 12
@@ -32,17 +33,22 @@ const STATUS_FILTERS: Array<{ value: AdCreativeStatus | 'all'; label: string }> 
 const STATUS_BADGE_CLASS: Record<AdCreativeStatus, string> = {
   ai_draft: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
   draft: 'border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300',
-  published: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  published: 'border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300',
   paused: 'border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300',
   completed: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
   archived: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300',
+}
+
+// "Published" in the DB means created on Meta as paused — not yet spending.
+// Override the label so users aren't misled into thinking the ad is live.
+const STATUS_CARD_LABEL: Partial<Record<AdCreativeStatus, string>> = {
+  published: 'Paused on Meta',
 }
 
 type AdLibraryPanelProps = {
   workspaceId: string | null
   businessName: string
   facebookPageId?: string | null
-  /** Bump this number to force a re-fetch (e.g. after a legacy backfill). */
   refreshToken?: number
   onOpenInStudio?: (creative: AdCreative) => void
 }
@@ -144,6 +150,26 @@ export function AdLibraryPanel({
     }
   }
 
+  const handleActivate = async (creative: AdCreative) => {
+    if (!workspaceId || !creative.meta_ad_id) return
+    setError(null)
+    try {
+      const result = await setMetaAdStatus({
+        workspaceId,
+        creativeId: creative.id,
+        metaAdId: creative.meta_ad_id,
+        status: 'ACTIVE',
+      })
+      if (!result.ok) {
+        setError(result.error ?? 'Failed to activate ad on Meta.')
+        return
+      }
+      void refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to activate ad')
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -226,6 +252,11 @@ export function AdLibraryPanel({
                   onStatusChange={(next) => void handleStatusChange(creative, next)}
                   onOpen={onOpenInStudio ? () => onOpenInStudio(creative) : undefined}
                   onOpenDetail={() => navigate(`/app/ads/library/${creative.id}`)}
+                  onActivate={
+                    (creative.status === 'published' || creative.status === 'paused') && creative.meta_ad_id
+                      ? () => void handleActivate(creative)
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -260,6 +291,7 @@ function AdLibraryCard({
   onStatusChange,
   onOpen,
   onOpenDetail,
+  onActivate,
 }: {
   creative: AdCreative
   onArchive: () => void
@@ -267,8 +299,19 @@ function AdLibraryCard({
   onStatusChange: (next: AdCreativeStatus) => void
   onOpen?: () => void
   onOpenDetail?: () => void
+  onActivate?: () => void
 }) {
+  const [activating, setActivating] = useState(false)
+
+  const handleActivate = async () => {
+    if (!onActivate) return
+    setActivating(true)
+    await onActivate()
+    setActivating(false)
+  }
+
   const isVideo = creative.media_type === 'video'
+  const cardStatusLabel = STATUS_CARD_LABEL[creative.status] ?? AD_CREATIVE_STATUS_LABELS[creative.status]
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
@@ -287,7 +330,7 @@ function AdLibraryCard({
           variant="outline"
           className={cn('absolute left-2 top-2 bg-background/85 backdrop-blur', STATUS_BADGE_CLASS[creative.status])}
         >
-          {AD_CREATIVE_STATUS_LABELS[creative.status]}
+          {cardStatusLabel}
         </Badge>
         {isVideo ? (
           <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
@@ -312,6 +355,21 @@ function AdLibraryCard({
         ) : null}
 
         <div className="mt-auto space-y-2 pt-1">
+          {onActivate ? (
+            <Button
+              size="sm"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => void handleActivate()}
+              disabled={activating}
+            >
+              {activating ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {activating ? 'Activating…' : 'Activate on Meta'}
+            </Button>
+          ) : null}
           <div className="flex items-center gap-1.5">
             {onOpenDetail ? (
               <Button size="sm" variant="default" className="flex-1" onClick={onOpenDetail}>
