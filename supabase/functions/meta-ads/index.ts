@@ -310,16 +310,14 @@ const OBJECTIVE_MAP: Record<string, string> = {
   'get leads': 'OUTCOME_LEADS',
   'send traffic to website': 'OUTCOME_TRAFFIC',
   'get messages': 'OUTCOME_ENGAGEMENT',
-  // "Increase sales" is published as a TRAFFIC objective, not OUTCOME_SALES.
-  // A sales (conversions) campaign requires a conversion-tracking source — a
-  // Meta Pixel + custom_event_type set on the ad set's `promoted_object`. We
-  // have no pixel infrastructure, so an OUTCOME_SALES campaign makes Meta reject
-  // ad creation with code 100, subcode 1487888 ("no conversion tracking source
-  // configured"), even when the ad set optimizes for link clicks. Running the
-  // ad as TRAFFIC drives clicks to the destination URL and needs no pixel.
-  // Once pixel support exists, switch this back to OUTCOME_SALES + a
-  // promoted_object and drop SALES_NO_PIXEL_WARNING.
-  'increase sales': 'OUTCOME_TRAFFIC',
+  // "Increase sales" maps to OUTCOME_SALES, but a sales (conversions) campaign
+  // requires a conversion-tracking source — a Meta Pixel + custom_event_type on
+  // the ad set's `promoted_object`. At publish time we detect whether the ad
+  // account has a pixel: if it does, we run a real OUTCOME_SALES conversions
+  // campaign; if not, we transparently downgrade to OUTCOME_TRAFFIC so ad
+  // creation never fails with code 100, subcode 1487888. See
+  // resolveSalesObjective() in publishAdFromCreative.
+  'increase sales': 'OUTCOME_SALES',
   'boost engagement': 'OUTCOME_ENGAGEMENT',
   'build awareness': 'OUTCOME_AWARENESS',
 }
@@ -328,18 +326,48 @@ const OPTIMIZATION_FOR_OBJECTIVE: Record<string, string> = {
   OUTCOME_LEADS: 'LEAD_GENERATION',
   OUTCOME_TRAFFIC: 'LINK_CLICKS',
   OUTCOME_ENGAGEMENT: 'POST_ENGAGEMENT',
-  // Kept for safety if an OUTCOME_SALES objective ever reaches here (e.g. a
-  // legacy stored campaign): optimize for link clicks, never OFFSITE_CONVERSIONS,
-  // which would require a pixel-backed promoted_object.
-  OUTCOME_SALES: 'LINK_CLICKS',
+  // OUTCOME_SALES is only ever used when a pixel was found (see
+  // resolveSalesObjective); a conversions campaign optimizes for the pixel event.
+  OUTCOME_SALES: 'OFFSITE_CONVERSIONS',
   OUTCOME_AWARENESS: 'REACH',
 }
 
-// Shown when a "sales" goal is published. It runs as a TRAFFIC objective (see
-// OBJECTIVE_MAP) because no Meta Pixel / conversion source is connected. Once
-// pixel support exists, switch to OUTCOME_SALES + a promoted_object and drop this.
+// Shown when a "sales" goal is published but the ad account has no Meta Pixel,
+// so the ad runs as a traffic campaign instead of a true conversions campaign.
 const SALES_NO_PIXEL_WARNING =
-  'This sales ad runs as a traffic campaign sending clicks to your destination link, because no Meta Pixel / conversion source is connected. Add a pixel in Meta Ads Manager to optimize for purchases.'
+  'This sales ad runs as a traffic campaign sending clicks to your destination link, because this ad account has no Meta Pixel connected. Add a pixel in Meta Ads Manager to optimize for purchases.'
+
+// Look up the first Meta Pixel on an ad account. Returns the pixel id or null
+// when the account has none (or the lookup fails). Used to decide whether a
+// sales goal can run as a real conversions campaign.
+async function fetchAdAccountPixel(apiBase: string, accountId: string, token: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${apiBase}/act_${accountId}/adspixels?fields=id,name&limit=1&access_token=${encodeURIComponent(token)}`,
+    )
+    const json = (await res.json().catch(() => ({}))) as { data?: Array<{ id?: string }>; error?: unknown }
+    if (!res.ok) {
+      console.warn('[meta-ads] adspixels lookup failed', json)
+      return null
+    }
+    return json.data?.[0]?.id ?? null
+  } catch (err) {
+    console.warn('[meta-ads] fetchAdAccountPixel error', err)
+    return null
+  }
+}
+
+// Extract the bare domain from a destination URL for the ad's conversion_domain
+// (required by Meta when an ad set optimizes for conversions). Returns null if
+// the URL can't be parsed.
+function deriveConversionDomain(url: string | null | undefined): string | null {
+  if (!url) return null
+  try {
+    return new URL(String(url)).hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
 
 const CTA_MAP: Record<string, string> = {
   'learn more': 'LEARN_MORE',
@@ -491,10 +519,23 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
 
   // 2. Campaign
   let campaignId = (c.meta_campaign_id as string | null) || null
-  const objective = mapGoalToObjective(c.goal as string | null)
-  // Warn when the user picked a sales goal: it publishes as TRAFFIC since we
-  // have no pixel/conversion source. Check the goal, not the mapped objective.
-  if (String(c.goal ?? '').toLowerCase() === 'increase sales') warnings.push(SALES_NO_PIXEL_WARNING)
+  let objective = mapGoalToObjective(c.goal as string | null)
+
+  // A sales (conversions) campaign requires both a pixel-backed promoted_object
+  // and a conversion_domain on the ad. If the ad account has a pixel AND the
+  // destination URL yields a domain, we run a real OUTCOME_SALES campaign
+  // optimizing for purchases. Otherwise we downgrade to OUTCOME_TRAFFIC so ad
+  // creation never fails with code 100, subcode 1487888, and warn the user.
+  let salesPixelId: string | null = null
+  const conversionDomain = deriveConversionDomain(c.destination_url as string | null)
+  if (objective === 'OUTCOME_SALES') {
+    salesPixelId = conversionDomain ? await fetchAdAccountPixel(apiBase, accountId, token) : null
+    if (!salesPixelId) {
+      objective = 'OUTCOME_TRAFFIC'
+      warnings.push(SALES_NO_PIXEL_WARNING)
+    }
+  }
+  const isConversionAd = objective === 'OUTCOME_SALES' && Boolean(salesPixelId)
   if (!campaignId) {
     const campRes = await fetch(`${apiBase}/act_${accountId}/campaigns`, {
       method: 'POST',
@@ -535,6 +576,10 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
       targeting,
       status: 'PAUSED',
       access_token: token,
+    }
+    // Conversions campaigns must declare the pixel + event they optimize for.
+    if (isConversionAd && salesPixelId) {
+      adsetPayload.promoted_object = { pixel_id: salesPixelId, custom_event_type: 'PURCHASE' }
     }
     if (useLifetime) {
       adsetPayload.lifetime_budget = lifetimeBudgetCents
@@ -587,17 +632,23 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   }
 
   // 5. Ad
+  const adPayload: Record<string, unknown> = {
+    name: c.campaign_name || c.headline || 'Postpilot ad',
+    adset_id: adsetId,
+    creative: { creative_id: creativeJson.id },
+    status: 'PAUSED',
+    // Same identity as the creative it references, to avoid visibility gaps.
+    access_token: creativeToken,
+  }
+  // Conversions ads must declare the domain where the pixel fires. We only reach
+  // isConversionAd when conversionDomain is non-null (see resolve logic above).
+  if (isConversionAd && conversionDomain) {
+    adPayload.conversion_domain = conversionDomain
+  }
   const adRes = await fetch(`${apiBase}/act_${accountId}/ads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: c.campaign_name || c.headline || 'Postpilot ad',
-      adset_id: adsetId,
-      creative: { creative_id: creativeJson.id },
-      status: 'PAUSED',
-      // Same identity as the creative it references, to avoid visibility gaps.
-      access_token: creativeToken,
-    }),
+    body: JSON.stringify(adPayload),
   })
   const adJson = (await adRes.json().catch(() => ({}))) as { id?: string; error?: unknown }
   if (!adRes.ok || !adJson.id) {
