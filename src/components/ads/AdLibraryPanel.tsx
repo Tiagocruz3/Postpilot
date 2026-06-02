@@ -49,6 +49,7 @@ type AdLibraryPanelProps = {
   workspaceId: string | null
   businessName: string
   facebookPageId?: string | null
+  metaAccountId?: string | null
   refreshToken?: number
   onOpenInStudio?: (creative: AdCreative) => void
 }
@@ -56,6 +57,7 @@ type AdLibraryPanelProps = {
 export function AdLibraryPanel({
   workspaceId,
   facebookPageId = null,
+  metaAccountId = null,
   refreshToken = 0,
   onOpenInStudio,
 }: AdLibraryPanelProps) {
@@ -247,6 +249,7 @@ export function AdLibraryPanel({
                 <AdLibraryCard
                   key={creative.id}
                   creative={creative}
+                  metaAccountId={metaAccountId}
                   onArchive={() => void handleArchive(creative)}
                   onDelete={() => void handleDelete(creative)}
                   onStatusChange={(next) => void handleStatusChange(creative, next)}
@@ -286,6 +289,7 @@ function EmptyState({ message }: { message: string }) {
 
 function AdLibraryCard({
   creative,
+  metaAccountId,
   onArchive,
   onDelete,
   onStatusChange,
@@ -294,6 +298,7 @@ function AdLibraryCard({
   onActivate,
 }: {
   creative: AdCreative
+  metaAccountId?: string | null
   onArchive: () => void
   onDelete: () => void
   onStatusChange: (next: AdCreativeStatus) => void
@@ -301,6 +306,16 @@ function AdLibraryCard({
   onOpenDetail?: () => void
   onActivate?: () => void
 }) {
+  const adsManagerUrl = useMemo(() => {
+    if (!creative.meta_campaign_id) return null
+    const act = metaAccountId ? metaAccountId.replace(/^act_/, '') : null
+    const base = 'https://adsmanager.facebook.com/adsmanager/manage/ads'
+    const params = new URLSearchParams()
+    if (act) params.set('act', act)
+    if (creative.meta_ad_id) params.set('selected_ad_ids', creative.meta_ad_id)
+    else params.set('selected_campaign_ids', creative.meta_campaign_id)
+    return `${base}?${params.toString()}`
+  }, [creative.meta_campaign_id, creative.meta_ad_id, metaAccountId])
   const [activating, setActivating] = useState(false)
 
   const handleActivate = async () => {
@@ -385,6 +400,17 @@ function AdLibraryCard({
           </div>
           <div className="flex items-center gap-1.5">
             <StatusMenu current={creative.status} onChange={onStatusChange} />
+            {adsManagerUrl ? (
+              <a
+                href={adsManagerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open in Ads Manager"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent"
+              >
+                <ExternalLink className="h-4 w-4 text-[#1877F2]" />
+              </a>
+            ) : null}
             <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onArchive} title="Archive">
               <Archive className="h-4 w-4" />
             </Button>

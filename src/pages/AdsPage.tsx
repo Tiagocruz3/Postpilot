@@ -2268,6 +2268,7 @@ export function AdsPage() {
             workspaceId={currentWorkspaceId}
             businessName={selectedFacebookPageName}
             facebookPageId={profile.metaConnection.facebookPageId || null}
+            metaAccountId={profile.metaConnection.adAccountId ? `act_${profile.metaConnection.adAccountId.replace(/^act_/, '')}` : null}
             refreshToken={libraryRefreshToken}
             onOpenInStudio={(creative) => {
               setActiveTab('studio')
