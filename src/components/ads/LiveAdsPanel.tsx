@@ -33,21 +33,51 @@ type Campaign = {
 }
 
 const OBJECTIVE_LABELS: Record<string, string> = {
+  // Current ODAX objectives
   OUTCOME_TRAFFIC: 'Traffic',
   OUTCOME_AWARENESS: 'Awareness',
   OUTCOME_ENGAGEMENT: 'Engagement',
   OUTCOME_LEADS: 'Leads',
   OUTCOME_SALES: 'Sales',
   OUTCOME_APP_PROMOTION: 'App promotion',
+  // Legacy objectives (pre-ODAX migration)
+  CONVERSIONS: 'Conversions',
+  LINK_CLICKS: 'Traffic',
+  REACH: 'Reach',
+  BRAND_AWARENESS: 'Awareness',
+  PAGE_LIKES: 'Page likes',
+  APP_INSTALLS: 'App installs',
+  VIDEO_VIEWS: 'Video views',
+  LEAD_GENERATION: 'Leads',
+  MESSAGES: 'Messages',
+  POST_ENGAGEMENT: 'Engagement',
+  EVENT_RESPONSES: 'Event responses',
+  LOCAL_AWARENESS: 'Local awareness',
+  STORE_VISITS: 'Store visits',
 }
 
 const OBJECTIVE_BADGE: Record<string, string> = {
+  // Current ODAX objectives
   OUTCOME_TRAFFIC: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
   OUTCOME_AWARENESS: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
   OUTCOME_ENGAGEMENT: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
   OUTCOME_LEADS: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
   OUTCOME_SALES: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
   OUTCOME_APP_PROMOTION: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
+  // Legacy objectives — reuse closest modern colour
+  CONVERSIONS: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  LINK_CLICKS: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  REACH: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  BRAND_AWARENESS: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  PAGE_LIKES: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  APP_INSTALLS: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
+  VIDEO_VIEWS: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
+  LEAD_GENERATION: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  MESSAGES: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  POST_ENGAGEMENT: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  EVENT_RESPONSES: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  LOCAL_AWARENESS: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  STORE_VISITS: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
 }
 
 const STATUS_PILL: Record<string, string> = {
@@ -115,7 +145,7 @@ export function LiveAdsPanel({ workspaceId, metaAccountId }: LiveAdsPanelProps) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [objectiveFilter, setObjectiveFilter] = useState(ALL)
-  const [datePreset, setDatePreset] = useState('last_30d')
+  const [datePreset, setDatePreset] = useState('maximum')
   const [showPast, setShowPast] = useState(false)
 
   const accountIdClean = metaAccountId?.replace(/^act_/, '') ?? null
