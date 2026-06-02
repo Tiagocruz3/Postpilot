@@ -307,39 +307,52 @@ serve(withCors(async (req) => {
 // --- Publish helpers ---------------------------------------------------------
 
 const OBJECTIVE_MAP: Record<string, string> = {
+  // "Get leads" and "increase sales" are conversion objectives: they require a
+  // conversion-tracking source — a Meta Pixel + custom_event_type on the ad
+  // set's `promoted_object`. At publish time we detect whether the ad account
+  // has a pixel: if it does, we run a real conversions campaign optimizing for
+  // the matching event (LEAD / PURCHASE); if not, we transparently downgrade to
+  // OUTCOME_TRAFFIC so ad creation never fails with code 100 (subcode 1885154
+  // for leads / 1487888 for sales). See the conversion resolution in
+  // publishAdFromCreative.
   'get leads': 'OUTCOME_LEADS',
   'send traffic to website': 'OUTCOME_TRAFFIC',
   'get messages': 'OUTCOME_ENGAGEMENT',
-  // "Increase sales" maps to OUTCOME_SALES, but a sales (conversions) campaign
-  // requires a conversion-tracking source — a Meta Pixel + custom_event_type on
-  // the ad set's `promoted_object`. At publish time we detect whether the ad
-  // account has a pixel: if it does, we run a real OUTCOME_SALES conversions
-  // campaign; if not, we transparently downgrade to OUTCOME_TRAFFIC so ad
-  // creation never fails with code 100, subcode 1487888. See
-  // resolveSalesObjective() in publishAdFromCreative.
   'increase sales': 'OUTCOME_SALES',
   'boost engagement': 'OUTCOME_ENGAGEMENT',
   'build awareness': 'OUTCOME_AWARENESS',
 }
 
 const OPTIMIZATION_FOR_OBJECTIVE: Record<string, string> = {
-  OUTCOME_LEADS: 'LEAD_GENERATION',
   OUTCOME_TRAFFIC: 'LINK_CLICKS',
   OUTCOME_ENGAGEMENT: 'POST_ENGAGEMENT',
-  // OUTCOME_SALES is only ever used when a pixel was found (see
-  // resolveSalesObjective); a conversions campaign optimizes for the pixel event.
+  // OUTCOME_SALES and OUTCOME_LEADS are only kept when a pixel was found (see the
+  // conversion resolution at publish time); they optimize for the pixel event.
   OUTCOME_SALES: 'OFFSITE_CONVERSIONS',
+  OUTCOME_LEADS: 'OFFSITE_CONVERSIONS',
   OUTCOME_AWARENESS: 'REACH',
+}
+
+// Conversion objectives need a pixel-backed promoted_object + conversion_domain.
+// The Meta standard event we optimize each one for.
+const CONVERSION_EVENT_FOR_OBJECTIVE: Record<string, string> = {
+  OUTCOME_SALES: 'PURCHASE',
+  OUTCOME_LEADS: 'LEAD',
 }
 
 // Objectives whose ad set must declare a Page as the object being promoted.
 // Meta rejects these with code 100, subcode 1885154 if no promoted_object is set.
-const PAGE_PROMOTED_OBJECTIVES = new Set(['OUTCOME_ENGAGEMENT', 'OUTCOME_LEADS'])
+const PAGE_PROMOTED_OBJECTIVES = new Set(['OUTCOME_ENGAGEMENT'])
 
 // Shown when a "sales" goal is published but the ad account has no Meta Pixel,
 // so the ad runs as a traffic campaign instead of a true conversions campaign.
 const SALES_NO_PIXEL_WARNING =
   'This sales ad runs as a traffic campaign sending clicks to your destination link, because this ad account has no Meta Pixel connected. Add a pixel in Meta Ads Manager to optimize for purchases.'
+
+// Shown when a "leads" goal is published but the ad account has no Meta Pixel,
+// so the ad runs as a traffic campaign instead of a true conversions campaign.
+const LEADS_NO_PIXEL_WARNING =
+  'This leads ad runs as a traffic campaign sending clicks to your destination link, because this ad account has no Meta Pixel connected. Add a pixel in Meta Ads Manager to optimize for leads.'
 
 // Look up the first Meta Pixel on an ad account. Returns the pixel id or null
 // when the account has none (or the lookup fails). Used to decide whether a
@@ -525,21 +538,25 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   let campaignId = (c.meta_campaign_id as string | null) || null
   let objective = mapGoalToObjective(c.goal as string | null)
 
-  // A sales (conversions) campaign requires both a pixel-backed promoted_object
-  // and a conversion_domain on the ad. If the ad account has a pixel AND the
-  // destination URL yields a domain, we run a real OUTCOME_SALES campaign
-  // optimizing for purchases. Otherwise we downgrade to OUTCOME_TRAFFIC so ad
-  // creation never fails with code 100, subcode 1487888, and warn the user.
-  let salesPixelId: string | null = null
+  // Sales and leads are conversion campaigns: they require both a pixel-backed
+  // promoted_object and a conversion_domain on the ad. If the ad account has a
+  // pixel AND the destination URL yields a domain, we run a real conversions
+  // campaign optimizing for the matching event (PURCHASE / LEAD). Otherwise we
+  // downgrade to OUTCOME_TRAFFIC so ad creation never fails with code 100
+  // (subcode 1487888 for sales / 1885154 for leads), and warn the user.
+  let conversionPixelId: string | null = null
+  let conversionEvent: string | null = null
   const conversionDomain = deriveConversionDomain(c.destination_url as string | null)
-  if (objective === 'OUTCOME_SALES') {
-    salesPixelId = conversionDomain ? await fetchAdAccountPixel(apiBase, accountId, token) : null
-    if (!salesPixelId) {
+  if (objective === 'OUTCOME_SALES' || objective === 'OUTCOME_LEADS') {
+    conversionPixelId = conversionDomain ? await fetchAdAccountPixel(apiBase, accountId, token) : null
+    if (conversionPixelId) {
+      conversionEvent = CONVERSION_EVENT_FOR_OBJECTIVE[objective] ?? null
+    } else {
+      warnings.push(objective === 'OUTCOME_SALES' ? SALES_NO_PIXEL_WARNING : LEADS_NO_PIXEL_WARNING)
       objective = 'OUTCOME_TRAFFIC'
-      warnings.push(SALES_NO_PIXEL_WARNING)
     }
   }
-  const isConversionAd = objective === 'OUTCOME_SALES' && Boolean(salesPixelId)
+  const isConversionAd = Boolean(conversionPixelId) && Boolean(conversionEvent)
   if (!campaignId) {
     const campRes = await fetch(`${apiBase}/act_${accountId}/campaigns`, {
       method: 'POST',
@@ -582,8 +599,8 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
       access_token: token,
     }
     // Conversions campaigns must declare the pixel + event they optimize for.
-    if (isConversionAd && salesPixelId) {
-      adsetPayload.promoted_object = { pixel_id: salesPixelId, custom_event_type: 'PURCHASE' }
+    if (isConversionAd && conversionPixelId && conversionEvent) {
+      adsetPayload.promoted_object = { pixel_id: conversionPixelId, custom_event_type: conversionEvent }
     } else if (PAGE_PROMOTED_OBJECTIVES.has(objective) && pageId) {
       // Engagement and lead objectives must promote a Page object, otherwise
       // Meta rejects the ad set with code 100, subcode 1885154 ("must include
