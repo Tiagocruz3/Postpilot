@@ -112,18 +112,18 @@ export function LoginPage() {
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+      <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-primary via-blue-500 to-blue-700 px-6 py-12">
         {/* Mobile logo */}
         <Link to="/" className="mb-8 flex items-center lg:hidden">
-          <AppLogo variant="full" imgClassName="h-11" />
+          <AppLogo variant="full" imgClassName="h-11 brightness-0 invert" />
         </Link>
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign in to Ad Guru</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Sign in to Ad Guru</h1>
+            <p className="mt-1.5 text-sm text-white/70">
               Don't have an account?{' '}
-              <Link to="/signup" className="font-medium text-primary hover:underline">
+              <Link to="/signup" className="font-medium text-white underline hover:text-white/90">
                 Start free
               </Link>
             </p>
@@ -133,7 +133,7 @@ export function LoginPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full gap-2.5 border-border/70 bg-background font-medium shadow-sm hover:bg-accent"
+            className="w-full gap-2.5 border-white/30 bg-white/15 font-medium text-white shadow-sm backdrop-blur hover:bg-white/25 hover:text-white"
             onClick={handleGoogleLogin}
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -147,17 +147,17 @@ export function LoginPage() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border/60" />
+              <span className="w-full border-t border-white/25" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-background px-3 text-muted-foreground">or continue with email</span>
+              <span className="bg-transparent px-3 text-white/60">or continue with email</span>
             </div>
           </div>
 
           {/* Email form */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <Label htmlFor="email" className="text-sm font-medium text-white/90">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -166,16 +166,16 @@ export function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-11"
+                className="h-11 border-white/30 bg-white/15 text-white placeholder:text-white/40 backdrop-blur focus:border-white/60 focus:ring-white/30"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium text-white/90">Password</Label>
                 <button
                   type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+                  className="text-xs text-white/60 hover:text-white disabled:opacity-60"
                   disabled={resetting}
                   onClick={() => void handleForgotPassword()}
                 >
@@ -190,11 +190,11 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 pr-10"
+                  className="h-11 border-white/30 bg-white/15 pr-10 text-white placeholder:text-white/40 backdrop-blur focus:border-white/60 focus:ring-white/30"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
@@ -204,13 +204,13 @@ export function LoginPage() {
             </div>
 
             {error && (
-              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p className="rounded-lg border border-red-300/40 bg-red-500/20 px-3 py-2 text-sm text-white">
                 {error}
               </p>
             )}
 
             {notice && (
-              <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
+              <p className="rounded-lg border border-emerald-300/40 bg-emerald-500/20 px-3 py-2 text-sm text-white">
                 {notice}
               </p>
             )}
@@ -218,17 +218,17 @@ export function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="h-11 w-full bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-sm font-semibold text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35"
+              className="h-11 w-full bg-white text-sm font-semibold text-primary shadow-md hover:bg-white/90"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-center text-xs text-white/50">
             By signing in you agree to our{' '}
-            <Link to="/terms" className="underline hover:text-foreground">Terms</Link>
+            <Link to="/terms" className="text-white/70 underline hover:text-white">Terms</Link>
             {' '}and{' '}
-            <Link to="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
+            <Link to="/privacy" className="text-white/70 underline hover:text-white">Privacy Policy</Link>.
           </p>
         </div>
       </div>
