@@ -94,14 +94,13 @@ export function LandingPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              className="hidden sm:inline-flex"
               onClick={() => navigate(profile ? '/app' : '/login')}
             >
               {profile ? 'Dashboard' : 'Login'}
             </Button>
             <Button
               onClick={() => navigate(primaryCtaHref)}
-              className="bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40"
+              className="hidden bg-gradient-to-r from-primary via-blue-500 to-blue-600 text-white shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40 sm:inline-flex"
             >
               {primaryCtaLabel}
               <ArrowRight className="ml-1.5 h-4 w-4" />
