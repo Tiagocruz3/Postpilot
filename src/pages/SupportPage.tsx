@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AppLogo } from '@/components/AppLogo'
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -70,14 +71,8 @@ export function SupportPage() {
       {/* Sticky nav */}
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
-              P
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight">Ad Guru</div>
-              <div className="text-[11px] text-muted-foreground">AI social command center</div>
-            </div>
+          <Link to="/" className="flex items-center">
+            <AppLogo variant="full" imgClassName="h-8" />
           </Link>
           <Link
             to="/"

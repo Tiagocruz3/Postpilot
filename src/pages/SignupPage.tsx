@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, CheckCircle2, Sparkles, CalendarDays, BarChart3, Megaphone } from 'lucide-react'
+import { AppLogo } from '@/components/AppLogo'
 
 const BENEFITS = [
   { icon: Sparkles, text: 'AI-written posts in seconds' },
@@ -58,14 +59,7 @@ export function SignupPage() {
 
         <div className="relative flex h-full flex-col p-10">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-sm font-bold text-white shadow-lg backdrop-blur">
-              A
-              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white/30 bg-emerald-400" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold text-white">Ad Guru</div>
-              <div className="text-[11px] text-white/70">AI social command center</div>
-            </div>
+            <AppLogo variant="full" imgClassName="h-9 brightness-0 invert" />
           </Link>
 
           <div className="mt-auto pb-4">

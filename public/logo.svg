@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" fill="none">
+  <!-- Brand mark: speech bubble + ascending bars + growth arrow -->
+  <g>
+    <path fill="#2680EB" d="M9 2h22a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H19l-7.2 6.1A.85.85 0 0 1 10 41.3V36H9a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6Z"/>
+    <rect x="11" y="20.5" width="4.2" height="8" rx="1.1" fill="#fff"/>
+    <rect x="17.8" y="15.5" width="4.2" height="13" rx="1.1" fill="#fff"/>
+    <rect x="24.6" y="10" width="4.2" height="18.5" rx="1.1" fill="#fff"/>
+    <path stroke="#0F1E3D" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" d="M10.2 26.5 19 19l5 3.8L33.5 13"/>
+    <path fill="#0F1E3D" d="M34.8 11.9l-7-.9a.85.85 0 0 0-.84 1.18l2.75 6.5a.85.85 0 0 0 1.5.08l4.26-7.2a.85.85 0 0 0-.67-1.34Z"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="46" y="26" font-family="'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#0F1E3D" letter-spacing="-0.4">Ad</text>
+  <text x="76" y="26" font-family="'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#2680EB" letter-spacing="-0.4">Guru</text>
+  <text x="46" y="39" font-family="'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif" font-size="8" font-weight="600" fill="#627D98" letter-spacing="0.5">SMARTER ADS. BETTER RESULTS.</text>
+</svg>

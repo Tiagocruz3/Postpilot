@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, Sparkles, CalendarDays, BarChart3, Megaphone } from 'lucide-react'
+import { AppLogo } from '@/components/AppLogo'
 
 const BENEFITS = [
   { icon: Sparkles, text: 'AI-written posts in seconds' },
@@ -72,14 +73,7 @@ export function LoginPage() {
         <div className="relative flex h-full flex-col p-10">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-sm font-bold text-white shadow-lg backdrop-blur">
-              A
-              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white/30 bg-emerald-400" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold text-white">Ad Guru</div>
-              <div className="text-[11px] text-white/70">AI social command center</div>
-            </div>
+            <AppLogo variant="full" imgClassName="h-9 brightness-0 invert" />
           </Link>
 
           {/* Main copy */}
@@ -120,11 +114,8 @@ export function LoginPage() {
       {/* ── Right form panel ── */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         {/* Mobile logo */}
-        <Link to="/" className="mb-8 flex items-center gap-2 lg:hidden">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
-            A
-          </div>
-          <span className="text-sm font-semibold">Ad Guru</span>
+        <Link to="/" className="mb-8 flex items-center lg:hidden">
+          <AppLogo variant="full" imgClassName="h-9" />
         </Link>
 
         <div className="w-full max-w-sm">

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CheckCircle, Eye, EyeOff, KeyRound, ShieldCheck } from 'lucide-react'
+import { AppLogo } from '@/components/AppLogo'
 
 /**
  * Landing page for the password-recovery email link. Supabase (with
@@ -73,11 +74,8 @@ export function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-sm">
-        <Link to="/" className="mb-8 flex items-center justify-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
-            A
-          </div>
-          <span className="text-sm font-semibold">Ad Guru</span>
+        <Link to="/" className="mb-8 flex items-center justify-center">
+          <AppLogo variant="full" imgClassName="h-9" />
         </Link>
 
         {done ? (

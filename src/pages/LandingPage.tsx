@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { AppLogo } from '@/components/AppLogo'
 
 type NavItem = { label: string; href: string }
 
@@ -57,15 +58,8 @@ export function LandingPage() {
       {/* Sticky nav */}
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
-              P
-              <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight">Ad Guru</div>
-              <div className="text-[11px] text-muted-foreground">AI social command center</div>
-            </div>
+          <Link to="/" className="flex items-center">
+            <AppLogo variant="full" imgClassName="h-9" />
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
@@ -1012,14 +1006,9 @@ export function LandingPage() {
       <footer className="bg-gradient-to-b from-background to-muted/30">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-blue-500 to-blue-600 text-sm font-bold text-white shadow-md shadow-primary/30">
-                P
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Ad Guru</p>
-                <p className="text-xs text-muted-foreground">Your AI-powered social media command center.</p>
-              </div>
+            <div className="flex flex-col gap-2">
+              <AppLogo variant="full" imgClassName="h-9 self-start" />
+              <p className="text-xs text-muted-foreground">Your AI-powered social media command center.</p>
             </div>
             <p className="mt-4 max-w-xl text-sm text-muted-foreground">
               Create posts, generate images and videos, schedule content, launch ads, collect leads, and track

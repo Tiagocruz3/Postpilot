@@ -18,6 +18,7 @@ import {
   History,
 } from 'lucide-react'
 import { AccountMenu } from '@/components/account/AccountMenu'
+import { AppLogo } from '@/components/AppLogo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -201,15 +202,11 @@ export function Layout() {
             sidebarOpen ? 'items-center gap-2 px-4' : 'flex-col items-center gap-3 px-2'
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-base font-bold text-primary-foreground shadow-sm">
-            A
-          </div>
           {sidebarOpen ? (
-            <div className="min-w-0 flex-1 overflow-hidden whitespace-nowrap">
-              <span className="block truncate text-sm font-semibold tracking-tight text-foreground">Ad Guru</span>
-              <span className="block truncate text-[11px] text-muted-foreground">Social + ads workspace</span>
-            </div>
-          ) : null}
+            <AppLogo variant="full" imgClassName="h-8" />
+          ) : (
+            <AppLogo variant="icon" className="h-9 w-9 rounded-xl bg-primary p-1.5 shadow-sm" />
+          )}
           <button
             type="button"
             onClick={() => setSidebarOpen((current) => !current)}
