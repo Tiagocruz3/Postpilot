@@ -70,6 +70,7 @@ export function AdLibraryPanel({
   const [status, setStatus] = useState<AdCreativeStatus | 'all'>('all')
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
+  const [reusingId, setReusingId] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return
@@ -157,14 +158,19 @@ export function AdLibraryPanel({
   // the user edits + publishes a brand-new ad in the studio instead of mutating
   // the original published ad. The new draft is what we open in the studio.
   const handleReuse = async (creative: AdCreative) => {
-    if (!onOpenInStudio) return
+    if (!onOpenInStudio || reusingId) return
     setError(null)
+    setReusingId(creative.id)
     try {
       const copy = await duplicateAdCreative(creative)
-      void refresh()
+      // Switch to studio BEFORE refreshing the library — refresh fires async after
+      // the tab-switch so there's no chance of stale state landing mid-render.
       onOpenInStudio(copy)
+      void refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reuse ad')
+    } finally {
+      setReusingId(null)
     }
   }
 
@@ -270,6 +276,7 @@ export function AdLibraryPanel({
                   onDelete={() => void handleDelete(creative)}
                   onStatusChange={(next) => void handleStatusChange(creative, next)}
                   onOpen={onOpenInStudio ? () => void handleReuse(creative) : undefined}
+                  reusing={reusingId === creative.id}
                   onOpenDetail={() => navigate(`/app/ads/library/${creative.id}`)}
                   onActivate={
                     (creative.status === 'published' || creative.status === 'paused') && creative.meta_ad_id
@@ -310,6 +317,7 @@ function AdLibraryCard({
   onDelete,
   onStatusChange,
   onOpen,
+  reusing = false,
   onOpenDetail,
   onActivate,
 }: {
@@ -319,6 +327,7 @@ function AdLibraryCard({
   onDelete: () => void
   onStatusChange: (next: AdCreativeStatus) => void
   onOpen?: () => void
+  reusing?: boolean
   onOpenDetail?: () => void
   onActivate?: () => void
 }) {
@@ -409,9 +418,13 @@ function AdLibraryCard({
               </Button>
             ) : null}
             {onOpen ? (
-              <Button size="sm" variant="outline" className="flex-1" onClick={onOpen} title="Duplicate into a new editable draft">
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
-                Reuse
+              <Button size="sm" variant="outline" className="flex-1" onClick={onOpen} disabled={reusing} title="Duplicate into a new editable draft">
+                {reusing ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {reusing ? 'Copying…' : 'Reuse'}
               </Button>
             ) : null}
           </div>
