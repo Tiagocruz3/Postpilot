@@ -112,7 +112,7 @@ export function LoginPage() {
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-primary via-blue-500 to-blue-700 px-6 py-12">
+      <div className="flex flex-1 flex-col items-center justify-center bg-gradient-to-br from-primary via-primary-600 to-primary-800 px-6 py-12">
         {/* Mobile logo */}
         <Link to="/" className="mb-8 flex items-center lg:hidden">
           <AppLogo variant="full" imgClassName="h-11 brightness-0 invert" />
