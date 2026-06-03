@@ -32,9 +32,12 @@
      rem-based sizing scales proportionally, so the layout is preserved. */
   html {
     font-size: 90%;
+    /* Prevent iOS overscroll bounce revealing background */
+    overscroll-behavior: none;
   }
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;

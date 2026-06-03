@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -9,6 +9,7 @@ import {
   Image as ImageIcon,
   LayoutDashboard,
   Megaphone,
+  Menu,
   Play,
   Rocket,
   ShieldCheck,
@@ -18,6 +19,7 @@ import {
   Vault,
   Video,
   Wand2,
+  X,
   Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,6 +41,7 @@ function scrollToHash(hash: string) {
 export function LandingPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navItems: NavItem[] = useMemo(
     () => [
@@ -103,8 +106,59 @@ export function LandingPage() {
               {primaryCtaLabel}
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
+            {/* Mobile hamburger */}
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:hidden"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="border-t bg-background/95 backdrop-blur-xl md:hidden">
+            <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
+              {navItems.map((item) =>
+                item.href.startsWith('/') ? (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setMobileMenuOpen(false)
+                      scrollToHash(item.href)
+                    }}
+                  >
+                    {item.label}
+                  </a>
+                )
+              )}
+              <div className="mt-2 border-t pt-2">
+                <button
+                  type="button"
+                  className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  onClick={() => { setMobileMenuOpen(false); navigate(profile ? '/app' : '/login') }}
+                >
+                  {profile ? 'Dashboard' : 'Log in'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <main>

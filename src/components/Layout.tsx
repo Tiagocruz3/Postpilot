@@ -16,6 +16,8 @@ import {
   PanelLeftOpen,
   Images,
   History,
+  Menu,
+  X,
 } from 'lucide-react'
 import { AccountMenu } from '@/components/account/AccountMenu'
 import { AppLogo } from '@/components/AppLogo'
@@ -42,6 +44,7 @@ export function Layout() {
   const { user, profile, loading: authLoading } = useAuth()
   const { workspaces, loading: workspacesLoading } = useWorkspaces(authLoading ? undefined : profile?.id)
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('sidebar_open') !== 'false')
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() =>
     localStorage.getItem('current_workspace_id')
   )
@@ -119,6 +122,11 @@ export function Layout() {
     localStorage.setItem('sidebar_open', String(sidebarOpen))
   }, [sidebarOpen])
 
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileDrawerOpen(false)
+  }, [location.pathname])
+
   const navItems = [
     { path: '/app', label: APP_PAGE.commandCenter, icon: LayoutDashboard, hint: 'Overview + quick actions' },
     { path: '/app/planner', label: APP_PAGE.contentCalendar, icon: CalendarDays, hint: 'Calendar + Google sync' },
@@ -186,192 +194,286 @@ export function Layout() {
     )
   }
 
-  return (
-    <div className="flex h-screen w-full bg-background">
-      <aside
+  // Shared sidebar content (rendered inside desktop sidebar and mobile drawer)
+  const SidebarContent = ({ compact }: { compact?: boolean }) => (
+    <>
+      {/* Logo + collapse toggle */}
+      <div
         className={cn(
-          'flex min-h-0 shrink-0 flex-col border-r bg-card',
+          'flex py-4',
           SIDEBAR_TRANSITION,
-          sidebarOpen ? 'w-64' : 'w-16'
+          compact ? 'flex-col items-center gap-3 px-2' : sidebarOpen ? 'items-center gap-2 px-4' : 'flex-col items-center gap-3 px-2'
         )}
       >
-        <div
-          className={cn(
-            'flex py-4',
-            SIDEBAR_TRANSITION,
-            sidebarOpen ? 'items-center gap-2 px-4' : 'flex-col items-center gap-3 px-2'
-          )}
-        >
-          {sidebarOpen ? (
-            <AppLogo variant="full" imgClassName="h-8" />
-          ) : (
-            <AppLogo variant="icon" className="h-9 w-9 rounded-xl bg-primary p-1.5 shadow-sm" />
-          )}
+        {compact || !sidebarOpen ? (
+          <AppLogo variant="icon" className="h-9 w-9 rounded-xl bg-primary p-1.5 shadow-sm" />
+        ) : (
+          <AppLogo variant="full" imgClassName="h-8" />
+        )}
+        {!compact && (
           <button
             type="button"
-            onClick={() => setSidebarOpen((current) => !current)}
+            onClick={() => setSidebarOpen((c) => !c)}
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
           </button>
-        </div>
+        )}
+      </div>
 
-        {currentWorkspace ? (
-          <div
-            className={cn(
-              'pb-2',
-              SIDEBAR_TRANSITION,
-              sidebarOpen ? 'px-3' : 'px-2'
-            )}
-          >
-            {sidebarOpen ? (
+      {/* Workspace selector */}
+      {currentWorkspace && (
+        <div className={cn('pb-2', SIDEBAR_TRANSITION, compact || !sidebarOpen ? 'px-2' : 'px-3')}>
+          {!compact && sidebarOpen ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Button variant="outline" className="h-10 w-full justify-between rounded-lg px-3">
+                  <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                    <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate text-sm font-medium">{currentWorkspace.name}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-full">
+                {workspaces.map((ws) => (
+                  <DropdownMenuItem
+                    key={ws.id}
+                    onClick={() => handleWorkspaceChange(ws.id)}
+                    className={cn(ws.id === currentWorkspace.id && 'bg-accent font-medium')}
+                  >
+                    {ws.name}{ws.id === currentWorkspace.id ? ' · active' : ''}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/workspace-setup')}>New workspace</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : compact ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <button
+                  type="button"
+                  className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  title={`${currentWorkspace.name} — tap to switch`}
+                >
+                  <Building2 className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {workspaces.map((ws) => (
+                  <DropdownMenuItem
+                    key={ws.id}
+                    onClick={() => handleWorkspaceChange(ws.id)}
+                    className={cn(ws.id === currentWorkspace.id && 'bg-accent font-medium')}
+                  >
+                    {ws.name}{ws.id === currentWorkspace.id ? ' · active' : ''}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/workspace-setup')}>New workspace</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title={`${currentWorkspace.name} - expand to switch`}
+            >
+              <Building2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Facebook page switcher */}
+      {currentPage && (
+        <div className={cn('pb-2', SIDEBAR_TRANSITION, compact || !sidebarOpen ? 'px-2' : 'px-3')}>
+          {!compact && sidebarOpen ? (
+            availablePages.length > 1 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full justify-between rounded-lg px-3"
-                  >
+                  <Button variant="ghost" className="h-9 w-full justify-between rounded-lg px-3 text-left hover:bg-[#1877F2]/8">
                     <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                      <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate text-sm font-medium">{currentWorkspace.name}</span>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#1877F2] text-[10px] font-bold text-white">f</span>
+                      <span className="truncate text-sm">{currentPage.name}</span>
                     </div>
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
-                  {workspaces.map((ws) => (
+                <DropdownMenuContent className="w-56">
+                  {availablePages.map((page) => (
                     <DropdownMenuItem
-                      key={ws.id}
-                      onClick={() => handleWorkspaceChange(ws.id)}
-                      className={cn(ws.id === currentWorkspace.id && 'bg-accent font-medium')}
+                      key={page.id}
+                      onClick={() => handlePageChange(page.id)}
+                      className={cn(page.id === currentPageId && 'bg-accent font-medium')}
                     >
-                      {ws.name}
-                      {ws.id === currentWorkspace.id ? ' · active' : ''}
+                      {page.name}{page.id === currentPageId ? ' · active' : ''}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/workspace-setup')}>New workspace</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border border-input bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title={`${currentWorkspace.name} - expand to switch`}
-                aria-label={`Current workspace: ${currentWorkspace.name}. Expand to switch.`}
-              >
-                <Building2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        ) : null}
-
-        {/* Page switcher - shows only when a FB integration has pages */}
-        {currentPage ? (
-          <div className={cn('pb-2', SIDEBAR_TRANSITION, sidebarOpen ? 'px-3' : 'px-2')}>
-            {sidebarOpen ? (
-              availablePages.length > 1 ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button variant="ghost" className="h-9 w-full justify-between rounded-lg px-3 text-left hover:bg-[#1877F2]/8">
-                      <div className="flex min-w-0 items-center gap-2 overflow-hidden">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#1877F2] text-[10px] font-bold text-white">f</span>
-                        <span className="truncate text-sm">{currentPage.name}</span>
-                      </div>
-                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56">
-                    {availablePages.map((page) => (
-                      <DropdownMenuItem
-                        key={page.id}
-                        onClick={() => handlePageChange(page.id)}
-                        className={cn(page.id === currentPageId && 'bg-accent font-medium')}
-                      >
-                        {page.name}
-                        {page.id === currentPageId ? ' · active' : ''}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <div className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#1877F2] text-[10px] font-bold text-white">f</span>
-                  <span className="truncate">{currentPage.name}</span>
-                </div>
-              )
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="mx-auto flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-[#1877F2]/10"
-                title={currentPage.name}
-                aria-label={`Active page: ${currentPage.name}. Expand to switch.`}
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-[#1877F2] text-[10px] font-bold text-white">f</span>
-              </button>
-            )}
-          </div>
-        ) : null}
-
-        <nav
-          className={cn(
-            'min-h-0 flex-1 space-y-0.5 overflow-y-auto py-2',
-            SIDEBAR_TRANSITION,
-            sidebarOpen ? 'px-3' : 'px-2'
+              <div className="flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#1877F2] text-[10px] font-bold text-white">f</span>
+                <span className="truncate">{currentPage.name}</span>
+              </div>
+            )
+          ) : (
+            <button
+              type="button"
+              onClick={() => !compact && setSidebarOpen(true)}
+              className="mx-auto flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-[#1877F2]/10"
+              title={currentPage.name}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-[#1877F2] text-[10px] font-bold text-white">f</span>
+            </button>
           )}
+        </div>
+      )}
+
+      {/* Nav items */}
+      <nav
+        className={cn(
+          'min-h-0 flex-1 space-y-0.5 overflow-y-auto py-2',
+          SIDEBAR_TRANSITION,
+          compact || !sidebarOpen ? 'px-2' : 'px-3'
+        )}
+      >
+        {navItems.map((item) => {
+          const active =
+            location.pathname === item.path ||
+            (item.path !== '/app' && location.pathname.startsWith(`${item.path}/`))
+          const Icon = item.icon
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={cn(
+                'group relative flex items-center rounded-lg text-sm font-medium transition-colors',
+                compact || !sidebarOpen ? 'mx-auto h-10 w-10 justify-center' : 'h-10 w-full gap-3 px-3',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-foreground/80 hover:bg-accent hover:text-foreground'
+              )}
+              title={compact || !sidebarOpen ? item.label : undefined}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!compact && sidebarOpen && <span className="flex-1 truncate text-left">{item.label}</span>}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Account menu */}
+      <div className={cn('border-t py-3', SIDEBAR_TRANSITION, compact || !sidebarOpen ? 'px-2' : 'px-3')}>
+        <AccountMenu
+          displayName={displayName}
+          email={user?.email}
+          avatarUrl={userPreferences.avatarUrl}
+          sidebarOpen={compact ? false : sidebarOpen}
+          onSignOut={() => void handleSignOut()}
+        />
+      </div>
+    </>
+  )
+
+  return (
+    <div className="flex h-screen w-full bg-background">
+
+      {/* ── Mobile drawer overlay ─────────────────────────────────────────── */}
+      {mobileDrawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r bg-card transition-transform duration-200 ease-out md:hidden',
+          mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+        aria-label="Navigation menu"
+      >
+        {/* Drawer close button */}
+        <button
+          type="button"
+          onClick={() => setMobileDrawerOpen(false)}
+          className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+          aria-label="Close menu"
         >
-          {navItems.map((item) => {
+          <X className="h-4 w-4" />
+        </button>
+        <SidebarContent />
+      </aside>
+
+      {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
+      <aside
+        className={cn(
+          'hidden md:flex min-h-0 shrink-0 flex-col border-r bg-card',
+          SIDEBAR_TRANSITION,
+          sidebarOpen ? 'w-64' : 'w-16'
+        )}
+        aria-label="Navigation"
+      >
+        <SidebarContent />
+      </aside>
+
+      {/* ── Main content ──────────────────────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* Mobile top bar */}
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card px-4 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileDrawerOpen(true)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <AppLogo variant="full" imgClassName="h-7" />
+        </header>
+
+        <main className="relative flex-1 overflow-auto pb-16 md:pb-0">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/5 to-transparent" />
+          <div key={`${currentWorkspace?.id ?? 'no-workspace'}:${currentPageId ?? 'no-page'}:${location.pathname}`} className="alive-enter">
+            <Outlet context={{ currentWorkspaceId: currentWorkspace?.id ?? null, currentWorkspace, currentPageId, currentPage }} />
+          </div>
+        </main>
+
+        {/* Mobile bottom navigation bar */}
+        <nav
+          className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t bg-card/95 backdrop-blur-sm md:hidden"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          aria-label="Bottom navigation"
+        >
+          {navItems.slice(0, 5).map((item) => {
             const active =
               location.pathname === item.path ||
-              (item.path === '/app' ? location.pathname === '/app' : location.pathname.startsWith(`${item.path}/`))
+              (item.path !== '/app' && location.pathname.startsWith(`${item.path}/`))
             const Icon = item.icon
             return (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={cn(
-                  'group relative flex items-center rounded-lg text-sm font-medium transition-colors',
-                  sidebarOpen ? 'h-10 w-full gap-3 px-3' : 'mx-auto h-10 w-10 justify-center',
-                  active
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-foreground/80 hover:bg-accent hover:text-foreground'
+                  'flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
+                  active ? 'text-primary' : 'text-muted-foreground'
                 )}
-                title={!sidebarOpen ? item.label : undefined}
+                aria-label={item.label}
+                aria-current={active ? 'page' : undefined}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                {sidebarOpen ? <span className="flex-1 truncate text-left">{item.label}</span> : null}
+                <Icon className={cn('h-5 w-5', active && 'stroke-[2.2]')} />
+                <span className="truncate">{item.label.split(' ').slice(-1)[0]}</span>
               </button>
             )
           })}
         </nav>
-
-        <div
-          className={cn(
-            'border-t py-3',
-            SIDEBAR_TRANSITION,
-            sidebarOpen ? 'px-3' : 'px-2'
-          )}
-        >
-          <AccountMenu
-            displayName={displayName}
-            email={user?.email}
-            avatarUrl={userPreferences.avatarUrl}
-            sidebarOpen={sidebarOpen}
-            onSignOut={() => void handleSignOut()}
-          />
-        </div>
-      </aside>
-
-      <main className="relative flex-1 overflow-auto">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div key={`${currentWorkspace?.id ?? 'no-workspace'}:${currentPageId ?? 'no-page'}:${location.pathname}`} className="alive-enter">
-          <Outlet context={{ currentWorkspaceId: currentWorkspace?.id ?? null, currentWorkspace, currentPageId, currentPage }} />
-        </div>
-      </main>
+      </div>
     </div>
   )
 }
