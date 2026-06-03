@@ -75,7 +75,7 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-sm">
         <Link to="/" className="mb-8 flex items-center justify-center">
-          <AppLogo variant="full" imgClassName="h-9" />
+          <AppLogo variant="full" imgClassName="h-11" />
         </Link>
 
         {done ? (

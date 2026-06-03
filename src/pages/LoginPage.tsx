@@ -73,7 +73,7 @@ export function LoginPage() {
         <div className="relative flex h-full flex-col p-10">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5">
-            <AppLogo variant="full" imgClassName="h-9 brightness-0 invert" />
+            <AppLogo variant="full" imgClassName="h-11 brightness-0 invert" />
           </Link>
 
           {/* Main copy */}
@@ -115,7 +115,7 @@ export function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         {/* Mobile logo */}
         <Link to="/" className="mb-8 flex items-center lg:hidden">
-          <AppLogo variant="full" imgClassName="h-9" />
+          <AppLogo variant="full" imgClassName="h-11" />
         </Link>
 
         <div className="w-full max-w-sm">

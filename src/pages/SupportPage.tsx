@@ -72,7 +72,7 @@ export function SupportPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center">
-            <AppLogo variant="full" imgClassName="h-8" />
+            <AppLogo variant="full" imgClassName="h-10" />
           </Link>
           <Link
             to="/"

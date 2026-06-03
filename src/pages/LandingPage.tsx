@@ -62,7 +62,7 @@ export function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center">
-            <AppLogo variant="full" imgClassName="h-9" />
+            <AppLogo variant="full" imgClassName="h-11" />
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
@@ -1061,7 +1061,7 @@ export function LandingPage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="flex flex-col gap-2">
-              <AppLogo variant="full" imgClassName="h-9 self-start" />
+              <AppLogo variant="full" imgClassName="h-11 self-start" />
               <p className="text-xs text-muted-foreground">Your AI-powered social media command center.</p>
             </div>
             <p className="mt-4 max-w-xl text-sm text-muted-foreground">

@@ -59,7 +59,7 @@ export function SignupPage() {
 
         <div className="relative flex h-full flex-col p-10">
           <Link to="/" className="flex items-center gap-2.5">
-            <AppLogo variant="full" imgClassName="h-9 brightness-0 invert" />
+            <AppLogo variant="full" imgClassName="h-11 brightness-0 invert" />
           </Link>
 
           <div className="mt-auto pb-4">

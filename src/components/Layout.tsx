@@ -206,9 +206,9 @@ export function Layout() {
         )}
       >
         {compact || !sidebarOpen ? (
-          <AppLogo variant="icon" className="h-9 w-9 rounded-xl bg-primary p-1.5 shadow-sm" />
+          <AppLogo variant="icon" className="h-11 w-11 rounded-xl bg-primary p-2 shadow-sm" />
         ) : (
-          <AppLogo variant="full" imgClassName="h-8" />
+          <AppLogo variant="full" imgClassName="h-10" />
         )}
         {!compact && (
           <button
@@ -435,7 +435,7 @@ export function Layout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <AppLogo variant="full" imgClassName="h-7" />
+          <AppLogo variant="full" imgClassName="h-9" />
         </header>
 
         <main className="relative flex-1 overflow-auto pb-16 md:pb-0">
