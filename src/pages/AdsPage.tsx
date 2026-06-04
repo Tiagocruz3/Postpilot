@@ -22,6 +22,8 @@ import {
 } from '@/lib/ads-studio-profile'
 import { syncMetaConnectionFromIntegrations } from '@/lib/meta-connection-sync'
 import {
+  DEMO_META_AD_ACCOUNTS,
+  DEMO_META_PAGES,
   findFacebookIntegration,
   findMetaAdsIntegration,
   parseFacebookPages,
@@ -381,6 +383,17 @@ export function AdsPage() {
       active = false
     }
   }, [currentWorkspaceId, user?.id])
+
+  const facebookIntegrationMemo = useMemo(() => findFacebookIntegration(integrations), [integrations])
+  const metaIntegrationMemo = useMemo(() => findMetaAdsIntegration(integrations), [integrations])
+  const liveAdAccounts = useMemo(
+    () => (isDemoMode ? DEMO_META_AD_ACCOUNTS : parseMetaAdAccounts(metaIntegrationMemo, facebookIntegrationMemo)),
+    [facebookIntegrationMemo, metaIntegrationMemo, isDemoMode],
+  )
+  const liveAdPages = useMemo(
+    () => (isDemoMode ? DEMO_META_PAGES : parseFacebookPages(facebookIntegrationMemo)),
+    [facebookIntegrationMemo, isDemoMode],
+  )
 
   const completion = useMemo(() => {
     const hasBusiness = Boolean(profile.businessProfile.businessName && profile.businessProfile.industry && profile.businessProfile.websiteUrl)
@@ -2325,9 +2338,62 @@ export function AdsPage() {
         </TabsContent>
 
         <TabsContent value="live" activeValue={activeTab}>
+          {/* Account + Page selector bar */}
+          {(liveAdAccounts.length > 0 || liveAdPages.length > 0) && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/30 px-4 py-3">
+              {liveAdAccounts.length > 0 && (
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">Ad account</span>
+                  <Select
+                    id="live-ad-account"
+                    value={profile.metaConnection.adAccountId || liveAdAccounts[0]?.id || ''}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      setProfile((prev) => ({
+                        ...prev,
+                        metaConnection: { ...prev.metaConnection, adAccountId: id },
+                      }))
+                      void saveProfile({ metaConnection: { ...profile.metaConnection, adAccountId: id } })
+                    }}
+                    className="h-8 min-w-[180px] flex-1 text-xs"
+                  >
+                    {liveAdAccounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>{acc.name} ({acc.id})</option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+              {liveAdPages.length > 0 && (
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">Facebook Page</span>
+                  <Select
+                    id="live-fb-page"
+                    value={profile.metaConnection.facebookPageId || liveAdPages[0]?.id || ''}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      setProfile((prev) => ({
+                        ...prev,
+                        metaConnection: { ...prev.metaConnection, facebookPageId: id },
+                      }))
+                      void saveProfile({ metaConnection: { ...profile.metaConnection, facebookPageId: id } })
+                    }}
+                    className="h-8 min-w-[160px] flex-1 text-xs"
+                  >
+                    {liveAdPages.map((page) => (
+                      <option key={page.id} value={page.id}>{page.name}</option>
+                    ))}
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
           <LiveAdsPanel
             workspaceId={currentWorkspaceId}
-            metaAccountId={profile.metaConnection.adAccountId ? `act_${profile.metaConnection.adAccountId.replace(/^act_/, '')}` : null}
+            metaAccountId={
+              (profile.metaConnection.adAccountId || liveAdAccounts[0]?.id)
+                ? `act_${(profile.metaConnection.adAccountId || liveAdAccounts[0]?.id).replace(/^act_/, '')}`
+                : null
+            }
           />
         </TabsContent>
 
