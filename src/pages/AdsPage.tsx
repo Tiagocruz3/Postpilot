@@ -1644,48 +1644,77 @@ export function AdsPage() {
         </>
       ) : null}
 
-      {onboardingDone && facebookPagesForToggle.length > 0 ? (
+      {onboardingDone && (facebookPagesForToggle.length > 0 || liveAdAccounts.length > 0) ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border bg-muted/20 px-4 py-3">
           <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Posting from
             </p>
             <p className="text-sm">
-              Ads published from this studio will appear on the Facebook Page you choose here.
+              Choose which ad account and Facebook Page this studio posts from.
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Label htmlFor="ads-posting-page" className="text-xs text-muted-foreground">
-              Facebook Page
-            </Label>
-            <Select
-              id="ads-posting-page"
-              value={profile.metaConnection.facebookPageId || ''}
-              onChange={(event) => void changeFacebookPostingPage(event.target.value)}
-              disabled={updatingPostingTarget || facebookPagesForToggle.length <= 1}
-              className="min-w-[12rem]"
-            >
-              {profile.metaConnection.facebookPageId ? null : (
-                <option value="">Select a Page</option>
-              )}
-              {facebookPagesForToggle.map((page) => (
-                <option key={page.id} value={page.id}>
-                  {page.name}
-                </option>
-              ))}
-            </Select>
-            {facebookPagesForToggle.length <= 1 ? (
-              <p className="text-[11px] text-muted-foreground">
-                Only one Page connected.{' '}
-                <button
-                  type="button"
-                  onClick={refreshMetaConnections}
-                  className="font-medium text-primary underline-offset-2 hover:underline"
+          <div className="ml-auto flex flex-wrap items-center gap-3">
+            {liveAdAccounts.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="ads-posting-account" className="shrink-0 text-xs text-muted-foreground">
+                  Ad account
+                </Label>
+                <Select
+                  id="ads-posting-account"
+                  value={profile.metaConnection.adAccountId || liveAdAccounts[0]?.id || ''}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setProfile((prev) => ({
+                      ...prev,
+                      metaConnection: { ...prev.metaConnection, adAccountId: id },
+                    }))
+                    void saveProfile({ metaConnection: { ...profile.metaConnection, adAccountId: id } })
+                  }}
+                  className="min-w-[14rem]"
                 >
-                  Refresh
-                </button>
-              </p>
-            ) : null}
+                  {!profile.metaConnection.adAccountId && <option value="">Select an account</option>}
+                  {liveAdAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.id})</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {facebookPagesForToggle.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Label htmlFor="ads-posting-page" className="shrink-0 text-xs text-muted-foreground">
+                  Facebook Page
+                </Label>
+                <Select
+                  id="ads-posting-page"
+                  value={profile.metaConnection.facebookPageId || ''}
+                  onChange={(event) => void changeFacebookPostingPage(event.target.value)}
+                  disabled={updatingPostingTarget || facebookPagesForToggle.length <= 1}
+                  className="min-w-[12rem]"
+                >
+                  {profile.metaConnection.facebookPageId ? null : (
+                    <option value="">Select a Page</option>
+                  )}
+                  {facebookPagesForToggle.map((page) => (
+                    <option key={page.id} value={page.id}>
+                      {page.name}
+                    </option>
+                  ))}
+                </Select>
+                {facebookPagesForToggle.length <= 1 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    Only one Page.{' '}
+                    <button
+                      type="button"
+                      onClick={refreshMetaConnections}
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      Refresh
+                    </button>
+                  </p>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
       ) : null}
