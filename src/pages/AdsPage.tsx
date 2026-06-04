@@ -699,6 +699,7 @@ export function AdsPage() {
       setProfile((prev) => ({ ...prev, ...patch }))
       setOnboardingDone(onboardingCompleted)
       setOnboardingStep(onboardingStep)
+      resetCampaignDraft()
       setMessage(
         restartOnboarding
           ? `Switched to ${pageName} (demo). Complete onboarding to start posting ads.`
@@ -730,6 +731,7 @@ export function AdsPage() {
       await saveProfile(patch)
       setOnboardingDone(onboardingCompleted)
       setOnboardingStep(onboardingStep)
+      resetCampaignDraft()
       setMessage(
         restartOnboarding
           ? `Switched to ${pageName}. Complete onboarding to start posting ads from this Page.`
