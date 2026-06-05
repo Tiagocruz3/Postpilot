@@ -10,9 +10,10 @@ type PublishProgressModalProps = {
   open: boolean
   phase: PublishPhase
   adId?: string | null
+  campaignId?: string | null
   warnings?: string[]
   error?: string | null
-  /** Deep link to Meta Ads Manager for the ad account, if known. */
+  /** Deep link to Meta Ads Manager — ideally points directly to the campaign. */
   adsManagerUrl?: string | null
   onClose: () => void
   onViewLibrary?: () => void
@@ -32,6 +33,7 @@ export function PublishProgressModal({
   open,
   phase,
   adId,
+  campaignId,
   warnings,
   error,
   adsManagerUrl,
@@ -141,13 +143,23 @@ export function PublishProgressModal({
           </div>
 
           <div className="w-full rounded-xl border bg-muted/30 p-3 text-left text-sm">
-            <p className="font-medium">What's next</p>
-            <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-muted-foreground">
-              <li>Open Meta Ads Manager and switch the ad to <span className="font-medium text-foreground">Active</span>.</li>
-              <li>Make sure your ad account has a payment method.</li>
-              <li>Track performance back here in Analytics.</li>
+            <p className="font-medium">How to find and activate your ad</p>
+            <ol className="mt-1 list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>Click <span className="font-medium text-foreground">Open in Meta Ads Manager</span> below.</li>
+              <li>
+                Set the status filter to{' '}
+                <span className="font-medium text-foreground">All</span>{' '}
+                — your campaign is <span className="font-medium text-foreground">paused</span> and won't appear under "Active".
+              </li>
+              <li>Toggle the campaign to <span className="font-medium text-foreground">Active</span> to start spending.</li>
+              <li>Ensure your ad account has a payment method set up.</li>
             </ol>
-            {adId ? <p className="mt-2 text-xs text-muted-foreground">Ad ID: <span className="font-mono">{adId}</span></p> : null}
+            {(campaignId || adId) ? (
+              <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                {campaignId ? <p>Campaign ID: <span className="font-mono select-all">{campaignId}</span></p> : null}
+                {adId ? <p>Ad ID: <span className="font-mono select-all">{adId}</span></p> : null}
+              </div>
+            ) : null}
             {warnings && warnings.length > 0 ? (
               <p className="mt-2 text-xs text-amber-600">{warnings.join(' ')}</p>
             ) : null}
@@ -158,7 +170,7 @@ export function PublishProgressModal({
               <a href={adsManagerUrl} target="_blank" rel="noopener noreferrer" className="w-full">
                 <Button className="w-full">
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  Activate in Meta Ads Manager
+                  Open in Meta Ads Manager
                 </Button>
               </a>
             ) : null}

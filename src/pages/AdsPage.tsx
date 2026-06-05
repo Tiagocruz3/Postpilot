@@ -268,6 +268,7 @@ export function AdsPage() {
     open: boolean
     phase: PublishPhase
     adId?: string | null
+    campaignId?: string | null
     warnings?: string[]
     error?: string | null
   }>({ open: false, phase: 'publishing' })
@@ -2266,7 +2267,7 @@ export function AdsPage() {
                 setPublishState({ open: true, phase: 'error', error: result.error ?? 'Unknown error' })
                 return
               }
-              setPublishState({ open: true, phase: 'success', adId: result.ad_id, warnings: result.warnings })
+              setPublishState({ open: true, phase: 'success', adId: result.ad_id, campaignId: result.campaign_id, warnings: result.warnings })
             }}
             step={studioStep}
             onStepChange={setStudioStep}
@@ -2286,13 +2287,17 @@ export function AdsPage() {
             open={publishState.open}
             phase={publishState.phase}
             adId={publishState.adId}
+            campaignId={publishState.campaignId}
             warnings={publishState.warnings}
             error={publishState.error}
-            adsManagerUrl={
-              profile.metaConnection.adAccountId
-                ? `https://www.facebook.com/adsmanager/manage/ads?act=${profile.metaConnection.adAccountId.replace(/^act_/, '')}`
-                : null
-            }
+            adsManagerUrl={(() => {
+              const act = profile.metaConnection.adAccountId?.replace(/^act_/, '')
+              if (!act) return null
+              const base = 'https://adsmanager.facebook.com/adsmanager/manage/campaigns'
+              const params = new URLSearchParams({ act })
+              if (publishState.campaignId) params.set('selected_campaign_ids', publishState.campaignId)
+              return `${base}?${params.toString()}`
+            })()}
             onClose={() => setPublishState((s) => ({ ...s, open: false }))}
             onViewLibrary={() => {
               setPublishState((s) => ({ ...s, open: false }))
