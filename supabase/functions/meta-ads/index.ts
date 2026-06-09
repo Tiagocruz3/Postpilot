@@ -499,6 +499,11 @@ function buildTargeting(audience: Record<string, unknown> | null | undefined, pl
     if (ps.some((p) => p.includes('facebook'))) platforms.push('facebook')
     if (ps.some((p) => p.includes('instagram') || p.includes('reel') || p.includes('story'))) platforms.push('instagram')
     if (platforms.length > 0) targeting.publisher_platforms = Array.from(new Set(platforms))
+  } else {
+    // Default to Facebook + Instagram only. Without this Meta uses Advantage+
+    // placements which includes WhatsApp/Messenger — those require a linked
+    // WhatsApp number and cause error #2446880 at review time.
+    targeting.publisher_platforms = ['facebook', 'instagram']
   }
   // Meta now requires an explicit opt in/out of Advantage+ audience expansion.
   // 0 = use the targeting the user defined as-is (don't let Meta expand past it).
@@ -565,6 +570,18 @@ async function publishAdFromCreative({ supabase, apiBase, token, pageToken, page
   let imageHash: string | null = null
   if (c.media_url && c.media_type === 'image') {
     imageHash = await uploadAdImage(apiBase, accountId, creativeToken, String(c.media_url))
+    if (!imageHash) {
+      warnings.push(
+        'Your image could not be uploaded to Meta — the ad was created without media. ' +
+        'This usually means the image URL is private or has expired. ' +
+        'Open the ad in Meta Ads Manager and add your image manually before activating.',
+      )
+    }
+  } else if (!c.media_url) {
+    warnings.push(
+      'No image was attached to this ad creative. ' +
+      'Open the ad in Meta Ads Manager and add an image or video before activating.',
+    )
   }
 
   // 2. Campaign
