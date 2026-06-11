@@ -512,6 +512,41 @@ function buildTargeting(audience: Record<string, unknown> | null | undefined, pl
 }
 
 async function uploadAdImage(apiBase: string, accountId: string, token: string, url: string): Promise<string | null> {
+  // Download the image ourselves and send Meta the raw bytes. Relying on Meta
+  // to fetch the URL breaks when the image lives on an expiring CDN link
+  // (AI-generated media) or a host Meta's crawler can't reach — that's how ads
+  // ended up on Meta with no photo attached.
+  try {
+    const imgRes = await fetch(url)
+    if (imgRes.ok) {
+      const buf = new Uint8Array(await imgRes.arrayBuffer())
+      // Base64-encode in chunks — String.fromCharCode(...buf) overflows the
+      // call stack on multi-megabyte images.
+      let binary = ''
+      const chunk = 0x8000
+      for (let i = 0; i < buf.length; i += chunk) {
+        binary += String.fromCharCode(...buf.subarray(i, i + chunk))
+      }
+      const res = await fetch(`${apiBase}/act_${accountId}/adimages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ bytes: btoa(binary), access_token: token }),
+      })
+      const json = (await res.json().catch(() => ({}))) as { images?: Record<string, { hash?: string }> }
+      if (res.ok) {
+        const first = Object.keys(json.images ?? {})[0]
+        const hash = (first && json.images?.[first]?.hash) || null
+        if (hash) return hash
+      }
+      console.warn('[meta-ads] adimages bytes upload failed', json)
+    } else {
+      console.warn('[meta-ads] could not download image for upload', imgRes.status, url)
+    }
+  } catch (err) {
+    console.warn('[meta-ads] uploadAdImage bytes path error', err)
+  }
+
+  // Fallback: let Meta fetch the URL directly.
   try {
     const res = await fetch(`${apiBase}/act_${accountId}/adimages`, {
       method: 'POST',
